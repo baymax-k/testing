@@ -126,89 +126,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/auth/sign-up/email": {
-        post: {
-          summary: "Register a new student (original endpoint)",
-          description: "Original Better Auth endpoint. Identical to /auth/sign-up.",
-          tags: ["Authentication"],
-          security: [],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    email: { type: "string", format: "email" },
-                    password: { type: "string", minLength: 8 },
-                    name: { type: "string" },
-                  },
-                  required: ["email", "password", "name"],
-                },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "User registered & verification email sent",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Session" } } },
-            },
-            "422": {
-              description: "Validation error / user already exists",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-          },
-        },
-      },
-
       "/auth/sign-in": {
         post: {
           summary: "Login with email & password (alias)",
           description:
             "Alias for /auth/sign-in/email. Rate-limited to 8 req/min per IP. " +
             "Returns 403 if email is not verified.",
-          tags: ["Authentication"],
-          security: [],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    email: { type: "string", format: "email" },
-                    password: { type: "string" },
-                  },
-                  required: ["email", "password"],
-                },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Logged in – session cookie set",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Session" } } },
-            },
-            "401": {
-              description: "Invalid credentials",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-            "403": {
-              description: "Email not verified",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-            "429": {
-              description: "Rate-limited (8 req/min)",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-          },
-        },
-      },
-
-      "/auth/sign-in/email": {
-        post: {
-          summary: "Login with email & password (original)",
-          description: "Original Better Auth endpoint. Identical to /auth/sign-in.",
           tags: ["Authentication"],
           security: [],
           requestBody: {
