@@ -32,7 +32,6 @@
       line-height: 1.6;
     }
 
-    /* ── Header ── */
     header {
       background: linear-gradient(135deg, var(--surface) 0%, #1e1b2e 100%);
       border-bottom: 1px solid var(--border);
@@ -71,24 +70,13 @@
     }
 
     .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--success);
-      animation: pulse 2s infinite;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--success); animation: pulse 2s infinite;
     }
+    .logged-out .dot { background: var(--text-muted); animation: none; }
 
-    .logged-out .dot {
-      background: var(--text-muted);
-      animation: none;
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    /* ── Layout ── */
     .container {
       max-width: 1200px;
       margin: 0 auto;
@@ -97,313 +85,144 @@
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
     }
+    @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
 
-    @media (max-width: 768px) {
-      .container { grid-template-columns: 1fr; }
-    }
-
-    /* ── Cards ── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden;
     }
-
     .card-header {
       padding: 1rem 1.25rem;
       border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      display: flex; align-items: center; gap: 0.5rem;
     }
-
-    .card-header h2 {
-      font-size: 0.95rem;
-      font-weight: 600;
-    }
-
+    .card-header h2 { font-size: 0.95rem; font-weight: 600; }
     .card-header .badge {
-      font-size: 0.65rem;
-      padding: 0.15rem 0.5rem;
-      border-radius: 6px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 6px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
     }
-
     .badge-post { background: rgba(0, 184, 148, 0.15); color: var(--success); }
-    .badge-get { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
-
+    .badge-get  { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
     .card-body { padding: 1.25rem; }
 
-    /* ── Forms ── */
-    .form-group {
-      margin-bottom: 1rem;
-    }
-
+    .form-group { margin-bottom: 1rem; }
     label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 0.35rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      display: block; font-size: 0.8rem; font-weight: 600;
+      color: var(--text-muted); margin-bottom: 0.35rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
     }
-
     input, select {
-      width: 100%;
-      padding: 0.65rem 0.85rem;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 0.9rem;
-      font-family: var(--font);
-      transition: border-color 0.2s;
+      width: 100%; padding: 0.65rem 0.85rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-size: 0.9rem; font-family: var(--font); transition: border-color 0.2s;
     }
-
     input:focus, select:focus {
-      outline: none;
-      border-color: var(--primary);
+      outline: none; border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
     }
-
     input::placeholder { color: var(--text-muted); opacity: 0.5; }
 
-    /* ── Buttons ── */
     .btn {
-      width: 100%;
-      padding: 0.7rem;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      font-family: var(--font);
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-top: 0.5rem;
+      width: 100%; padding: 0.7rem; border: none; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 600; font-family: var(--font);
+      cursor: pointer; transition: all 0.2s; margin-top: 0.5rem;
     }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-    }
-
+    .btn-primary { background: var(--primary); color: white; }
     .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
     .btn-primary:active { transform: translateY(0); }
-
     .btn-danger {
-      background: rgba(255, 71, 87, 0.15);
-      color: var(--error);
+      background: rgba(255, 71, 87, 0.15); color: var(--error);
       border: 1px solid rgba(255, 71, 87, 0.2);
     }
-
     .btn-danger:hover { background: rgba(255, 71, 87, 0.25); }
-
     .btn-secondary {
-      background: rgba(108, 92, 231, 0.1);
-      color: var(--primary);
+      background: rgba(108, 92, 231, 0.1); color: var(--primary);
       border: 1px solid rgba(108, 92, 231, 0.2);
     }
-
     .btn-secondary:hover { background: rgba(108, 92, 231, 0.2); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-
-    /* ── Response panel ── */
-    .response-panel {
-      grid-column: 1 / -1;
-    }
-
-    .response-panel .card-body {
-      padding: 0;
-    }
-
-    .response-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .response-tab {
-      padding: 0.6rem 1.25rem;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      font-family: var(--font);
-    }
-
-    .response-tab.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
-    }
-
+    .response-panel { grid-column: 1 / -1; }
+    .response-panel .card-body { padding: 0; }
     .response-content {
-      padding: 1rem 1.25rem;
-      max-height: 400px;
-      overflow-y: auto;
+      padding: 1rem 1.25rem; max-height: 400px; overflow-y: auto;
     }
-
     pre {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem;
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      line-height: 1.7;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 1rem;
+      font-family: var(--mono); font-size: 0.8rem;
+      line-height: 1.7; overflow-x: auto;
+      white-space: pre-wrap; word-break: break-word;
     }
-
     .status-line {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-      font-size: 0.85rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 0.75rem; font-size: 0.85rem;
     }
-
     .status-code {
-      padding: 0.2rem 0.6rem;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 0.8rem;
+      padding: 0.2rem 0.6rem; border-radius: 6px;
+      font-weight: 700; font-size: 0.8rem;
     }
-
-    .status-2xx { background: rgba(0, 184, 148, 0.15); color: var(--success); }
+    .status-2xx { background: rgba(0, 184, 148, 0.15); color: var (--success); }
     .status-4xx { background: rgba(255, 71, 87, 0.15); color: var(--error); }
     .status-429 { background: rgba(255, 165, 2, 0.15); color: var(--warn); }
-
     .method-badge {
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-      font-family: var(--mono);
+      font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.45rem;
+      border-radius: 4px; font-family: var(--mono);
     }
-
     .method-post { background: rgba(0, 184, 148, 0.15); color: var(--success); }
-    .method-get { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
+    .method-get  { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
+    .time-badge  { color: var(--text-muted); font-size: 0.75rem; }
 
-    .time-badge {
-      color: var(--text-muted);
-      font-size: 0.75rem;
-    }
-
-    /* ── Session Info Card ── */
-    .session-info {
-      grid-column: 1 / -1;
-    }
-
+    .session-info { grid-column: 1 / -1; }
     .user-details {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;
     }
-
     .detail-item {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.75rem 1rem;
     }
-
     .detail-item .label {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.2rem;
-      font-weight: 600;
+      font-size: 0.7rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 0.2rem; font-weight: 600;
     }
-
-    .detail-item .value {
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
+    .detail-item .value { font-size: 0.9rem; font-weight: 600; }
     .role-tag {
-      display: inline-block;
-      padding: 0.1rem 0.5rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 700;
+      display: inline-block; padding: 0.1rem 0.5rem;
+      border-radius: 6px; font-size: 0.8rem; font-weight: 700;
     }
+    .role-student          { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
+    .role-college_admin    { background: rgba(255, 165, 2, 0.15);  color: var(--warn);    }
+    .role-product_admin    { background: rgba(255, 71, 87, 0.15);  color: var(--error);   }
+    .role-instructor_staff { background: rgba(0, 184, 148, 0.15);  color: var(--success); }
 
-    .role-student { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
-    .role-college_admin { background: rgba(255, 165, 2, 0.15); color: var(--warn); }
-    .role-product_admin { background: rgba(255, 71, 87, 0.15); color: var(--error); }
-    .role-instructor_staff { background: rgba(0, 184, 148, 0.15); color: var(--success); }
-
-    .empty-state {
-      text-align: center;
-      padding: 2rem;
-      color: var(--text-muted);
-    }
-
+    .empty-state { text-align: center; padding: 2rem; color: var(--text-muted); }
     .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
 
-    /* ── Quick Actions ── */
-    .quick-actions {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-
+    .quick-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
     .quick-actions .btn {
-      width: auto;
-      flex: 1;
-      min-width: 140px;
-      margin-top: 0;
-      font-size: 0.8rem;
-      padding: 0.6rem 1rem;
+      width: auto; flex: 1; min-width: 140px;
+      margin-top: 0; font-size: 0.8rem; padding: 0.6rem 1rem;
     }
 
-    /* ── Log ── */
-    .log-entry {
-      padding: 0.6rem 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.8rem;
-    }
-
+    .log-entry { padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
     .log-entry:last-child { border-bottom: none; }
+    .log-entry .timestamp { color: var(--text-muted); font-family: var(--mono); font-size: 0.7rem; }
 
-    .log-entry .timestamp {
-      color: var(--text-muted);
-      font-family: var(--mono);
-      font-size: 0.7rem;
-    }
-
-    /* ── Scrollbar ── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-    /* ── Loading spinner ── */
     .spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255,255,255,0.2);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      margin-right: 0.4rem;
-      vertical-align: middle;
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.2); border-top-color: white;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+      margin-right: 0.4rem; vertical-align: middle;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .hidden { display: none !important; }
@@ -422,7 +241,9 @@
 
   <div class="container">
 
-    <!-- ── Sign Up ── -->
+    <!-- ══════════════════════ ROW 1: Sign Up + Sign In ══════════════════════ -->
+
+    <!-- ── Sign Up (no role field — auto-set to student) ── -->
     <div class="card">
       <div class="card-header">
         <span class="badge badge-post">POST</span>
@@ -441,15 +262,9 @@
           <label>Password</label>
           <input type="password" id="signupPassword" placeholder="Min 8 characters" />
         </div>
-        <div class="form-group">
-          <label>Role</label>
-          <select id="signupRole">
-            <option value="student">student</option>
-            <option value="college_admin">college_admin</option>
-            <option value="product_admin">product_admin</option>
-            <option value="instructor_staff">instructor_staff</option>
-          </select>
-        </div>
+        <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem">
+          Role is auto-set to <strong>student</strong>. Staff accounts are created by product_admin via <code>/admin/create-user</code>.
+        </p>
         <button class="btn btn-primary" onclick="doSignUp()">Create Account</button>
       </div>
     </div>
@@ -474,7 +289,92 @@
       </div>
     </div>
 
-    <!-- ── Current Session ── -->
+    <!-- ══════════════════════ ROW 2: OTP Sections ══════════════════════════ -->
+
+    <!-- ── Send Verification OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/send-verification-otp</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="otpSendEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="otpSendType">
+            <option value="email-verification">email-verification</option>
+            <option value="forget-password">forget-password</option>
+            <option value="sign-in">sign-in</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="doSendOTP()">Send OTP</button>
+      </div>
+    </div>
+
+    <!-- ── Verify Email with OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/verify-email</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="otpVerifyEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>OTP (6 digits)</label>
+          <input type="text" id="otpVerifyCode" placeholder="123456" maxlength="6" />
+        </div>
+        <button class="btn btn-primary" onclick="doVerifyOTP()">Verify Email</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ ROW 3: Password Reset ═══════════════════════ -->
+
+    <!-- ── Request Password Reset OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/request-password-reset</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="resetReqEmail" placeholder="jane@example.com" />
+        </div>
+        <button class="btn btn-primary" onclick="doRequestReset()">Request Reset OTP</button>
+      </div>
+    </div>
+
+    <!-- ── Reset Password with OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/reset-password</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="resetEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>OTP (6 digits)</label>
+          <input type="text" id="resetOTP" placeholder="123456" maxlength="6" />
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="resetPassword" placeholder="Min 8 characters" />
+        </div>
+        <button class="btn btn-primary" onclick="doResetPassword()">Reset Password</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ Session & Quick Actions ══════════════════════ -->
+
     <div class="card session-info">
       <div class="card-header">
         <span class="badge badge-get">GET</span>
@@ -490,14 +390,17 @@
         </div>
         <div class="quick-actions" style="margin-top:1rem">
           <button class="btn btn-secondary" onclick="doGetSession()">🔄 Refresh Session</button>
-          <button class="btn btn-secondary" onclick="doProtected()">🛡️ /protected</button>
-          <button class="btn btn-secondary" onclick="doAdmin()">👑 /admin</button>
+          <button class="btn btn-secondary" onclick="doStudentDashboard()">🎓 Student Dashboard</button>
+          <button class="btn btn-secondary" onclick="doStudentProfile()">👤 Student Profile</button>
+          <button class="btn btn-secondary" onclick="doAdminDashboard()">👑 Admin Dashboard</button>
+          <button class="btn btn-secondary" onclick="doAdminUsers()">📋 Admin Users</button>
           <button class="btn btn-secondary" onclick="doRateTest()">⚡ Rate Limit Test</button>
         </div>
       </div>
     </div>
 
-    <!-- ── Response Panel ── -->
+    <!-- ══════════════════════ Response Log ═════════════════════════════════ -->
+
     <div class="card response-panel">
       <div class="card-header">
         <h2>Response Log</h2>
@@ -528,8 +431,7 @@
 
     function addLog(method, path, status, body, duration) {
       const time = new Date().toLocaleTimeString();
-      const entry = { method, path, status, body, duration, time };
-      logEntries.unshift(entry);
+      logEntries.unshift({ method, path, status, body, duration, time });
       if (logEntries.length > 50) logEntries.pop();
       renderLog();
     }
@@ -537,7 +439,6 @@
     function renderLog() {
       const el = document.getElementById('responseLog');
       if (logEntries.length === 0) return;
-
       el.innerHTML = logEntries.map((e, i) => `
         <div class="log-entry" ${i === 0 ? 'style="background:rgba(108,92,231,0.04);padding:0.8rem;border-radius:8px;margin-bottom:0.5rem"' : ''}>
           <div class="status-line">
@@ -554,9 +455,7 @@
 
     function syntaxHighlight(json) {
       if (typeof json !== 'string') json = JSON.stringify(json, null, 2);
-      try {
-        json = JSON.stringify(JSON.parse(json), null, 2);
-      } catch { /* keep as-is */ }
+      try { json = JSON.stringify(JSON.parse(json), null, 2); } catch {}
       return json
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"([^"]+)":/g, '<span style="color:#a29bfe">"$1"</span>:')
@@ -575,13 +474,11 @@
           credentials: 'include',
         };
         if (body) opts.body = JSON.stringify(body);
-
         const res = await fetch(`${API}${path}`, opts);
         const duration = Math.round(performance.now() - start);
         let data;
         const text = await res.text();
         try { data = JSON.parse(text); } catch { data = text; }
-
         addLog(method, path, res.status, data, duration);
         return { status: res.status, data };
       } catch (err) {
@@ -607,31 +504,12 @@
         const u = session.user;
         const s = session.session;
         userDetails.innerHTML = `
-          <div class="detail-item">
-            <div class="label">Name</div>
-            <div class="value">${u.name}</div>
-          </div>
-          <div class="detail-item">
-            <div class="label">Email</div>
-            <div class="value">${u.email}</div>
-          </div>
-          <div class="detail-item">
-            <div class="label">Role</div>
-            <div class="value"><span class="role-tag role-${u.role}">${u.role}</span></div>
-          </div>
-          <div class="detail-item">
-            <div class="label">User ID</div>
-            <div class="value" style="font-family:var(--mono);font-size:0.75rem">${u.id}</div>
-          </div>
-          <div class="detail-item">
-            <div class="label">Email Verified</div>
-            <div class="value">${u.emailVerified ? '✅ Yes' : '❌ No'}</div>
-          </div>
-          ${s ? `
-          <div class="detail-item">
-            <div class="label">Session Expires</div>
-            <div class="value">${new Date(s.expiresAt).toLocaleString()}</div>
-          </div>` : ''}
+          <div class="detail-item"><div class="label">Name</div><div class="value">${u.name}</div></div>
+          <div class="detail-item"><div class="label">Email</div><div class="value">${u.email}</div></div>
+          <div class="detail-item"><div class="label">Role</div><div class="value"><span class="role-tag role-${u.role}">${u.role}</span></div></div>
+          <div class="detail-item"><div class="label">User ID</div><div class="value" style="font-family:var(--mono);font-size:0.75rem">${u.id}</div></div>
+          <div class="detail-item"><div class="label">Email Verified</div><div class="value">${u.emailVerified ? '✅ Yes' : '❌ No'}</div></div>
+          ${s ? `<div class="detail-item"><div class="label">Session Expires</div><div class="value">${new Date(s.expiresAt).toLocaleString()}</div></div>` : ''}
         `;
       } else {
         badge.className = 'status-badge logged-out';
@@ -641,23 +519,16 @@
       }
     }
 
-    // ── Actions ──
+    // ── Auth Actions ──
 
     async function doSignUp() {
       const name = document.getElementById('signupName').value;
       const email = document.getElementById('signupEmail').value;
       const password = document.getElementById('signupPassword').value;
-      const role = document.getElementById('signupRole').value;
-
-      if (!name || !email || !password) {
-        alert('Please fill in all fields.');
-        return;
-      }
-
-      const { status, data } = await apiCall('POST', '/auth/sign-up', { name, email, password, role });
+      if (!name || !email || !password) { alert('Please fill in all fields.'); return; }
+      const { status, data } = await apiCall('POST', '/auth/sign-up', { name, email, password });
       if (status === 200 && data.user) {
         updateSessionUI({ user: data.user });
-        // auto-fetch full session
         setTimeout(doGetSession, 300);
       }
     }
@@ -665,12 +536,7 @@
     async function doSignIn() {
       const email = document.getElementById('signinEmail').value;
       const password = document.getElementById('signinPassword').value;
-
-      if (!email || !password) {
-        alert('Please fill in email and password.');
-        return;
-      }
-
+      if (!email || !password) { alert('Please fill in email and password.'); return; }
       const { status, data } = await apiCall('POST', '/auth/sign-in', { email, password });
       if (status === 200 && data.user) {
         updateSessionUI({ user: data.user });
@@ -680,31 +546,56 @@
 
     async function doSignOut() {
       const { status } = await apiCall('POST', '/auth/sign-out');
-      if (status === 200) {
-        updateSessionUI(null);
-      }
+      if (status === 200) updateSessionUI(null);
     }
 
     async function doGetSession() {
       const { status, data } = await apiCall('GET', '/auth/get-session');
-      if (status === 200 && data && data.user) {
-        updateSessionUI(data);
-      } else {
-        updateSessionUI(null);
-      }
+      if (status === 200 && data && data.user) updateSessionUI(data);
+      else updateSessionUI(null);
     }
 
-    async function doProtected() {
-      await apiCall('GET', '/protected');
+    // ── OTP Actions ──
+
+    async function doSendOTP() {
+      const email = document.getElementById('otpSendEmail').value;
+      const type = document.getElementById('otpSendType').value;
+      if (!email) { alert('Please enter an email.'); return; }
+      await apiCall('POST', '/auth/email-otp/send-verification-otp', { email, type });
     }
 
-    async function doAdmin() {
-      await apiCall('GET', '/admin');
+    async function doVerifyOTP() {
+      const email = document.getElementById('otpVerifyEmail').value;
+      const otp = document.getElementById('otpVerifyCode').value;
+      if (!email || !otp) { alert('Please enter email and OTP.'); return; }
+      await apiCall('POST', '/auth/email-otp/verify-email', { email, otp });
     }
+
+    // ── Password Reset Actions ──
+
+    async function doRequestReset() {
+      const email = document.getElementById('resetReqEmail').value;
+      if (!email) { alert('Please enter an email.'); return; }
+      await apiCall('POST', '/auth/email-otp/request-password-reset', { email });
+    }
+
+    async function doResetPassword() {
+      const email = document.getElementById('resetEmail').value;
+      const otp = document.getElementById('resetOTP').value;
+      const password = document.getElementById('resetPassword').value;
+      if (!email || !otp || !password) { alert('Please fill in all fields.'); return; }
+      await apiCall('POST', '/auth/email-otp/reset-password', { email, otp, password });
+    }
+
+    // ── Panel Actions ──
+
+    async function doStudentDashboard() { await apiCall('GET', '/student/dashboard'); }
+    async function doStudentProfile()   { await apiCall('GET', '/student/profile'); }
+    async function doAdminDashboard()   { await apiCall('GET', '/admin/dashboard'); }
+    async function doAdminUsers()       { await apiCall('GET', '/admin/users'); }
 
     async function doRateTest() {
       addLog('INFO', '/auth/sign-in', '-', { info: 'Sending 10 rapid requests to test rate limiter (limit: 8/min)...' }, 0);
-
       for (let i = 1; i <= 10; i++) {
         const start = performance.now();
         try {
@@ -715,10 +606,8 @@
             body: JSON.stringify({ email: 'ratelimit@test.com', password: 'wrong' }),
           });
           const duration = Math.round(performance.now() - start);
-          let data;
-          try { data = await res.json(); } catch { data = {}; }
+          let data; try { data = await res.json(); } catch { data = {}; }
           addLog('POST', `/auth/sign-in [${i}/10]`, res.status, data, duration);
-
           if (res.status === 429) {
             addLog('INFO', '/auth/sign-in', 429, { info: `✅ Rate limiter kicked in at request #${i}` }, 0);
             break;
@@ -729,7 +618,7 @@
       }
     }
 
-    // ── Init: check for existing session ──
+    // ── Init ──
     doGetSession();
   </script>
 </body>

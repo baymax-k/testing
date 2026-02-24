@@ -44,10 +44,10 @@ export const requireAuth = async (
  * Middleware factory – checks that `req.user.role` matches the required role.
  * Must be used AFTER `requireAuth`.
  */
-export const requireRole = (role: string) => {
+export const requireRole = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = (req as AuthRequest).user;
-    if (user?.role === role) {
+    if (user && roles.includes(user.role)) {
       next();
     } else {
       res.status(403).json({ error: "Forbidden – insufficient permissions" });

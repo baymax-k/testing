@@ -4,3 +4,4 @@ dist
 local_files
 /src/generated/prisma
 .vscode
+docs
