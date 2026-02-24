@@ -41,8 +41,14 @@ MUST NOT deviate from these technologies under any circumstances.
 ### Security
 
 -   Helmet.js
--   JWT-based authentication
+-   Better Auth (primary authentication system)
 -   Role-Based Access Control (RBAC)
+
+### Authentication
+
+-   Better Auth (official authentication system)
+-   Session-based or token-based flow strictly via Better Auth
+-   No custom JWT implementation unless explicitly required and approved
 
 ### Testing
 
@@ -63,6 +69,9 @@ You MUST NOT:
 -   Add BullMQ, Kafka, RabbitMQ (Redis only for queueing if needed)
 -   Add random NPM packages without strong justification
 -   Change architectural pattern without explicit instruction
+-   Implement custom JWT authentication
+-   Introduce Auth0, Firebase Auth, Clerk, NextAuth, Passport.js, or any other authentication provider
+-   Bypass Better Auth for any authentication flow
 
 If a feature requires a new dependency, you must:
 
@@ -103,7 +112,9 @@ You must follow this backend structure:
 
 ## Security Rules
 
--   All sensitive routes must require JWT
+-   All sensitive routes must require authentication via Better Auth
+-   RBAC middleware must integrate with Better Auth session/context
+-   Never implement custom authentication logic outside Better Auth
 -   RBAC middleware must protect role-based routes
 -   Use Helmet.js
 -   Validate all request bodies using a validation layer
