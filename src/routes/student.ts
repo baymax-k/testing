@@ -41,14 +41,14 @@ router.get(
   requireAuth,
   requireRole("student"),
   (req: Request, res: Response) => {
-    const user = (req as AuthRequest).user;
+    const user = (req as AuthRequest).user!;
     res.json({
-      id: user?.id,
-      email: user?.email,
-      name: user?.name,
-      role: user?.role,
-      emailVerified: user?.emailVerified,
-      image: user?.image,
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+      image: user.image,
     });
   }
 );

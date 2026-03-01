@@ -2,15 +2,16 @@
 // All config, routes, and middleware live in their own modules.
 // This file wires them together — keep it lean for easy collaboration.
 
-import express, { type Request, type Response, type Application } from "express";
+import express, { type Request, type Response, type NextFunction, type Application } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import path from "path";
 import { fileURLToPath } from "url";
 import { toNodeHandler } from "better-auth/node";
 import swaggerUi from "swagger-ui-express";
 
 import { auth } from "./auth.js";
-import { corsOptions, loginLimiter, swaggerSpec } from "./config/index.js";
+import { corsOptions, loginLimiter, authLimiter, swaggerSpec } from "./config/index.js";
 
 // Route modules (each dev owns their own file)
 import commonRoutes from "./routes/common.js";
@@ -20,10 +21,35 @@ import studentRoutes from "./routes/student.js";
 // ─── Create app ─────────────────────────────────────────────────────────────────
 const app: Application = express();
 
+// Security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrcAttr: ["'unsafe-inline'"], // required for inline onclick/onsubmit handlers
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+      },
+    },
+  })
+);
+
 app.use(cors(corsOptions));
 
-// Rate-limit login endpoint (8 req / min per IP)
+// Rate-limit auth endpoints to prevent brute-force attacks
+app.use("/auth", (req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "POST") {
+    authLimiter(req, res, next);
+  } else {
+    next();
+  }
+});
 app.use("/auth/sign-in", loginLimiter);
+app.use("/auth/sign-up", loginLimiter);
 
 // ─── Mount Better Auth ──────────────────────────────────────────────────────────
 // IMPORTANT: must come BEFORE express.json() — Better Auth reads the raw body.
@@ -60,5 +86,19 @@ app.use("/test", express.static(path.join(__dirname, "..", "public")));
 app.use("/", commonRoutes);
 app.use("/admin", adminRoutes);
 app.use("/student", studentRoutes);
+
+// ─── Global error handler ───────────────────────────────────────────────────────
+// Must be the LAST app.use() — Express identifies it by the 4-argument signature.
+// In production, raw error messages are hidden to avoid leaking internals.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
+  console.error("[unhandled error]", err);
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal server error"
+      : err instanceof Error
+        ? err.message
+        : String(err);
+  res.status(500).json({ error: message });
+});
 
 export default app;

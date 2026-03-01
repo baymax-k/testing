@@ -1,145 +1,94 @@
 import { Router, type Request, type Response, type Router as RouterType } from "express";
+import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import type { AuthRequest } from "../middleware/auth.js";
 import { auth, prisma } from "../auth.js";
 
 const router: RouterType = Router();
 
-// ─── Admin dashboard (product_admin only) ───────────────────────────────────────
-router.get(
-  "/dashboard",
-  requireAuth,
-  requireRole("product_admin"),
-  (req: Request, res: Response) => {
-    const user = (req as AuthRequest).user!;
-    res.json({
-      panel: "admin",
-      message: `Welcome back, ${user.name}!`,
-      dashboard: {
-        title: "Admin Dashboard",
-        sections: [
-          { name: "User Management", status: "active", endpoint: "/admin/users" },
-          { name: "Create Staff User", status: "active", endpoint: "/admin/create-user" },
-          { name: "Analytics", status: "coming soon" },
-          { name: "Settings", status: "coming soon" },
-        ],
-      },
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        image: user.image,
-      },
-    });
-  }
-);
+const createUserSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long"),
+  name: z.string().min(1, "Name is required").max(100, "Name too long"),
+  role: z.enum(["college_admin", "product_admin", "instructor_staff"], {
+    message: "Invalid role. Allowed: college_admin, product_admin, instructor_staff",
+  }),
+});
 
-// ─── Create a new staff/admin user (product_admin only) ─────────────────────────
+// ─── Admin dashboard ─────────────────────────────────────────────────────────
+router.get("/dashboard", requireAuth, requireRole("product_admin"), (req: Request, res: Response) => {
+  const user = (req as AuthRequest).user!;
+  res.json({
+    panel: "admin",
+    message: `Welcome back, ${user.name}!`,
+    dashboard: {
+      title: "Admin Dashboard",
+      sections: [
+        { name: "User Management", status: "active", endpoint: "/admin/users" },
+        { name: "Create Staff User", status: "active", endpoint: "/admin/create-user" },
+        { name: "Analytics", status: "coming soon" },
+        { name: "Settings", status: "coming soon" },
+      ],
+    },
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+      image: user.image,
+    },
+  });
+});
+
+// ─── Create a Staff/Admin User ────────────────────────────────────────────────
 router.post(
   "/create-user",
   requireAuth,
-  requireRole("product_admin"),
-  async (req: Request, res: Response) => {
+  requireRole("product_admin", "college_admin"),
+  async (req: Request, res: Response): Promise<void> => {
     try {
-      const { email, password, name, role } = req.body;
+      const data = createUserSchema.parse(req.body);
 
-      // Validate required fields
-      if (!email || !password || !name || !role) {
-        res
-          .status(400)
-          .json({ error: "Missing required fields: email, password, name, role" });
+      const userRole = (req as AuthRequest).user!.role;
+      // College admins can only create instructor staff
+      if (userRole === "college_admin" && data.role !== "instructor_staff") {
+        res.status(403).json({ error: "College admins can only create instructor staff." });
         return;
       }
 
-      // Validate role – students are not created via this endpoint
-      const allowedRoles = ["college_admin", "product_admin", "instructor_staff"];
-      if (!allowedRoles.includes(role)) {
-        res.status(400).json({
-          error: `Invalid role. Allowed: ${allowedRoles.join(", ")}. Students register via /auth/sign-up.`,
-        });
-        return;
-      }
-
-      // Validate password length
-      if (password.length < 8) {
-        res.status(400).json({ error: "Password must be at least 8 characters" });
-        return;
-      }
-
-      // Check if user already exists
-      const existingUser = await prisma.user.findUnique({ where: { email } });
-      if (existingUser) {
-        res.status(409).json({ error: "A user with this email already exists" });
-        return;
-      }
-
-      // Create user via Better Auth's internal API (handles password hashing)
-      const result = await auth.api.signUpEmail({
-        body: { email, password, name },
+      // Avoid setting session cookies on the admin's response by not passing headers
+      const newUser = await auth.api.signUpEmail({
+        body: {
+          email: data.email,
+          password: data.password,
+          name: data.name,
+        } as any,
       });
 
-      if (!result?.user?.id) {
-        res.status(500).json({ error: "Failed to create user" });
+      if (!newUser?.user) {
+        res.status(400).json({ error: "Failed to create user." });
         return;
       }
 
-      // Update the role (since input: false prevents it from being set during sign-up)
+      // Elevate privileges directly in the DB since input:false blocks it during signup
       await prisma.user.update({
-        where: { id: result.user.id },
-        data: {
-          role,
-          emailVerified: true, // Admin-created users are pre-verified
-        },
+        where: { id: newUser.user.id },
+        data: { role: data.role, emailVerified: true },
       });
 
-      const createdUser = await prisma.user.findUnique({
-        where: { id: result.user.id },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          emailVerified: true,
-          image: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+      res.status(201).json({
+        message: "User created successfully",
+        user: { ...newUser.user, role: data.role },
       });
-
-      res.status(201).json(createdUser);
-    } catch (err: unknown) {
-      console.error("Admin create-user error:", err);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  }
-);
-
-// ─── List all users (product_admin only) ────────────────────────────────────────
-router.get(
-  "/users",
-  requireAuth,
-  requireRole("product_admin"),
-  async (_req: Request, res: Response) => {
-    try {
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          emailVerified: true,
-          image: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      res.json(users);
-    } catch (err: unknown) {
-      console.error("Admin list-users error:", err);
-      res.status(500).json({ error: "Internal server error" });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ error: "Validation failed", details: err.issues });
+        return;
+      }
+      console.error("[create-user] Error:", err);
+      // Surface Better-Auth API errors (like email already exists)
+      res.status(400).json({ error: err.message || "Failed to create user" });
     }
   }
 );

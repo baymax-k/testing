@@ -17,8 +17,6 @@ router.get("/", (_req: Request, res: Response) => {
   res.json({
     status: "ok",
     message: "CodeEthnics API is running",
-    docs: "/api-docs",
-    test: "/test",
   });
 });
 

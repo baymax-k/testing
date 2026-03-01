@@ -13,7 +13,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       description:
         "Authentication API for the CodeEthnics student platform.\n\n" +
         "- Email/password sign-up (students only, role auto-set to 'student')\n" +
-        "- Email verification (link on sign-up, OTP available)\n" +
+        "- Email verification (6-digit OTP sent on sign-up)\n" +
         "- Password reset via 6-digit OTP (10 min, 10 attempts)\n" +
         "- Single-device session enforcement\n" +
         "- Role-based access control\n" +
@@ -93,8 +93,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
         post: {
           summary: "Register a new student",
           description:
-            "Creates a new user with the 'student' role. A verification email is sent automatically. " +
-            "The user must verify their email before they can sign in.",
+            "Creates a new user with the 'student' role. A 6-digit OTP verification email is sent automatically. " +
+            "The user must verify their email via OTP before they can sign in.",
           tags: ["Authentication"],
           security: [],
           requestBody: {
@@ -193,29 +193,6 @@ const swaggerOptions: swaggerJsdoc.Options = {
               description: "No valid session",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
-          },
-        },
-      },
-
-      // ── Email Verification ─────────────────────────────────────────────────
-      "/auth/verify-email": {
-        get: {
-          summary: "Verify email via link token",
-          description: "Called when the user clicks the verification link in their email.",
-          tags: ["Email Verification"],
-          security: [],
-          parameters: [
-            {
-              name: "token",
-              in: "query",
-              required: true,
-              schema: { type: "string" },
-              description: "Verification token from the email link",
-            },
-          ],
-          responses: {
-            "200": { description: "Email verified successfully" },
-            "400": { description: "Invalid or expired token" },
           },
         },
       },

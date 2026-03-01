@@ -6,6 +6,14 @@ import nodemailer from "nodemailer";
 
 export const prisma = new PrismaClient();
 
+// ─── Startup: warn about missing email env vars ──────────────────────────────
+const requiredEmailEnv = ["EMAIL_HOST", "EMAIL_PORT", "EMAIL_USER", "EMAIL_PASS"];
+for (const key of requiredEmailEnv) {
+  if (!process.env[key]) {
+    console.warn(`[auth] WARNING: Missing environment variable: ${key} — email sending will fail`);
+  }
+}
+
 // ─── Reusable email transporter (Mailtrap for dev, swap to SES for prod) ──────
 const mailTransporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -35,27 +43,10 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
   },
 
-  // ─── Email Verification (link-based, sent on sign-up) ──────────────────────
+  // ─── Email Verification (basic disabled, using OTP instead) ────────────────
   emailVerification: {
-    sendOnSignUp: true,
+    sendOnSignUp: false, // Disabled: we use OTPs instead of links now
     autoSignInAfterVerification: true,
-    expiresIn: 3600, // 1 hour
-    sendVerificationEmail: async ({ user, url, token }) => {
-      const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${token}`;
-      void mailTransporter.sendMail({
-        from: `"CodeEthnics" <no-reply@codeethnics.local>`,
-        to: user.email,
-        subject: "Verify your email – CodeEthnics",
-        html: `
-          <h2>Welcome to CodeEthnics!</h2>
-          <p>Hi ${user.name || "there"},</p>
-          <p>Click the link below to verify your email address:</p>
-          <p><a href="${verifyUrl}" style="padding:10px 20px;background:#4F46E5;color:#fff;text-decoration:none;border-radius:6px;">Verify Email</a></p>
-          <p>Or copy this link: ${verifyUrl}</p>
-          <p>This link expires in 1 hour.</p>
-        `,
-      });
-    },
   },
 
   // ─── User schema ────────────────────────────────────────────────────────────
@@ -81,7 +72,7 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 600, // 10 minutes
       allowedAttempts: 10,
-      sendVerificationOnSignUp: false, // we use link-based verification on sign-up
+      sendVerificationOnSignUp: true, // Send a 6-digit OTP code on sign-up instead of a link
       async sendVerificationOTP({ email, otp, type }) {
         let subject = "";
         let body = "";
@@ -110,12 +101,17 @@ export const auth = betterAuth({
           `;
         }
 
-        void mailTransporter.sendMail({
-          from: `"CodeEthnics" <no-reply@codeethnics.local>`,
-          to: email,
-          subject,
-          html: body,
-        });
+        try {
+          await mailTransporter.sendMail({
+            from: `"CodeEthnics" <no-reply@codeethnics.local>`,
+            to: email,
+            subject,
+            html: body,
+          });
+        } catch (err) {
+          console.error("[auth] Failed to send OTP email to", email, err);
+          throw err; // re-throw so Better Auth can surface a 500 to the caller
+        }
       },
     }),
   ],

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -22,7 +23,11 @@
       --radius: 12px;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
       font-family: var(--font);
@@ -70,12 +75,29 @@
     }
 
     .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--success); animation: pulse 2s infinite;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
     }
-    .logged-out .dot { background: var(--text-muted); animation: none; }
 
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .logged-out .dot {
+      background: var(--text-muted);
+      animation: none;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
 
     .container {
       max-width: 1200px;
@@ -85,7 +107,12 @@
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
     }
-    @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
 
     .card {
       background: var(--surface);
@@ -93,141 +120,358 @@
       border-radius: var(--radius);
       overflow: hidden;
     }
+
     .card-header {
       padding: 1rem 1.25rem;
       border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    .card-header h2 { font-size: 0.95rem; font-weight: 600; }
-    .card-header .badge {
-      font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 6px;
-      font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-    }
-    .badge-post { background: rgba(0, 184, 148, 0.15); color: var(--success); }
-    .badge-get  { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
-    .card-body { padding: 1.25rem; }
 
-    .form-group { margin-bottom: 1rem; }
+    .card-header h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .card-header .badge {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-post {
+      background: rgba(0, 184, 148, 0.15);
+      color: var(--success);
+    }
+
+    .badge-get {
+      background: rgba(108, 92, 231, 0.15);
+      color: var(--primary);
+    }
+
+    .card-body {
+      padding: 1.25rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
     label {
-      display: block; font-size: 0.8rem; font-weight: 600;
-      color: var(--text-muted); margin-bottom: 0.35rem;
-      text-transform: uppercase; letter-spacing: 0.05em;
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    input, select {
-      width: 100%; padding: 0.65rem 0.85rem;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--text);
-      font-size: 0.9rem; font-family: var(--font); transition: border-color 0.2s;
+
+    input,
+    select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: var(--font);
+      transition: border-color 0.2s;
     }
-    input:focus, select:focus {
-      outline: none; border-color: var(--primary);
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
     }
-    input::placeholder { color: var(--text-muted); opacity: 0.5; }
+
+    input::placeholder {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
 
     .btn {
-      width: 100%; padding: 0.7rem; border: none; border-radius: 8px;
-      font-size: 0.9rem; font-weight: 600; font-family: var(--font);
-      cursor: pointer; transition: all 0.2s; margin-top: 0.5rem;
+      width: 100%;
+      padding: 0.7rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.5rem;
     }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
-    .btn-primary:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
     .btn-danger {
-      background: rgba(255, 71, 87, 0.15); color: var(--error);
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--error);
       border: 1px solid rgba(255, 71, 87, 0.2);
     }
-    .btn-danger:hover { background: rgba(255, 71, 87, 0.25); }
+
+    .btn-danger:hover {
+      background: rgba(255, 71, 87, 0.25);
+    }
+
     .btn-secondary {
-      background: rgba(108, 92, 231, 0.1); color: var(--primary);
+      background: rgba(108, 92, 231, 0.1);
+      color: var(--primary);
       border: 1px solid rgba(108, 92, 231, 0.2);
     }
-    .btn-secondary:hover { background: rgba(108, 92, 231, 0.2); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 
-    .response-panel { grid-column: 1 / -1; }
-    .response-panel .card-body { padding: 0; }
+    .btn-secondary:hover {
+      background: rgba(108, 92, 231, 0.2);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .response-panel {
+      grid-column: 1 / -1;
+    }
+
+    .response-panel .card-body {
+      padding: 0;
+    }
+
     .response-content {
-      padding: 1rem 1.25rem; max-height: 400px; overflow-y: auto;
+      padding: 1rem 1.25rem;
+      max-height: 400px;
+      overflow-y: auto;
     }
+
     pre {
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 1rem;
-      font-family: var(--mono); font-size: 0.8rem;
-      line-height: 1.7; overflow-x: auto;
-      white-space: pre-wrap; word-break: break-word;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
+
     .status-line {
-      display: flex; align-items: center; gap: 0.75rem;
-      margin-bottom: 0.75rem; font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
     }
+
     .status-code {
-      padding: 0.2rem 0.6rem; border-radius: 6px;
-      font-weight: 700; font-size: 0.8rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.8rem;
     }
-    .status-2xx { background: rgba(0, 184, 148, 0.15); color: var (--success); }
-    .status-4xx { background: rgba(255, 71, 87, 0.15); color: var(--error); }
-    .status-429 { background: rgba(255, 165, 2, 0.15); color: var(--warn); }
+
+    .status-2xx {
+      background: rgba(0, 184, 148, 0.15);
+      color: var (--success);
+    }
+
+    .status-4xx {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--error);
+    }
+
+    .status-429 {
+      background: rgba(255, 165, 2, 0.15);
+      color: var(--warn);
+    }
+
     .method-badge {
-      font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.45rem;
-      border-radius: 4px; font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-family: var(--mono);
     }
-    .method-post { background: rgba(0, 184, 148, 0.15); color: var(--success); }
-    .method-get  { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
-    .time-badge  { color: var(--text-muted); font-size: 0.75rem; }
 
-    .session-info { grid-column: 1 / -1; }
+    .method-post {
+      background: rgba(0, 184, 148, 0.15);
+      color: var(--success);
+    }
+
+    .method-get {
+      background: rgba(108, 92, 231, 0.15);
+      color: var(--primary);
+    }
+
+    .time-badge {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .session-info {
+      grid-column: 1 / -1;
+    }
+
     .user-details {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
     }
+
     .detail-item {
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
     }
+
     .detail-item .label {
-      font-size: 0.7rem; color: var(--text-muted);
-      text-transform: uppercase; letter-spacing: 0.05em;
-      margin-bottom: 0.2rem; font-weight: 600;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.2rem;
+      font-weight: 600;
     }
-    .detail-item .value { font-size: 0.9rem; font-weight: 600; }
+
+    .detail-item .value {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
     .role-tag {
-      display: inline-block; padding: 0.1rem 0.5rem;
-      border-radius: 6px; font-size: 0.8rem; font-weight: 700;
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
     }
-    .role-student          { background: rgba(108, 92, 231, 0.15); color: var(--primary); }
-    .role-college_admin    { background: rgba(255, 165, 2, 0.15);  color: var(--warn);    }
-    .role-product_admin    { background: rgba(255, 71, 87, 0.15);  color: var(--error);   }
-    .role-instructor_staff { background: rgba(0, 184, 148, 0.15);  color: var(--success); }
 
-    .empty-state { text-align: center; padding: 2rem; color: var(--text-muted); }
-    .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .role-student {
+      background: rgba(108, 92, 231, 0.15);
+      color: var(--primary);
+    }
 
-    .quick-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .role-college_admin {
+      background: rgba(255, 165, 2, 0.15);
+      color: var(--warn);
+    }
+
+    .role-product_admin {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--error);
+    }
+
+    .role-instructor_staff {
+      background: rgba(0, 184, 148, 0.15);
+      color: var(--success);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state .icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
     .quick-actions .btn {
-      width: auto; flex: 1; min-width: 140px;
-      margin-top: 0; font-size: 0.8rem; padding: 0.6rem 1rem;
+      width: auto;
+      flex: 1;
+      min-width: 140px;
+      margin-top: 0;
+      font-size: 0.8rem;
+      padding: 0.6rem 1rem;
     }
 
-    .log-entry { padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
-    .log-entry:last-child { border-bottom: none; }
-    .log-entry .timestamp { color: var(--text-muted); font-family: var(--mono); font-size: 0.7rem; }
+    .log-entry {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
 
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-entry .timestamp {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
 
     .spinner {
-      display: inline-block; width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.2); border-top-color: white;
-      border-radius: 50%; animation: spin 0.6s linear infinite;
-      margin-right: 0.4rem; vertical-align: middle;
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 0.4rem;
+      vertical-align: middle;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .hidden { display: none !important; }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body>
 
   <!-- ── Header ── -->
@@ -263,7 +507,8 @@
           <input type="password" id="signupPassword" placeholder="Min 8 characters" />
         </div>
         <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem">
-          Role is auto-set to <strong>student</strong>. Staff accounts are created by product_admin via <code>/admin/create-user</code>.
+          Role is auto-set to <strong>student</strong>. Staff accounts are created by product_admin via
+          <code>/admin/create-user</code>.
         </p>
         <button class="btn btn-primary" onclick="doSignUp()">Create Account</button>
       </div>
@@ -390,6 +635,12 @@
         </div>
         <div class="quick-actions" style="margin-top:1rem">
           <button class="btn btn-secondary" onclick="doGetSession()">🔄 Refresh Session</button>
+          <a class="btn btn-primary" href="/test/login.html"
+            style="text-align:center; text-decoration:none; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; font-family: var(--font);">✨
+            Premium Login UI</a>
+          <a class="btn btn-secondary" href="/test/userflow.html"
+            style="text-align:center; text-decoration:none; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; font-family: var(--font);">🔄
+            User Flow Test</a>
           <button class="btn btn-secondary" onclick="doStudentDashboard()">🎓 Student Dashboard</button>
           <button class="btn btn-secondary" onclick="doStudentProfile()">👤 Student Profile</button>
           <button class="btn btn-secondary" onclick="doAdminDashboard()">👑 Admin Dashboard</button>
@@ -455,7 +706,7 @@
 
     function syntaxHighlight(json) {
       if (typeof json !== 'string') json = JSON.stringify(json, null, 2);
-      try { json = JSON.stringify(JSON.parse(json), null, 2); } catch {}
+      try { json = JSON.stringify(JSON.parse(json), null, 2); } catch { }
       return json
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"([^"]+)":/g, '<span style="color:#a29bfe">"$1"</span>:')
@@ -590,9 +841,9 @@
     // ── Panel Actions ──
 
     async function doStudentDashboard() { await apiCall('GET', '/student/dashboard'); }
-    async function doStudentProfile()   { await apiCall('GET', '/student/profile'); }
-    async function doAdminDashboard()   { await apiCall('GET', '/admin/dashboard'); }
-    async function doAdminUsers()       { await apiCall('GET', '/admin/users'); }
+    async function doStudentProfile() { await apiCall('GET', '/student/profile'); }
+    async function doAdminDashboard() { await apiCall('GET', '/admin/dashboard'); }
+    async function doAdminUsers() { await apiCall('GET', '/admin/users'); }
 
     async function doRateTest() {
       addLog('INFO', '/auth/sign-in', '-', { info: 'Sending 10 rapid requests to test rate limiter (limit: 8/min)...' }, 0);
@@ -622,4 +873,5 @@
     doGetSession();
   </script>
 </body>
+
 </html>

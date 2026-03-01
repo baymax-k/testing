@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { fromNodeHeaders } from "better-auth/node";
 import { auth } from "../auth.js";
+import { Prisma } from "../generated/prisma/client.js";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -35,16 +36,33 @@ export const requireAuth = async (
     } else {
       res.status(401).json({ error: "Unauthorized" });
     }
-  } catch {
-    res.status(401).json({ error: "Unauthorized" });
+  } catch (err) {
+    // Surface DB errors as 503 so monitors don't mistake an outage for an auth failure
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError ||
+      err instanceof Prisma.PrismaClientUnknownRequestError ||
+      err instanceof Prisma.PrismaClientInitializationError
+    ) {
+      console.error("[requireAuth] Database error:", err);
+      res.status(503).json({ error: "Service temporarily unavailable" });
+      return;
+    }
+    console.error("[requireAuth] Unexpected error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
 /**
  * Middleware factory – checks that `req.user.role` matches the required role.
  * Must be used AFTER `requireAuth`.
+ * Throws at startup if called with no roles (would block every user silently).
  */
 export const requireRole = (...roles: string[]) => {
+  if (roles.length === 0) {
+    throw new Error(
+      "[requireRole] Called with no roles — this would block ALL users. Pass at least one role."
+    );
+  }
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = (req as AuthRequest).user;
     if (user && roles.includes(user.role)) {
