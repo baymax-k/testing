@@ -41,33 +41,33 @@ app.use(
 app.use(cors(corsOptions));
 
 // Rate-limit auth endpoints to prevent brute-force attacks
-app.use("/auth", (req: Request, res: Response, next: NextFunction) => {
+app.use("/api/v1/auth", (req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST") {
     authLimiter(req, res, next);
   } else {
     next();
   }
 });
-app.use("/auth/sign-in", loginLimiter);
-app.use("/auth/sign-up", loginLimiter);
+app.use("/api/v1/auth/sign-in", loginLimiter);
+app.use("/api/v1/auth/sign-up", loginLimiter);
 
 // ─── Mount Better Auth ──────────────────────────────────────────────────────────
 // IMPORTANT: must come BEFORE express.json() — Better Auth reads the raw body.
 const betterAuthHandler = toNodeHandler(auth);
 
-// Short aliases so clients can POST /auth/sign-up instead of /auth/sign-up/email
-app.post("/auth/sign-up", (req: Request, res: Response) => {
-  req.url = "/auth/sign-up/email";
+// Short aliases so clients can POST /api/v1/auth/sign-up instead of /api/v1/auth/sign-up/email
+app.post("/api/v1/auth/sign-up", (req: Request, res: Response) => {
+  req.url = "/api/v1/auth/sign-up/email";
   return betterAuthHandler(req, res);
 });
-app.post("/auth/sign-in", (req: Request, res: Response) => {
-  req.url = "/auth/sign-in/email";
+app.post("/api/v1/auth/sign-in", (req: Request, res: Response) => {
+  req.url = "/api/v1/auth/sign-in/email";
   return betterAuthHandler(req, res);
 });
 
 // Catch-all for remaining Better Auth routes
 // (sign-out, get-session, verify-email, email-otp/*, etc.)
-app.all(/^\/auth\/.*/, (req: Request, res: Response) => {
+app.all(/^\/api\/v1\/auth\/.*/, (req: Request, res: Response) => {
   return betterAuthHandler(req, res);
 });
 
@@ -83,9 +83,9 @@ const __dirname = path.dirname(__filename);
 app.use("/test", express.static(path.join(__dirname, "..", "public")));
 
 // ─── Mount route modules ────────────────────────────────────────────────────────
-app.use("/", commonRoutes);
-app.use("/admin", adminRoutes);
-app.use("/student", studentRoutes);
+app.use("/api/v1", commonRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/student", studentRoutes);
 
 // ─── Global error handler ───────────────────────────────────────────────────────
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.

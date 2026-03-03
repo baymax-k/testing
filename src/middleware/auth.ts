@@ -37,7 +37,7 @@ export const requireAuth = async (
       res.status(401).json({ error: "Unauthorized" });
     }
   } catch (err) {
-    // Surface DB errors as 503 so monitors don't mistake an outage for an auth failure
+    // DB errors as 503 so monitors don't mistake an outage for an auth failure
     if (
       err instanceof Prisma.PrismaClientKnownRequestError ||
       err instanceof Prisma.PrismaClientUnknownRequestError ||

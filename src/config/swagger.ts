@@ -89,7 +89,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
     // ── Paths ────────────────────────────────────────────────────────────────
     paths: {
       // ── Authentication ─────────────────────────────────────────────────────
-      "/auth/sign-up": {
+      "/api/v1/auth/sign-up": {
         post: {
           summary: "Register a new student",
           description:
@@ -126,7 +126,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/auth/sign-in": {
+      "/api/v1/auth/sign-in": {
         post: {
           summary: "Login with email & password (alias)",
           description:
@@ -170,7 +170,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/auth/sign-out": {
+      "/api/v1/auth/sign-out": {
         post: {
           summary: "Logout (invalidate session)",
           tags: ["Authentication"],
@@ -180,7 +180,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/auth/get-session": {
+      "/api/v1/auth/get-session": {
         get: {
           summary: "Get current session",
           tags: ["Authentication"],
@@ -198,7 +198,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
 
       // ── Email OTP ──────────────────────────────────────────────────────────
-      "/auth/email-otp/send-verification-otp": {
+      "/api/v1/auth/email-otp/send-verification-otp": {
         post: {
           summary: "Send a 6-digit OTP",
           description:
@@ -237,7 +237,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/auth/email-otp/verify-email": {
+      "/api/v1/auth/email-otp/verify-email": {
         post: {
           summary: "Verify email with OTP",
           description: "Verifies the user's email using the 6-digit OTP.",
@@ -276,7 +276,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
 
       // ── Password Reset ─────────────────────────────────────────────────────
-      "/auth/email-otp/request-password-reset": {
+      "/api/v1/auth/email-otp/request-password-reset": {
         post: {
           summary: "Request password reset OTP",
           description: "Sends a 6-digit OTP for password reset. User must have a verified email.",
@@ -305,7 +305,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/auth/email-otp/reset-password": {
+      "/api/v1/auth/email-otp/reset-password": {
         post: {
           summary: "Reset password with OTP",
           description: "Resets the user's password using the 6-digit OTP received via email.",
@@ -344,8 +344,45 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      "/api/v1/auth/email-otp/check-verification-otp": {
+        post: {
+          summary: "Verify an OTP code (optional pre-check)",
+          description:
+            "Validates the OTP before resetting the password. Use this to show the user " +
+            "an error early if the code is wrong, before they type a new password.",
+          tags: ["Password Reset"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    otp: { type: "string", minLength: 6, maxLength: 6 },
+                    type: { type: "string", enum: ["forget-password"] },
+                  },
+                  required: ["email", "otp", "type"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "OTP is valid",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+            },
+            "400": {
+              description: "Invalid or expired OTP",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+
       // ── Admin ──────────────────────────────────────────────────────────────
-      "/admin/create-user": {
+      "/api/v1/admin/create-user": {
         post: {
           summary: "Create a staff/admin user (product_admin only)",
           description:
@@ -392,7 +429,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/admin/users": {
+      "/api/v1/admin/users": {
         get: {
           summary: "List all users (product_admin only)",
           tags: ["Admin"],
@@ -415,7 +452,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/admin/dashboard": {
+      "/api/v1/admin/dashboard": {
         get: {
           summary: "Admin dashboard – product_admin only",
           tags: ["Admin"],
@@ -460,7 +497,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
 
       // ── Student ────────────────────────────────────────────────────────────
-      "/student/dashboard": {
+      "/api/v1/student/dashboard": {
         get: {
           summary: "Student dashboard – students only",
           tags: ["Student"],
@@ -503,7 +540,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/student/profile": {
+      "/api/v1/student/profile": {
         get: {
           summary: "Get student profile",
           tags: ["Student"],
@@ -520,7 +557,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
 
       // ── Common ─────────────────────────────────────────────────────────────
-      "/me": {
+      "/api/v1/me": {
         get: {
           summary: "Get current user & role-based redirect URL",
           description:
