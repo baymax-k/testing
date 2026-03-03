@@ -1,8 +1,8 @@
 import { Router, type Request, type Response, type Router as RouterType } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../middleware/auth.js";
-import type { AuthRequest } from "../middleware/auth.js";
-import { auth, prisma } from "../auth.js";
+import { requireAuth, requireRole } from "../../middleware/auth.js";
+import type { AuthRequest } from "../../middleware/auth.js";
+import { auth, prisma } from "../../config/auth.js";
 
 const router: RouterType = Router();
 

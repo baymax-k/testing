@@ -10,13 +10,13 @@ import { fileURLToPath } from "url";
 import { toNodeHandler } from "better-auth/node";
 import swaggerUi from "swagger-ui-express";
 
-import { auth } from "./auth.js";
+import { auth } from "./config/auth.js";
 import { corsOptions, loginLimiter, authLimiter, swaggerSpec } from "./config/index.js";
 
 // Route modules (each dev owns their own file)
-import commonRoutes from "./routes/common.js";
-import adminRoutes from "./routes/admin.js";
-import studentRoutes from "./routes/student.js";
+import commonRoutes from "./modules/routes/common.js";
+import adminRoutes from "./modules/routes/admin.js";
+import studentRoutes from "./modules/routes/student.js";
 
 // ─── Create app ─────────────────────────────────────────────────────────────────
 const app: Application = express();
