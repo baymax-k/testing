@@ -124,7 +124,31 @@
         <p>Name: <span id="user-name"></span></p>
         <p>Email: <span id="user-email"></span></p>
         <p>Role: <span id="user-role"></span></p>
+        <button id="btn-change-password" class="btn-outline" style="margin-right: 8px;">Change Password</button>
         <button id="btn-logout">Logout</button>
+    </div>
+
+    <!-- Change Password Form (visible only when logged in) -->
+    <div id="view-change-password" class="section">
+        <h2>Change Password</h2>
+        <form id="form-change-password">
+            <div class="form-group">
+                <label>Current Password</label>
+                <input type="password" id="cp-current" required>
+            </div>
+            <div class="form-group">
+                <label>New Password (min 8 chars)</label>
+                <input type="password" id="cp-new" required minlength="8">
+            </div>
+            <div class="form-group">
+                <label>Confirm New Password</label>
+                <input type="password" id="cp-confirm" required minlength="8">
+            </div>
+            <button type="submit">Update Password</button>
+        </form>
+        <div class="links">
+            <a id="link-cancel-change-password">Cancel</a>
+        </div>
     </div>
 
     <!-- Sign In Form -->
@@ -192,6 +216,9 @@
             <a id="link-resend-verify">Resend OTP</a> |
             <a id="link-to-login-from-verify">Back to Sign In</a>
         </div>
+        <p style="font-size: 0.8em; color: #888; margin-top: 10px;">
+            ⚠️ Resending generates a new code. Previous codes become invalid.
+        </p>
     </div>
 
     <!-- Forgot Password Form -->
@@ -229,8 +256,12 @@
             <button type="submit">Set New Password</button>
         </form>
         <div class="links">
+            <a id="link-resend-reset">Resend OTP</a> |
             <a id="link-to-login-from-reset">Cancel & Back to Sign In</a>
         </div>
+        <p style="font-size: 0.8em; color: #888; margin-top: 10px;">
+            ⚠️ Resending generates a new code. Previous codes become invalid.
+        </p>
     </div>
 
     <script>
@@ -268,7 +299,7 @@
 
         async function checkSession() {
             try {
-                const res = await fetch(`${API}/auth/get-session`, { credentials: 'include' });
+                const res = await fetch(`${API}/api/v1/auth/get-session`, { credentials: 'include' });
                 const data = await res.json();
 
                 if (data && data.user) {
@@ -300,9 +331,19 @@
             document.getElementById('link-to-login-from-forgot').addEventListener('click', () => switchView('view-login'));
             document.getElementById('link-to-login-from-reset').addEventListener('click', () => switchView('view-login'));
 
+            // Change Password button (visible when logged in)
+            document.getElementById('btn-change-password').addEventListener('click', () => {
+                document.getElementById('alertBox').className = 'alert';
+                switchView('view-change-password');
+            });
+            document.getElementById('link-cancel-change-password').addEventListener('click', () => {
+                document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+                document.getElementById('alertBox').className = 'alert';
+            });
+
             // Logout
             document.getElementById('btn-logout').addEventListener('click', async () => {
-                const { ok } = await apiRequest('/auth/sign-out');
+                const { ok } = await apiRequest('/api/v1/auth/sign-out');
                 if (ok) {
                     showAlert('Logged out successfully');
                     document.getElementById('session-info').style.display = 'none';
@@ -317,7 +358,7 @@
                 const email = document.getElementById('login-email').value;
                 const password = document.getElementById('login-password').value;
 
-                const { ok, data } = await apiRequest('/auth/sign-in', { email, password });
+                const { ok, data } = await apiRequest('/api/v1/auth/sign-in', { email, password });
 
                 if (ok && data.user) {
                     showAlert('Signed in successfully!');
@@ -340,7 +381,7 @@
                 const email = document.getElementById('signup-email').value;
                 const password = document.getElementById('signup-password').value;
 
-                const { ok, data } = await apiRequest('/auth/sign-up', { name, email, password });
+                const { ok, data } = await apiRequest('/api/v1/auth/sign-up', { name, email, password });
 
                 if (ok && data.user) {
                     // Better Auth automatically sends the OTP because sendVerificationOnSignUp is true
@@ -360,9 +401,24 @@
                 const email = document.getElementById('verify-email').value;
                 if (!email) return showAlert('No email specified.', true);
 
-                const { ok } = await apiRequest('/auth/email-otp/send-verification-otp', { email, type: 'email-verification' });
+                const { ok } = await apiRequest('/api/v1/auth/email-otp/send-verification-otp', { email, type: 'email-verification' });
                 if (ok) {
-                    showAlert('A new verification code has been sent to your email.');
+                    document.getElementById('verify-otp').value = '';
+                    showAlert('A new verification code has been sent. Previous codes are now invalid.');
+                } else {
+                    showAlert('Failed to resend code. Please try again later.', true);
+                }
+            });
+
+            // Resend OTP logic for password reset view
+            document.getElementById('link-resend-reset').addEventListener('click', async () => {
+                const email = document.getElementById('reset-email').value;
+                if (!email) return showAlert('No email specified.', true);
+
+                const { ok } = await apiRequest('/api/v1/auth/email-otp/request-password-reset', { email });
+                if (ok) {
+                    document.getElementById('reset-otp').value = '';
+                    showAlert('A new reset code has been sent. Previous codes are now invalid.');
                 } else {
                     showAlert('Failed to resend code. Please try again later.', true);
                 }
@@ -374,7 +430,7 @@
                 const email = document.getElementById('verify-email').value;
                 const otp = document.getElementById('verify-otp').value;
 
-                const { ok, data } = await apiRequest('/auth/email-otp/verify-email', { email, otp });
+                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/verify-email', { email, otp });
 
                 if (ok) {
                     showAlert('Email verified successfully! You can now log in.');
@@ -390,7 +446,7 @@
                 document.getElementById('alertBox').className = 'alert';
                 const email = document.getElementById('forgot-email').value;
 
-                const { ok, data } = await apiRequest('/auth/email-otp/request-password-reset', { email });
+                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/request-password-reset', { email });
 
                 if (ok || data.message) {
                     showAlert('If an account exists, a reset code was sent.');
@@ -408,13 +464,46 @@
                 const otp = document.getElementById('reset-otp').value;
                 const password = document.getElementById('reset-password').value;
 
-                const { ok, data } = await apiRequest('/auth/email-otp/reset-password', { email, otp, password });
+                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/reset-password', { email, otp, password });
 
                 if (ok || data.message === "Password reset successfully") {
                     showAlert('Password reset successfully! You can now sign in.');
                     switchView('view-login');
                 } else {
                     showAlert(data.message || data.error || 'Invalid OTP code', true);
+                }
+            });
+
+            // Change Password (logged-in user)
+            document.getElementById('form-change-password').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('alertBox').className = 'alert';
+                const currentPassword = document.getElementById('cp-current').value;
+                const newPassword = document.getElementById('cp-new').value;
+                const confirmPassword = document.getElementById('cp-confirm').value;
+
+                if (newPassword !== confirmPassword) {
+                    return showAlert('New passwords do not match.', true);
+                }
+                if (newPassword.length < 8) {
+                    return showAlert('New password must be at least 8 characters.', true);
+                }
+
+                const { ok, data } = await apiRequest('/api/v1/auth/change-password', {
+                    currentPassword,
+                    newPassword,
+                    revokeOtherSessions: true,
+                });
+
+                if (ok) {
+                    showAlert('Password changed successfully!');
+                    document.getElementById('cp-current').value = '';
+                    document.getElementById('cp-new').value = '';
+                    document.getElementById('cp-confirm').value = '';
+                    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+                } else {
+                    const msg = data?.message || data?.error || data?.body?.message || 'Failed to change password';
+                    showAlert(msg, true);
                 }
             });
         });

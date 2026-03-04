@@ -275,6 +275,53 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      // ── Change Password (logged-in user) ────────────────────────────────────
+      "/api/v1/auth/change-password": {
+        post: {
+          summary: "Change password (logged-in user)",
+          description:
+            "Allows a logged-in user to change their password by providing their current password " +
+            "and a new password. Handled natively by Better Auth. " +
+            "Set `revokeOtherSessions` to true to invalidate all other active sessions.",
+          tags: ["Authentication"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    currentPassword: { type: "string", description: "The user's current password" },
+                    newPassword: { type: "string", minLength: 8, description: "The new password (min 8 chars)" },
+                    revokeOtherSessions: {
+                      type: "boolean",
+                      description: "If true, all other active sessions are invalidated",
+                      default: false,
+                    },
+                  },
+                  required: ["currentPassword", "newPassword"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Password changed successfully",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+            },
+            "400": {
+              description: "Invalid current password or weak new password",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "401": {
+              description: "Not authenticated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+
       // ── Password Reset ─────────────────────────────────────────────────────
       "/api/v1/auth/email-otp/request-password-reset": {
         post: {

@@ -21,6 +21,12 @@ import studentRoutes from "./modules/routes/student.js";
 // ─── Create app ─────────────────────────────────────────────────────────────────
 const app: Application = express();
 
+// Trust the first proxy (AWS ALB, Nginx, Cloudflare, etc.)
+// Without this, all users behind a reverse proxy share ONE rate-limit counter
+// because Express sees the proxy's IP, not the real client IP.
+// Set to 1 for a single proxy layer (ALB → Express). Adjust if there are more.
+app.set("trust proxy", 1);
+
 // Security headers
 app.use(
   helmet({
@@ -40,7 +46,9 @@ app.use(
 
 app.use(cors(corsOptions));
 
-// Rate-limit auth endpoints to prevent brute-force attacks
+// Rate-limit auth endpoints to prevent abuse
+// authLimiter = broad safety net for ALL auth POSTs (60 req / 15 min)
+// loginLimiter = tighter limit on credential endpoints (10 req / 1 min)
 app.use("/api/v1/auth", (req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST") {
     authLimiter(req, res, next);
@@ -48,19 +56,18 @@ app.use("/api/v1/auth", (req: Request, res: Response, next: NextFunction) => {
     next();
   }
 });
-app.use("/api/v1/auth/sign-in", loginLimiter);
-app.use("/api/v1/auth/sign-up", loginLimiter);
 
 // ─── Mount Better Auth ──────────────────────────────────────────────────────────
 // IMPORTANT: must come BEFORE express.json() — Better Auth reads the raw body.
 const betterAuthHandler = toNodeHandler(auth);
 
 // Short aliases so clients can POST /api/v1/auth/sign-up instead of /api/v1/auth/sign-up/email
-app.post("/api/v1/auth/sign-up", (req: Request, res: Response) => {
+// loginLimiter is chained here so it only fires on these POST routes (not GET/OPTIONS)
+app.post("/api/v1/auth/sign-up", loginLimiter, (req: Request, res: Response) => {
   req.url = "/api/v1/auth/sign-up/email";
   return betterAuthHandler(req, res);
 });
-app.post("/api/v1/auth/sign-in", (req: Request, res: Response) => {
+app.post("/api/v1/auth/sign-in", loginLimiter, (req: Request, res: Response) => {
   req.url = "/api/v1/auth/sign-in/email";
   return betterAuthHandler(req, res);
 });

@@ -777,7 +777,7 @@
       const email = document.getElementById('signupEmail').value;
       const password = document.getElementById('signupPassword').value;
       if (!name || !email || !password) { alert('Please fill in all fields.'); return; }
-      const { status, data } = await apiCall('POST', '/auth/sign-up', { name, email, password });
+      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-up', { name, email, password });
       if (status === 200 && data.user) {
         updateSessionUI({ user: data.user });
         setTimeout(doGetSession, 300);
@@ -788,7 +788,7 @@
       const email = document.getElementById('signinEmail').value;
       const password = document.getElementById('signinPassword').value;
       if (!email || !password) { alert('Please fill in email and password.'); return; }
-      const { status, data } = await apiCall('POST', '/auth/sign-in', { email, password });
+      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-in', { email, password });
       if (status === 200 && data.user) {
         updateSessionUI({ user: data.user });
         setTimeout(doGetSession, 300);
@@ -796,12 +796,12 @@
     }
 
     async function doSignOut() {
-      const { status } = await apiCall('POST', '/auth/sign-out');
+      const { status } = await apiCall('POST', '/api/v1/auth/sign-out');
       if (status === 200) updateSessionUI(null);
     }
 
     async function doGetSession() {
-      const { status, data } = await apiCall('GET', '/auth/get-session');
+      const { status, data } = await apiCall('GET', '/api/v1/auth/get-session');
       if (status === 200 && data && data.user) updateSessionUI(data);
       else updateSessionUI(null);
     }
@@ -812,14 +812,14 @@
       const email = document.getElementById('otpSendEmail').value;
       const type = document.getElementById('otpSendType').value;
       if (!email) { alert('Please enter an email.'); return; }
-      await apiCall('POST', '/auth/email-otp/send-verification-otp', { email, type });
+      await apiCall('POST', '/api/v1/auth/email-otp/send-verification-otp', { email, type });
     }
 
     async function doVerifyOTP() {
       const email = document.getElementById('otpVerifyEmail').value;
       const otp = document.getElementById('otpVerifyCode').value;
       if (!email || !otp) { alert('Please enter email and OTP.'); return; }
-      await apiCall('POST', '/auth/email-otp/verify-email', { email, otp });
+      await apiCall('POST', '/api/v1/auth/email-otp/verify-email', { email, otp });
     }
 
     // ── Password Reset Actions ──
@@ -827,7 +827,7 @@
     async function doRequestReset() {
       const email = document.getElementById('resetReqEmail').value;
       if (!email) { alert('Please enter an email.'); return; }
-      await apiCall('POST', '/auth/email-otp/request-password-reset', { email });
+      await apiCall('POST', '/api/v1/auth/email-otp/request-password-reset', { email });
     }
 
     async function doResetPassword() {
@@ -835,22 +835,22 @@
       const otp = document.getElementById('resetOTP').value;
       const password = document.getElementById('resetPassword').value;
       if (!email || !otp || !password) { alert('Please fill in all fields.'); return; }
-      await apiCall('POST', '/auth/email-otp/reset-password', { email, otp, password });
+      await apiCall('POST', '/api/v1/auth/email-otp/reset-password', { email, otp, password });
     }
 
     // ── Panel Actions ──
 
-    async function doStudentDashboard() { await apiCall('GET', '/student/dashboard'); }
-    async function doStudentProfile() { await apiCall('GET', '/student/profile'); }
-    async function doAdminDashboard() { await apiCall('GET', '/admin/dashboard'); }
-    async function doAdminUsers() { await apiCall('GET', '/admin/users'); }
+    async function doStudentDashboard() { await apiCall('GET', '/api/v1/student/dashboard'); }
+    async function doStudentProfile() { await apiCall('GET', '/api/v1/student/profile'); }
+    async function doAdminDashboard() { await apiCall('GET', '/api/v1/admin/dashboard'); }
+    async function doAdminUsers() { await apiCall('GET', '/api/v1/admin/users'); }
 
     async function doRateTest() {
-      addLog('INFO', '/auth/sign-in', '-', { info: 'Sending 10 rapid requests to test rate limiter (limit: 8/min)...' }, 0);
+      addLog('INFO', '/api/v1/auth/sign-in', '-', { info: 'Sending 10 rapid requests to test rate limiter (limit: 8/min)...' }, 0);
       for (let i = 1; i <= 10; i++) {
         const start = performance.now();
         try {
-          const res = await fetch(`${API}/auth/sign-in`, {
+          const res = await fetch(`${API}/api/v1/auth/sign-in`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -858,13 +858,13 @@
           });
           const duration = Math.round(performance.now() - start);
           let data; try { data = await res.json(); } catch { data = {}; }
-          addLog('POST', `/auth/sign-in [${i}/10]`, res.status, data, duration);
+          addLog('POST', `/api/v1/auth/sign-in [${i}/10]`, res.status, data, duration);
           if (res.status === 429) {
-            addLog('INFO', '/auth/sign-in', 429, { info: `✅ Rate limiter kicked in at request #${i}` }, 0);
+            addLog('INFO', '/api/v1/auth/sign-in', 429, { info: `✅ Rate limiter kicked in at request #${i}` }, 0);
             break;
           }
         } catch (err) {
-          addLog('POST', `/auth/sign-in [${i}/10]`, 0, { error: err.message }, 0);
+          addLog('POST', `/api/v1/auth/sign-in [${i}/10]`, 0, { error: err.message }, 0);
         }
       }
     }

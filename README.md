@@ -59,7 +59,7 @@ pnpm run dev
 
 | Service | URL |
 |---------|-------------|
-| **API Server** | `http://localhost:5000` |
+| **API Server** | `http://localhost:5000/api/v1` |
 | **API Documentation** | `http://localhost:5000/api-docs` |
 | **Test Frontend Mockup** | `http://localhost:5000/test/login.html` |
 
