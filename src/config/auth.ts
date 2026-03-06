@@ -3,8 +3,39 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 import { PrismaClient } from "../generated/prisma/client.js";
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-export const prisma = new PrismaClient();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ─── SSL config for AWS RDS (local dev uses cert file, Vercel uses system certs)
+function buildDatasourceUrl(): string | undefined {
+  const base = process.env.DATABASE_URL;
+  if (!base) return undefined;
+  // On Vercel (production), system certs handle SSL — no extra config needed
+  if (process.env.NODE_ENV === "production") return base;
+  // Locally, use the downloaded RDS cert bundle if available
+  const certPath = process.env.RDS_SSL_CERT
+    ? path.resolve(__dirname, "../../..", process.env.RDS_SSL_CERT)
+    : null;
+  if (certPath && fs.existsSync(certPath)) {
+    const ca = fs.readFileSync(certPath).toString();
+    // Prisma reads ssl cert from NODE_EXTRA_CA_CERTS — set it at runtime
+    process.env.NODE_EXTRA_CA_CERTS = certPath;
+    console.log("[prisma] Using RDS SSL cert:", certPath);
+  }
+  return base;
+}
+
+// ─── Prisma singleton (serverless-safe) ──────────────────────────────────────
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    datasourceUrl: buildDatasourceUrl(),
+  });
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // ─── Startup: warn about missing email env vars ──────────────────────────────
 const requiredEmailEnv = ["EMAIL_HOST", "EMAIL_PORT", "EMAIL_USER", "EMAIL_PASS"];
