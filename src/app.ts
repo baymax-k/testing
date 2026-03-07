@@ -17,6 +17,9 @@ import { corsOptions, loginLimiter, authLimiter, swaggerSpec } from "./config/in
 import commonRoutes from "./modules/routes/common.js";
 import adminRoutes from "./modules/routes/admin.js";
 import studentRoutes from "./modules/routes/student.js";
+import problemRoutes from "./modules/routes/problem.js";
+import submissionRoutes from "./modules/routes/submission.js";
+import judge0Routes from "./modules/routes/judge0.js";
 
 // ─── Create app ─────────────────────────────────────────────────────────────────
 const app: Application = express();
@@ -93,6 +96,9 @@ app.use("/test", express.static(path.join(__dirname, "..", "public")));
 app.use("/api/v1", commonRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/student", studentRoutes);
+app.use("/api/v1/problems", problemRoutes);
+app.use("/api/v1/submissions", submissionRoutes);
+app.use("/api/v1/judge0", judge0Routes);
 
 // ─── Global error handler ───────────────────────────────────────────────────────
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.

@@ -48,3 +48,19 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * Submission rate limiter: 15 requests per minute per IP.
+ *
+ * Protects Judge0 from abuse — code execution is expensive.
+ * 15/min is generous for normal coding sessions.
+ *
+ * Applied to POST /submissions/run and POST /submissions.
+ */
+export const submissionLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 15,
+  message: { error: "Too many submissions, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
