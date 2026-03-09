@@ -12,7 +12,7 @@ const __dirname = dirname(__filename);
 // Cache problems in memory (loaded once at startup)
 let problemsCache: Map<string, Problem> | null = null;
 
-function loadProblems(): Map<string, Problem> {
+export function loadProblems(): Map<string, Problem> {
   if (problemsCache) return problemsCache;
 
   problemsCache = new Map();
