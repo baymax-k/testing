@@ -3,12 +3,12 @@
 // Like LeetCode's problem solving experience.
 
 import { Router, type Router as RouterType } from "express";
-import { requireAuth } from "../../middleware/auth.js";
+import { requireAuth } from "../../../middleware/auth.js";
 import {
   listPracticeProblems,
   getPracticeProblem,
   submitMcqPractice,
-} from "../controllers/practice.controller.js";
+} from '../../controllers/practice.controller.js';
 
 const router: RouterType = Router();
 
