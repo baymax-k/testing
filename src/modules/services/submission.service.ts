@@ -4,14 +4,29 @@
 import { prisma } from "../../config/auth.js";
 import type { SubmissionStatus } from "../../generated/prisma/enums.js";
 import { getProblemWithTestCases } from "../../data/problems/index.js";
+import type { TestCaseVisibility } from "../../data/problems/types.js";
 import {
   runSync,
   executeTestCases,
   LANGUAGE_IDS,
   type RunResult,
+  type TestCaseResult,
 } from "./judge0.service.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
+
+/** Per-test-case result returned to the user (visibility-controlled) */
+export interface TestCaseDetail {
+  index: number;         // 1-indexed
+  visibility: TestCaseVisibility;
+  passed: boolean;
+  status: string;
+  // Only shown for sample/public test cases:
+  input?: string;
+  expectedOutput?: string;
+  actualOutput?: string;
+  errorOutput?: string | null;
+}
 
 export interface SubmitResult {
   submissionId: string;
@@ -22,6 +37,7 @@ export interface SubmitResult {
   runtime: string | null;
   memory: number | null;
   errorOutput?: string | null;
+  testCaseResults: TestCaseDetail[];
 }
 
 // ─── Run Code (Playground) ──────────────────────────────────────────────────────
@@ -65,8 +81,13 @@ export async function submitCode(
     throw new Error(`Problem not found: ${problemId}`);
   }
 
-  const allTestCases = [...problem.sampleTestCases, ...problem.hiddenTestCases];
-  const totalTestCases = allTestCases.length;
+  // Build tagged test case list: sample → public → hidden
+  const taggedTestCases: { input: string; output: string; visibility: TestCaseVisibility }[] = [
+    ...problem.sampleTestCases.map((tc) => ({ input: tc.input, output: tc.output, visibility: "sample" as const })),
+    ...(problem.publicTestCases || []).map((tc) => ({ input: tc.input, output: tc.output, visibility: "public" as const })),
+    ...problem.hiddenTestCases.map((tc) => ({ input: tc.input, output: tc.output, visibility: "hidden" as const })),
+  ];
+  const totalTestCases = taggedTestCases.length;
 
   // Get time limit for this language
   const timeLimit = problem.timeLimits[language as keyof typeof problem.timeLimits] || 5;
@@ -89,7 +110,7 @@ export async function submitCode(
     const { results, allPassed, firstFailure } = await executeTestCases(
       sourceCode,
       languageId,
-      allTestCases.map((tc) => ({ input: tc.input, output: tc.output })),
+      taggedTestCases.map((tc) => ({ input: tc.input, output: tc.output })),
       timeLimit,
       problem.memoryLimit
     );
@@ -104,6 +125,28 @@ export async function submitCode(
       : firstFailure?.status || "wrong_answer";
 
     const failedAt = firstFailure ? firstFailure.index + 1 : null; // 1-indexed
+
+    // Build visibility-controlled test case results
+    const testCaseResults: TestCaseDetail[] = results.map((r) => {
+      const tagged = taggedTestCases[r.index];
+      const detail: TestCaseDetail = {
+        index: r.index + 1, // 1-indexed for user
+        visibility: tagged.visibility,
+        passed: r.passed,
+        status: r.status,
+      };
+
+      // Show input/output details for sample and public test cases
+      if (tagged.visibility === "sample" || tagged.visibility === "public") {
+        detail.input = tagged.input;
+        detail.expectedOutput = tagged.output;
+        detail.actualOutput = r.stdout;
+        detail.errorOutput = r.errorOutput;
+      }
+      // Hidden test cases: only show status, no details
+
+      return detail;
+    });
 
     // Update submission record
     await prisma.submission.update({
@@ -127,6 +170,7 @@ export async function submitCode(
       runtime: maxTime.toFixed(3),
       memory: maxMemory,
       errorOutput: firstFailure?.errorOutput,
+      testCaseResults,
     };
   } catch (error) {
     // Update submission with internal error
@@ -147,6 +191,7 @@ export async function submitCode(
       runtime: null,
       memory: null,
       errorOutput: error instanceof Error ? error.message : String(error),
+      testCaseResults: [],
     };
   }
 }

@@ -28,9 +28,12 @@
       "explanation": "5 is divisible by 5 → \"Buzz\""
     }
   ],
-  "hiddenTestCases": [
+  "publicTestCases": [
     { "input": "1", "output": "1" },
+    { "input": "2", "output": "1\n2" }
+  ],
+  "hiddenTestCases": [
     { "input": "15", "output": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz" },
-    { "input": "30", "output": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz" },
-    { "input": "2", "output": "1\n2" }  ]
+    { "input": "30", "output": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz" }
+  ]
 }

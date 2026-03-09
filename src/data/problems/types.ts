@@ -3,10 +3,17 @@
 
 export type Difficulty = "easy" | "medium" | "hard";
 
+export type TestCaseVisibility = "sample" | "public" | "hidden";
+
 export interface SampleTestCase {
   input: string;
   output: string;
   explanation?: string;
+}
+
+export interface PublicTestCase {
+  input: string;
+  output: string;
 }
 
 export interface HiddenTestCase {
@@ -35,6 +42,7 @@ export interface Problem {
   timeLimits: TimeLimits;
   memoryLimit: number;
   sampleTestCases: SampleTestCase[];
+  publicTestCases: PublicTestCase[];
   hiddenTestCases: HiddenTestCase[];
 }
 
@@ -58,5 +66,5 @@ export interface ProblemDetail {
   timeLimits: TimeLimits;
   memoryLimit: number;
   sampleTestCases: SampleTestCase[];
-  // hiddenTestCases intentionally omitted
+  // publicTestCases and hiddenTestCases intentionally omitted
 }

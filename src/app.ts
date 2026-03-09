@@ -86,6 +86,7 @@ app.use(express.json());
 
 // ─── Swagger UI ─────────────────────────────────────────────────────────────────
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/api-docs-json", (_req, res) => { res.json(swaggerSpec); });
 
 // ─── Serve test frontend at /test ───────────────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url);

@@ -9,15 +9,14 @@ const swaggerOptions: swaggerJsdoc.Options = {
     openapi: "3.0.0",
     info: {
       title: "CodeEthnics Backend API",
-      version: "2.0.0",
+      version: "3.0.0",
       description:
-        "Authentication API for the CodeEthnics student platform.\n\n" +
-        "- Email/password sign-up (students only, role auto-set to 'student')\n" +
-        "- Email verification (6-digit OTP sent on sign-up)\n" +
-        "- Password reset via 6-digit OTP (10 min, 10 attempts)\n" +
-        "- Single-device session enforcement\n" +
-        "- Role-based access control\n" +
-        "- Admin endpoint to create staff/admin users",
+        "Backend API for the CodeEthnics student coding platform.\n\n" +
+        "**Authentication** — Email/password, OTP verification, role-based access\n" +
+        "**Problems** — Browse coding problems with sample test cases\n" +
+        "**Code Execution** — Run code in a sandbox (playground) or submit against test cases\n" +
+        "**Submissions** — Track submission history and verdicts\n\n" +
+        "Rate limits: 15 submissions/min per user, 8 auth requests/min per IP.",
     },
     servers: [
       {
@@ -56,7 +55,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
         Session: {
           type: "object",
           properties: {
-            token: { type: "string" },
+            // token may be null when signup requires email verification; clients should
+            // call /get-session after OTP verification to obtain a real token.
+            token: { type: "string", nullable: true },
             user: { $ref: "#/components/schemas/User" },
             session: {
               type: "object",
@@ -83,6 +84,107 @@ const swaggerOptions: swaggerJsdoc.Options = {
             success: { type: "boolean" },
           },
         },
+        ProblemSummary: {
+          type: "object",
+          properties: {
+            id: { type: "string", example: "two-sum" },
+            title: { type: "string", example: "Two Sum" },
+            slug: { type: "string", example: "two-sum" },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+            tags: { type: "array", items: { type: "string" }, example: ["arrays", "hash-map"] },
+          },
+        },
+        ProblemDetail: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            title: { type: "string" },
+            slug: { type: "string" },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+            tags: { type: "array", items: { type: "string" } },
+            description: { type: "string" },
+            constraints: { type: "string" },
+            timeLimits: {
+              type: "object",
+              properties: {
+                c: { type: "number" }, cpp: { type: "number" }, java: { type: "number" },
+                javascript: { type: "number" }, python: { type: "number" },
+                go: { type: "number" }, rust: { type: "number" },
+              },
+            },
+            memoryLimit: { type: "number", example: 256 },
+            sampleTestCases: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  input: { type: "string" },
+                  output: { type: "string" },
+                  explanation: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        RunResult: {
+          type: "object",
+          properties: {
+            status: { type: "string", example: "Accepted" },
+            stdout: { type: "string", example: "Hello, World!\n" },
+            stderr: { type: "string" },
+            compileOutput: { type: "string" },
+            time: { type: "string", example: "0.012", nullable: true },
+            memory: { type: "number", example: 3200, nullable: true },
+          },
+        },
+        TestCaseDetail: {
+          type: "object",
+          properties: {
+            index: { type: "integer", description: "1-indexed test case number" },
+            visibility: { type: "string", enum: ["sample", "public", "hidden"] },
+            passed: { type: "boolean" },
+            status: { type: "string", example: "accepted" },
+            input: { type: "string", description: "Only shown for sample/public test cases" },
+            expectedOutput: { type: "string", description: "Only shown for sample/public test cases" },
+            actualOutput: { type: "string", description: "Only shown for sample/public test cases on failure" },
+            errorOutput: { type: "string", nullable: true, description: "Only shown for sample/public test cases" },
+          },
+        },
+        SubmitResult: {
+          type: "object",
+          properties: {
+            submissionId: { type: "string" },
+            status: {
+              type: "string",
+              enum: ["processing", "accepted", "wrong_answer", "time_limit_exceeded", "memory_limit_exceeded", "runtime_error", "compilation_error", "internal_error"],
+            },
+            testCasesPassed: { type: "integer" },
+            totalTestCases: { type: "integer" },
+            failedAt: { type: "integer", nullable: true, description: "1-indexed test case that failed first" },
+            runtime: { type: "string", nullable: true, example: "0.045" },
+            memory: { type: "number", nullable: true, description: "Peak memory in KB" },
+            errorOutput: { type: "string", nullable: true },
+            testCaseResults: {
+              type: "array",
+              items: { $ref: "#/components/schemas/TestCaseDetail" },
+              description: "Per-test-case results with visibility-controlled details",
+            },
+          },
+        },
+        SubmissionSummary: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            problemId: { type: "string" },
+            language: { type: "string" },
+            status: { type: "string" },
+            testCasesPassed: { type: "integer" },
+            totalTestCases: { type: "integer" },
+            runtime: { type: "string", nullable: true },
+            memory: { type: "number", nullable: true },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
       },
     },
 
@@ -94,7 +196,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
           summary: "Register a new student",
           description:
             "Creates a new user with the 'student' role. A 6-digit OTP verification email is sent automatically. " +
-            "The user must verify their email via OTP before they can sign in.",
+            "Because the account requires email verification (`requireEmailVerification: true`), the returned `token` field will be `null` until the user completes OTP verification. " +
+            "Clients should call `GET /api/v1/auth/get-session` after verification to retrieve a valid session token.",
           tags: ["Authentication"],
           security: [],
           requestBody: {
@@ -115,7 +218,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "User registered & verification email sent",
+              description: "User registered & verification email sent. `token` may be null until email is verified.",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Session" } } },
             },
             "422": {
@@ -633,6 +736,276 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Unauthorized" },
+          },
+        },
+      },
+
+      // ── Problems ───────────────────────────────────────────────────────────
+      "/api/v1/problems": {
+        get: {
+          summary: "List all problems",
+          description: "Returns a list of all available coding problems (summary only, no test cases).",
+          tags: ["Problems"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "List of problems",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/ProblemSummary" },
+                  },
+                },
+              },
+            },
+            "401": { description: "Unauthorized" },
+          },
+        },
+      },
+
+      "/api/v1/problems/{slug}": {
+        get: {
+          summary: "Get problem details",
+          description: "Returns full problem details including description, constraints, and sample test cases. Hidden and public test cases are not exposed.",
+          tags: ["Problems"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "slug",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              example: "two-sum",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Problem details with sample test cases",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ProblemDetail" } } },
+            },
+            "401": { description: "Unauthorized" },
+            "404": { description: "Problem not found" },
+          },
+        },
+      },
+
+      // ── Code Execution ─────────────────────────────────────────────────────
+      "/api/v1/submissions/run": {
+        post: {
+          summary: "Run code (playground)",
+          description:
+            "Execute code with custom stdin in a sandbox. Returns stdout/stderr immediately. " +
+            "No database record is created. Rate limited to 15 req/min.",
+          tags: ["Code Execution"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    language: {
+                      type: "string",
+                      enum: ["c", "cpp", "java", "javascript", "python", "go", "rust"],
+                    },
+                    sourceCode: { type: "string", maxLength: 100000 },
+                    stdin: { type: "string", maxLength: 10000, description: "Optional input" },
+                  },
+                  required: ["language", "sourceCode"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Execution result",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/RunResult" } } },
+            },
+            "400": {
+              description: "Validation error",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "401": { description: "Unauthorized" },
+            "429": { description: "Rate limited (15 req/min)" },
+          },
+        },
+      },
+
+      "/api/v1/submissions": {
+        post: {
+          summary: "Submit code against a problem",
+          description:
+            "Submits code to be tested against all test cases (sample + public + hidden) for a problem. " +
+            "Execution stops on first failure. Results include per-test-case details with visibility control:\n" +
+            "- **sample/public**: shows input, expected output, your output, and errors\n" +
+            "- **hidden**: only shows pass/fail status, no details\n\n" +
+            "A submission record is saved. Rate limited to 15 req/min.",
+          tags: ["Code Execution"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    problemId: { type: "string", example: "two-sum", description: "Problem slug" },
+                    language: {
+                      type: "string",
+                      enum: ["c", "cpp", "java", "javascript", "python", "go", "rust"],
+                    },
+                    sourceCode: { type: "string", maxLength: 100000 },
+                  },
+                  required: ["problemId", "language", "sourceCode"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Submission verdict with per-test-case results",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SubmitResult" } } },
+            },
+            "400": {
+              description: "Validation error or problem not found",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "401": { description: "Unauthorized" },
+            "429": { description: "Rate limited (15 req/min)" },
+          },
+        },
+        get: {
+          summary: "List user's submissions",
+          description: "Returns the authenticated user's submission history, optionally filtered by problem.",
+          tags: ["Submissions"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "problemId",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Filter by problem slug",
+            },
+            {
+              name: "limit",
+              in: "query",
+              required: false,
+              schema: { type: "integer", default: 20, minimum: 1, maximum: 100 },
+            },
+            {
+              name: "offset",
+              in: "query",
+              required: false,
+              schema: { type: "integer", default: 0, minimum: 0 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Paginated submission list",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      submissions: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/SubmissionSummary" },
+                      },
+                      total: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Unauthorized" },
+          },
+        },
+      },
+
+      "/api/v1/submissions/{id}": {
+        get: {
+          summary: "Get submission by ID",
+          description: "Returns a single submission's full details (must belong to the authenticated user).",
+          tags: ["Submissions"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Submission details",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      problemId: { type: "string" },
+                      language: { type: "string" },
+                      sourceCode: { type: "string" },
+                      status: { type: "string" },
+                      testCasesPassed: { type: "integer" },
+                      totalTestCases: { type: "integer" },
+                      failedAt: { type: "integer", nullable: true },
+                      runtime: { type: "string", nullable: true },
+                      memory: { type: "number", nullable: true },
+                      errorOutput: { type: "string", nullable: true },
+                      createdAt: { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Unauthorized" },
+            "404": { description: "Submission not found" },
+          },
+        },
+      },
+
+      // ── Judge0 Health ──────────────────────────────────────────────────────
+      "/api/v1/judge0/health": {
+        get: {
+          summary: "Judge0 health check",
+          description: "Checks connectivity to the Judge0 code execution service.",
+          tags: ["System"],
+          security: [],
+          responses: {
+            "200": {
+              description: "Judge0 is reachable",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { type: "string", example: "healthy" },
+                      judge0: { type: "object", description: "Judge0 system info" },
+                    },
+                  },
+                },
+              },
+            },
+            "503": {
+              description: "Judge0 is unreachable",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { type: "string", example: "unhealthy" },
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
