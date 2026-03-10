@@ -25,12 +25,11 @@ router.get("/me", requireAuth, (req: Request, res: Response) => {
   const user = (req as AuthRequest).user!;
   res.json({
     user: {
-      id: user.id,
+      id: user.userId,
       email: user.email,
       name: user.name,
       role: user.role,
       emailVerified: user.emailVerified,
-      image: user.image,
     },
     redirect: ROLE_REDIRECTS[user.role] || "/student/dashboard",
   });

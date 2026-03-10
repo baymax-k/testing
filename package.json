@@ -8,16 +8,20 @@
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/src/server.js",
-    "vercel-build": "prisma generate && prisma migrate deploy"
+    "seed": "tsx src/seed.ts",
+    "db:tables": "tsx src/scripts/show-tables.ts",
+    "vercel-build": "prisma generate && prisma migrate deploy",
+    "test:auth": "tsx test/auth.test.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.30.1",
   "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^6.0.0",
     "bcrypt": "^5.1.1",
-    "better-auth": "^1.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -31,6 +35,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/helmet": "^4.0.0",

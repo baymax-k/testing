@@ -1,7 +1,7 @@
 // ─── Submission Service ─────────────────────────────────────────────────────────
 // Business logic for running and submitting code.
 
-import { prisma } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 import type { SubmissionStatus } from "../../generated/prisma/enums.js";
 import { getProblemWithTestCases } from "../../data/problems/index.js";
 import type { TestCaseVisibility } from "../../data/problems/types.js";

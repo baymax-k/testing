@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { prisma } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 import { z } from "zod";
 import type { AuthRequest } from "../../middleware/auth.js";
 
@@ -81,7 +81,7 @@ export const listContests = async (req: Request, res: Response) => {
 export const getContest = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const userId = (req as AuthRequest).user?.id;
+    const userId = (req as AuthRequest).user?.userId;
 
     const contest = await prisma.contest.findUnique({
       where: { id },
@@ -153,7 +153,7 @@ export const getContest = async (req: Request, res: Response) => {
 export const joinContest = async (req: Request, res: Response) => {
   try {
     const { contestId } = joinContestSchema.parse(req.body);
-    const userId = (req as AuthRequest).user!.id;
+    const userId = (req as AuthRequest).user!.userId;
 
     const contest = await prisma.contest.findUnique({
       where: { id: contestId },
@@ -211,7 +211,7 @@ export const joinContest = async (req: Request, res: Response) => {
 export const submitContestDsa = async (req: Request, res: Response) => {
   try {
     const { contestId, problemId, code, language } = submitContestDsaSchema.parse(req.body);
-    const userId = (req as AuthRequest).user!.id;
+    const userId = (req as AuthRequest).user!.userId;
 
     // Verify contest participation
     const participation = await prisma.contestParticipation.findUnique({
