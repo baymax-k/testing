@@ -6,4 +6,6 @@ local_files
 .vscode
 docs
 certs/
+scripts/
 .claude/
+github/

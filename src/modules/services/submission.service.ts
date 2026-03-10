@@ -2,7 +2,7 @@
 // Business logic for running and submitting code.
 
 import { prisma } from "../../config/prisma.js";
-import type { SubmissionStatus } from "../../generated/prisma/enums.js";
+import type { SubmissionStatus } from "@prisma/client";
 import { getProblemWithTestCases } from "../../data/problems/index.js";
 import type { TestCaseVisibility } from "../../data/problems/types.js";
 import {
