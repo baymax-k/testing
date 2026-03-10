@@ -1,0 +1,211 @@
+generator client {
+  provider      = "prisma-client"
+  output        = "../../generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  role          Role         @default(student)
+  name          String
+  emailVerified Boolean      @default(false)
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  submissions   Submission[]
+  participations ContestParticipation[]  // new
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+enum Role {
+  student
+  college_admin
+  product_admin
+  instructor_staff
+}
+
+enum SubmissionStatus {
+  processing
+  accepted
+  wrong_answer
+  time_limit_exceeded
+  memory_limit_exceeded
+  runtime_error
+  compilation_error
+  internal_error
+}
+
+enum QuestionType {
+  mcq
+  dsa
+}
+
+enum ContestType {
+  contest
+  practice
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  type  String // "topic" or "company"
+  questions Question[]
+  @@map("tag")
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  type        QuestionType
+  title       String
+  description String       // markdown for DSA, text for MCQ
+  difficulty  String       // "easy", "medium", "hard"
+  tags        Tag[]
+  company     String?      // e.g., "Google"
+  createdBy   String       // admin user ID
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // MCQ-specific
+  options     Json?        // ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"]
+  correctAnswer Int?       // 0-3
+
+  // DSA-specific
+  timeLimit   Int?         // seconds
+  memoryLimit Int?         // KB
+  sampleTestCases Json?    // [{input: "2 3", output: "5", explanation: "..."}]
+  hiddenTestCases Json?    // [{input: "...", expectedOutput: "..."}]
+
+  contests    ContestQuestion[]
+  @@map("question")
+}
+
+model Contest {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  type        ContestType @default(contest)
+  startTime   DateTime?
+  endTime     DateTime?
+  duration    Int?        // minutes for contests
+  createdBy   String      // admin user ID
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  questions   ContestQuestion[]
+  participations ContestParticipation[]
+  @@map("contest")
+}
+
+model ContestQuestion {
+  contestId  String
+  questionId String
+  order      Int       // display order in contest
+  points     Int       // points awarded
+
+  contest    Contest   @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([contestId, questionId])
+  @@map("contest_question")
+}
+
+model ContestParticipation {
+  id         String   @id @default(cuid())
+  userId     String
+  contestId  String
+  startedAt  DateTime @default(now())
+  submittedAt DateTime?
+  score      Int      @default(0)
+  mcqAnswers Json?    // {questionId: selectedOptionIndex}
+  dsaSubmissions Submission[]
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contest    Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contestId])
+  @@map("contest_participation")
+}
+
+model Submission {
+  id              String           @id @default(cuid())
+  userId          String
+  problemId       String           // references JSON slug (for now, will migrate to questionId)
+  language        String?          // "python", "cpp", etc.
+  languageId      Int?             // Judge0 language ID
+  sourceCode      String?
+  status          SubmissionStatus @default(processing)
+  testCasesPassed Int              @default(0)
+  totalTestCases  Int              @default(0)
+  failedAt        Int?             // which test case failed (1-indexed)
+  runtime         String?          // execution time (slowest TC)
+  memory          Int?             // peak memory in KB
+  errorOutput     String?          // stderr or compile_output
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // New: link to contest participation
+  contestParticipationId String?
+  contestParticipation   ContestParticipation? @relation(fields: [contestParticipationId], references: [id])
+
+  @@index([userId])
+  @@index([problemId])
+  @@index([userId, problemId])
+  @@map("submission")
+}

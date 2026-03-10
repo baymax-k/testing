@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Judge0 Test Frontend</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .section { margin-bottom: 24px; border: 1px solid #ddd; padding: 20px; background: #fff; border-radius: 8px; }
+        .section h2 { margin-top: 0; color: #444; }
+        textarea { width: 100%; height: 120px; font-family: 'Fira Code', monospace; font-size: 14px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        select, input { padding: 8px; margin: 4px 0; border: 1px solid #ccc; border-radius: 4px; }
+        button { margin: 5px 0; padding: 10px 20px; background: #0066cc; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0052a3; }
+        pre { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 4px; white-space: pre-wrap; overflow-x: auto; font-size: 13px; }
+        .tc-list { margin-top: 12px; }
+        .tc-item { border: 1px solid #ddd; border-radius: 6px; margin: 8px 0; padding: 12px; }
+        .tc-item.passed { border-left: 4px solid #28a745; background: #f0fff4; }
+        .tc-item.failed { border-left: 4px solid #dc3545; background: #fff5f5; }
+        .tc-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .tc-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; }
+        .tc-badge.sample { background: #17a2b8; }
+        .tc-badge.public { background: #ffc107; color: #333; }
+        .tc-badge.hidden { background: #6c757d; }
+        .tc-detail { margin-top: 8px; font-size: 13px; }
+        .tc-detail code { background: #f4f4f4; padding: 4px 8px; display: block; border-radius: 4px; white-space: pre-wrap; font-family: 'Fira Code', monospace; }
+        .tc-detail label { font-weight: 600; color: #555; display: block; margin-top: 6px; margin-bottom: 2px; }
+        .summary { padding: 12px; border-radius: 6px; margin-bottom: 12px; font-weight: bold; }
+        .summary.accepted { background: #d4edda; color: #155724; }
+        .summary.failed { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Judge0 Test Frontend</h1>
+
+    <div class="section">
+        <h2>Login</h2>
+        <input type="email" id="email" placeholder="Email" value="test@example.com"><br>
+        <input type="password" id="password" placeholder="Password" value="password123"><br>
+        <button onclick="login()">Login</button>
+        <pre id="loginResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Problems</h2>
+        <button onclick="getProblems()">Get Problems</button>
+        <pre id="problemsResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Run Code (Playground)</h2>
+        <select id="runLanguage">
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+            <option value="c">C</option>
+            <option value="go">Go</option>
+            <option value="rust">Rust</option>
+        </select><br>
+        <textarea id="runCode" placeholder="Write your code here...">print("Hello, World!")</textarea><br>
+        <textarea id="runInput" placeholder="Input (optional)"></textarea><br>
+        <button onclick="runCode()">Run Code</button>
+        <pre id="runResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Submit Code</h2>
+        <select id="submitProblem">
+            <option value="two-sum">Two Sum</option>
+            <option value="fizzbuzz">FizzBuzz</option>
+        </select><br>
+        <select id="submitLanguage">
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+            <option value="c">C</option>
+            <option value="go">Go</option>
+            <option value="rust">Rust</option>
+        </select><br>
+        <textarea id="submitCode" placeholder="Write your code here...">def two_sum(nums, target):
+    for i in range(len(nums)):
+        for j in range(i+1, len(nums)):
+            if nums[i] + nums[j] == target:
+                return [i, j]</textarea><br>
+        <button onclick="submitCode()">Submit Code</button>
+        <div id="submitResult"></div>
+    </div>
+
+    <script>
+        // No token needed, using session cookies
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                const response = await fetch('/api/v1/auth/sign-in', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await response.json();
+                document.getElementById('loginResult').textContent = JSON.stringify(data, null, 2);
+                if (response.ok && data.user) {
+                    // Logged in successfully, session cookie set
+                }
+            } catch (error) {
+                document.getElementById('loginResult').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getProblems() {
+            try {
+                const response = await fetch('/api/v1/problems', {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                document.getElementById('problemsResult').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('problemsResult').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function runCode() {
+            const language = document.getElementById('runLanguage').value;
+            const sourceCode = document.getElementById('runCode').value;
+            const stdin = document.getElementById('runInput').value;
+            try {
+                const response = await fetch('/api/v1/submissions/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ language, sourceCode, stdin })
+                });
+                const data = await response.json();
+                document.getElementById('runResult').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('runResult').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function submitCode() {
+            const problemId = document.getElementById('submitProblem').value;
+            const language = document.getElementById('submitLanguage').value;
+            const sourceCode = document.getElementById('submitCode').value;
+            const container = document.getElementById('submitResult');
+            container.innerHTML = '<p>Submitting...</p>';
+            try {
+                const response = await fetch('/api/v1/submissions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ problemId, language, sourceCode })
+                });
+                const data = await response.json();
+                container.innerHTML = renderSubmitResult(data);
+            } catch (error) {
+                container.innerHTML = '<pre>Error: ' + error.message + '</pre>';
+            }
+        }
+
+        function renderSubmitResult(data) {
+            if (data.error) {
+                return '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            }
+
+            const isAccepted = data.status === 'accepted';
+            let html = '<div class="summary ' + (isAccepted ? 'accepted' : 'failed') + '">';
+            html += isAccepted ? '&#10004; All Test Cases Passed!' : '&#10008; ' + data.status.replace(/_/g, ' ').toUpperCase();
+            html += ' &mdash; ' + data.testCasesPassed + '/' + data.totalTestCases + ' passed';
+            if (data.runtime) html += ' | Runtime: ' + data.runtime + 's';
+            if (data.memory) html += ' | Memory: ' + (data.memory / 1024).toFixed(1) + 'MB';
+            html += '</div>';
+
+            if (data.testCaseResults && data.testCaseResults.length > 0) {
+                html += '<div class="tc-list">';
+                for (const tc of data.testCaseResults) {
+                    const cls = tc.passed ? 'passed' : 'failed';
+                    html += '<div class="tc-item ' + cls + '">';
+                    html += '<div class="tc-header">';
+                    html += '<span>Test Case #' + tc.index + ' &mdash; ' + (tc.passed ? 'Passed' : tc.status.replace(/_/g, ' ')) + '</span>';
+                    html += '<span class="tc-badge ' + tc.visibility + '">' + tc.visibility + '</span>';
+                    html += '</div>';
+
+                    if (tc.visibility === 'hidden') {
+                        if (!tc.passed) {
+                            html += '<div class="tc-detail"><em>Hidden test case &mdash; details not available</em></div>';
+                        }
+                    } else {
+                        html += '<div class="tc-detail">';
+                        if (tc.input !== undefined) {
+                            html += '<label>Input:</label><code>' + escapeHtml(tc.input) + '</code>';
+                        }
+                        if (tc.expectedOutput !== undefined) {
+                            html += '<label>Expected Output:</label><code>' + escapeHtml(tc.expectedOutput) + '</code>';
+                        }
+                        if (tc.actualOutput !== undefined && !tc.passed) {
+                            html += '<label>Your Output:</label><code>' + escapeHtml(tc.actualOutput) + '</code>';
+                        }
+                        if (tc.errorOutput) {
+                            html += '<label>Error:</label><code style="color:#dc3545">' + escapeHtml(tc.errorOutput) + '</code>';
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

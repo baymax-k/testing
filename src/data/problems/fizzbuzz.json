@@ -1,0 +1,39 @@
+{
+  "id": "fizzbuzz",
+  "title": "FizzBuzz",
+  "slug": "fizzbuzz",
+  "difficulty": "easy",
+  "tags": ["math", "simulation"],
+  "description": "Given an integer `n`, return a string array `answer` (1-indexed) where:\n\n- `answer[i] == \"FizzBuzz\"` if `i` is divisible by 3 and 5.\n- `answer[i] == \"Fizz\"` if `i` is divisible by 3.\n- `answer[i] == \"Buzz\"` if `i` is divisible by 5.\n- `answer[i] == i` (as a string) if none of the above conditions are true.\n\n**Input Format:**\n- A single integer n\n\n**Output Format:**\n- n lines, each containing the FizzBuzz result for that number (1 to n)",
+  "constraints": "1 <= n <= 10^4",
+  "timeLimits": {
+    "c": 2,
+    "cpp": 2,
+    "rust": 2,
+    "go": 2,
+    "java": 3,
+    "javascript": 3,
+    "python": 5
+  },
+  "memoryLimit": 256,
+  "sampleTestCases": [
+    {
+      "input": "3",
+      "output": "1\n2\nFizz",
+      "explanation": "1 is not divisible by 3 or 5 → \"1\"\n2 is not divisible by 3 or 5 → \"2\"\n3 is divisible by 3 → \"Fizz\""
+    },
+    {
+      "input": "5",
+      "output": "1\n2\nFizz\n4\nBuzz",
+      "explanation": "5 is divisible by 5 → \"Buzz\""
+    }
+  ],
+  "publicTestCases": [
+    { "input": "1", "output": "1" },
+    { "input": "2", "output": "1\n2" }
+  ],
+  "hiddenTestCases": [
+    { "input": "15", "output": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz" },
+    { "input": "30", "output": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz" }
+  ]
+}

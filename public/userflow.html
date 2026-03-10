@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodeEthnics – User Flow</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: #0f0f1a;
+        color: #e2e8f0;
+        min-height: 100vh;
+        padding: 40px 20px;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #6366f1, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.95rem;
+        margin-bottom: 48px;
+      }
+
+      /* ── Flow Container ── */
+      .flow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        max-width: 780px;
+        margin: 0 auto;
+      }
+
+      /* ── Step Card ── */
+      .step {
+        width: 100%;
+        background: #1e1e30;
+        border: 1px solid #2d2d4e;
+        border-radius: 14px;
+        padding: 24px 28px;
+        position: relative;
+        transition: border-color 0.2s;
+      }
+
+      .step:hover { border-color: #6366f1; }
+
+      .step-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 12px;
+      }
+
+      .step-num {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+      }
+
+      .step-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #f1f5f9;
+      }
+
+      .step-desc {
+        color: #94a3b8;
+        font-size: 0.88rem;
+        line-height: 1.6;
+        margin-bottom: 14px;
+      }
+
+      /* ── Request / Response boxes ── */
+      .req-res {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      @media (max-width: 580px) {
+        .req-res { grid-template-columns: 1fr; }
+      }
+
+      .box {
+        background: #13131f;
+        border-radius: 8px;
+        padding: 14px;
+        border: 1px solid #2d2d4e;
+      }
+
+      .box-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .box-label.req { color: #6366f1; }
+      .box-label.res { color: #10b981; }
+      .box-label.err { color: #f87171; }
+
+      pre {
+        font-family: 'Fira Code', 'Cascadia Code', monospace;
+        font-size: 0.78rem;
+        color: #cbd5e1;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.5;
+      }
+
+      /* ── Endpoint badge ── */
+      .endpoint {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #13131f;
+        border: 1px solid #2d2d4e;
+        border-radius: 8px;
+        padding: 6px 12px;
+        margin-bottom: 14px;
+        font-size: 0.82rem;
+      }
+
+      .method {
+        font-weight: 700;
+        font-size: 0.75rem;
+        padding: 2px 7px;
+        border-radius: 4px;
+      }
+
+      .method.post { background: #1d4ed8; color: #bfdbfe; }
+      .method.get  { background: #065f46; color: #a7f3d0; }
+
+      .path { color: #a5b4fc; font-family: monospace; }
+
+      /* ── Arrow connector ── */
+      .arrow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6px 0;
+        gap: 2px;
+      }
+
+      .arrow-line {
+        width: 2px;
+        height: 18px;
+        background: linear-gradient(to bottom, #6366f1, #a78bfa);
+      }
+
+      .arrow-head {
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #a78bfa;
+      }
+
+      /* ── Decision node ── */
+      .decision {
+        background: #1a1a2e;
+        border: 2px solid #f59e0b;
+        border-radius: 14px;
+        padding: 14px 24px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #fbbf24;
+        max-width: 360px;
+        width: 100%;
+        position: relative;
+      }
+
+      .decision::before {
+        content: '⚡';
+        margin-right: 8px;
+      }
+
+      /* ── Role branches ── */
+      .branches {
+        display: flex;
+        gap: 12px;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .branch {
+        flex: 1;
+        min-width: 160px;
+        max-width: 220px;
+        border-radius: 12px;
+        padding: 18px 16px;
+        text-align: center;
+        border: 1px solid;
+      }
+
+      .branch-icon { font-size: 1.8rem; margin-bottom: 8px; }
+      .branch-role {
+        font-weight: 700;
+        font-size: 0.82rem;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .branch-dest {
+        font-size: 0.75rem;
+        font-family: monospace;
+        opacity: 0.75;
+      }
+
+      .branch.student    { background: #0c1a3a; border-color: #3b82f6; color: #93c5fd; }
+      .branch.college    { background: #1a0c2e; border-color: #8b5cf6; color: #c4b5fd; }
+      .branch.product    { background: #1a0c0c; border-color: #ef4444; color: #fca5a5; }
+      .branch.instructor { background: #0c1a12; border-color: #10b981; color: #6ee7b7; }
+
+      /* ── Panel card ── */
+      .panel {
+        width: 100%;
+        background: #1e1e30;
+        border: 1px solid #2d2d4e;
+        border-radius: 14px;
+        overflow: hidden;
+      }
+
+      .panel-header {
+        padding: 16px 24px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .panel-rows { padding: 0 24px 20px; }
+
+      .panel-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid #2d2d4e;
+        font-size: 0.85rem;
+      }
+
+      .panel-row:last-child { border-bottom: none; }
+
+      .tag {
+        font-size: 0.68rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .tag.auth-tag { background: #1d4ed830; color: #93c5fd; border: 1px solid #1d4ed8; }
+      .tag.role-tag { background: #dc262630; color: #fca5a5; border: 1px solid #dc2626; }
+
+      /* ── Color palette for steps ── */
+      .s1 .step-num { background: #312e81; color: #a5b4fc; }
+      .s2 .step-num { background: #1e3a5f; color: #93c5fd; }
+      .s3 .step-num { background: #14532d; color: #86efac; }
+      .s4 .step-num { background: #713f12; color: #fcd34d; }
+      .s5 .step-num { background: #4a044e; color: #e879f9; }
+      .s6 .step-num { background: #1e3a5f; color: #93c5fd; }
+
+      /* ── Inline note ── */
+      .note {
+        background: #1a1a10;
+        border-left: 3px solid #f59e0b;
+        border-radius: 0 8px 8px 0;
+        padding: 10px 14px;
+        font-size: 0.82rem;
+        color: #fcd34d;
+        margin-top: 12px;
+      }
+
+      /* ── Legend ── */
+      .legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 40px;
+        padding-top: 24px;
+        border-top: 1px solid #2d2d4e;
+        font-size: 0.8rem;
+        color: #94a3b8;
+      }
+
+      .legend-item { display: flex; align-items: center; gap: 6px; }
+      .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    </style>
+  </head>
+  <body>
+
+    <div id="authTester" style="max-width:780px;margin:0 auto 40px;padding:24px 28px;background:#1e1e30;border:1px solid #2d2d4e;border-radius:14px;">
+      <h2 style="color:#f1f5f9;margin-bottom:16px;font-size:1.2rem;">Auth Tester</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:24px;">        
+        <!-- sign-up form -->
+        <div style="flex:1;min-width:220px;">
+          <h3 style="color:#a5b4fc;font-size:1rem;margin-bottom:8px;">Sign Up</h3>
+          <input id="tSignupName" type="text" placeholder="Name" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
+          <input id="tSignupEmail" type="email" placeholder="Email" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
+          <input id="tSignupPassword" type="password" placeholder="Password" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
+          <button onclick="tSignUp()" style="width:100%;padding:8px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;">Create</button>
+        </div>
+        <!-- sign-in form -->
+        <div style="flex:1;min-width:220px;">
+          <h3 style="color:#a5b4fc;font-size:1rem;margin-bottom:8px;">Sign In</h3>
+          <input id="tSigninEmail" type="email" placeholder="Email" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
+          <input id="tSigninPassword" type="password" placeholder="Password" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
+          <button onclick="tSignIn()" style="width:100%;padding:8px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;">Login</button>
+        </div>
+      </div>
+      <!-- session state badge (BUG-09) -->
+      <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div id="sessionBadge" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:#1a1a2e;border:1px solid #2d2d4e;font-size:0.8rem;color:#64748b;">
+          <span id="sessionDot" style="width:8px;height:8px;border-radius:50%;background:#475569;display:inline-block;"></span>
+          <span id="sessionLabel">Not signed in</span>
+        </div>
+        <button id="signOutBtn" onclick="tSignOut()" disabled style="padding:6px 14px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;opacity:0.4;">Sign Out</button>
+        <button onclick="tClearLog()" style="padding:6px 14px;background:#374151;color:#94a3b8;border:none;border-radius:6px;cursor:pointer;margin-left:auto;">Clear Log</button>
+      </div>
+      <pre id="tLog" style="margin-top:12px;background:#13131f;border:1px solid #2d2d4e;border-radius:6px;padding:12px;max-height:220px;overflow:auto;font-family:'Fira Code',monospace;font-size:0.8rem;"></pre>
+    </div>
+
+    <h1>CodeEthnics — User Flow</h1>
+    <p class="subtitle">From first visit → email verification → sign-in → role-based panel</p>
+
+    <div class="flow">
+
+      <!-- ─── STEP 1: Sign Up ─────────────────────────────────────────────── -->
+      <div class="step s1">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">Student Registers</div>
+        </div>
+        <p class="step-desc">
+          A new user submits their name, email, and password. The <code>role</code> is
+          always forced to <strong>student</strong> by the server — it cannot be set by the client.
+        </p>
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/sign-up</span>
+        </div>
+        <div class="req-res">
+          <div class="box">
+            <div class="box-label req">Request Body</div>
+            <pre>{
+  "name": "Jane Doe",
+  "email": "jane@uni.edu",
+  "password": "SecurePass123"
+}</pre>
+          </div>
+          <div class="box">
+            <div class="box-label res">Response 200</div>
+            <pre>{
+  "user": {
+    "id": "...",
+    "email": "jane@uni.edu",
+    "emailVerified": false,
+    "role": "student"
+  }
+}</pre>
+          </div>
+        </div>
+        <div class="note">
+          📧 A <strong>verification email</strong> is sent automatically via Nodemailer.
+          The session is NOT yet active — user must verify first.
+        </div>
+      </div>
+
+      <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+      <!-- ─── STEP 2: Verify Email ───────────────────────────────────────── -->
+      <div class="step s2">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">Verify Email Address</div>
+        </div>
+        <p class="step-desc">
+          The user clicks the link in their inbox, which hits the backend verify endpoint.
+          On success, the email is marked verified and the user is auto-signed-in.
+        </p>
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/auth/verify-email?token=&lt;token&gt;</span>
+        </div>
+        <div class="req-res">
+          <div class="box">
+            <div class="box-label req">Email Link</div>
+            <pre>http://localhost:3000
+/verify-email
+?token=eyJhbGci...</pre>
+          </div>
+          <div class="box">
+            <div class="box-label res">On Success</div>
+            <pre>{
+  "user": {
+    "emailVerified": true
+  },
+  "session": { ... }
+}
+→ auto-signed in</pre>
+          </div>
+        </div>
+        <div class="note">
+          ⏰ Token expires in <strong>1 hour</strong>.
+          If expired, the user can request a new OTP via <code>POST /auth/email-otp/send-verification-otp</code>.
+        </div>
+      </div>
+
+      <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+      <!-- ─── STEP 3: Sign In ────────────────────────────────────────────── -->
+      <div class="step s3">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-title">Sign In</div>
+        </div>
+        <p class="step-desc">
+          Verified user submits credentials. Rate-limited to <strong>8 requests/min per IP</strong>.
+          A session cookie (<code>better-auth.session_token</code>) is set automatically.
+          All previous sessions are deleted (single-device enforcement).
+        </p>
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/sign-in</span>
+        </div>
+        <div class="req-res">
+          <div class="box">
+            <div class="box-label req">Request Body</div>
+            <pre>{
+  "email": "jane@uni.edu",
+  "password": "SecurePass123"
+}</pre>
+          </div>
+          <div class="box">
+            <div class="box-label res">Response 200</div>
+            <pre>{
+  "session": {
+    "token": "...",
+    "expiresAt": "7 days"
+  },
+  "user": {
+    "role": "student"
+  }
+}</pre>
+          </div>
+        </div>
+        <div class="req-res" style="margin-top:10px">
+          <div class="box">
+            <div class="box-label err">Error — Not Verified (403)</div>
+            <pre>{ "message": "Email not verified" }</pre>
+          </div>
+          <div class="box">
+            <div class="box-label err">Error — Wrong Password (401)</div>
+            <pre>{ "message": "Invalid credentials" }</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+      <!-- ─── STEP 4: Get Session / Me ──────────────────────────────────── -->
+      <div class="step s4">
+        <div class="step-header">
+          <div class="step-num">4</div>
+          <div class="step-title">Frontend Reads Session &amp; Role</div>
+        </div>
+        <p class="step-desc">
+          After sign-in the frontend calls <code>/me</code> to get user info and the redirect path,
+          or <code>/auth/get-session</code> to get the full session object.
+          The session cookie is sent automatically on every request.
+        </p>
+        <div class="req-res">
+          <div class="box">
+            <div class="box-label req">GET /me</div>
+            <pre>{
+  "user": {
+    "id": "...",
+    "email": "jane@uni.edu",
+    "role": "student",
+    "emailVerified": true
+  },
+  "redirect": "/student/dashboard"
+}</pre>
+          </div>
+          <div class="box">
+            <div class="box-label req">GET /auth/get-session</div>
+            <pre>{
+  "user": { ... },
+  "session": {
+    "id": "...",
+    "expiresAt": "...",
+    "ipAddress": "..."
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+      <!-- ─── STEP 5: Role Decision ──────────────────────────────────────── -->
+      <div style="display:flex; flex-direction:column; align-items:center; width:100%; gap:16px;">
+        <div class="decision">Role-based redirect decision</div>
+        <div class="branches">
+          <div class="branch student">
+            <div class="branch-icon">🎓</div>
+            <div class="branch-role">student</div>
+            <div class="branch-dest">/student/dashboard</div>
+          </div>
+          <div class="branch college">
+            <div class="branch-icon">🏫</div>
+            <div class="branch-role">college_admin</div>
+            <div class="branch-dest">/admin/dashboard</div>
+          </div>
+          <div class="branch product">
+            <div class="branch-icon">🛡️</div>
+            <div class="branch-role">product_admin</div>
+            <div class="branch-dest">/admin/dashboard</div>
+          </div>
+          <div class="branch instructor">
+            <div class="branch-icon">📚</div>
+            <div class="branch-role">instructor_staff</div>
+            <div class="branch-dest">/admin/dashboard</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+      <!-- ─── STEP 6: Protected Panel ───────────────────────────────────── -->
+      <div class="step s6">
+        <div class="step-header">
+          <div class="step-num">6</div>
+          <div class="step-title">Access Protected Panel</div>
+        </div>
+        <p class="step-desc">
+          Every protected route runs through middleware that checks the session cookie first,
+          then optionally checks the user's role. Session is valid for 7 days, auto-refreshed every 24h.
+        </p>
+
+        <div class="panel">
+          <div class="panel-header" style="background:#131320; border-bottom:1px solid #2d2d4e;">
+            🔒 Route Protection Matrix
+          </div>
+          <div class="panel-rows">
+            <div class="panel-row">
+              <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/student/dashboard</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span style="color:#94a3b8;font-size:0.8rem; margin-left:auto;">student role</span>
+            </div>
+            <div class="panel-row">
+              <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/admin/dashboard</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span class="tag role-tag">product_admin</span>
+            </div>
+            <div class="panel-row">
+              <span class="method post" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">POST</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/admin/create-user</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span class="tag role-tag">product_admin</span>
+            </div>
+            <div class="panel-row">
+              <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/admin/users</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span class="tag role-tag">product_admin</span>
+            </div>
+            <div class="panel-row">
+              <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/me</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span style="color:#94a3b8;font-size:0.8rem; margin-left:auto;">any role</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:16px;">
+          🚪 <strong>Sign-out</strong> via <code>POST /auth/sign-out</code> immediately deletes the session from DB.
+          Next request to any protected route returns <strong>401 Unauthorized</strong>.
+        </div>
+      </div>
+
+    </div><!-- end .flow -->
+
+    <!-- ─── Legend ─────────────────────────────────────────────────────────── -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#6366f1;"></div> Auth step</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#10b981;"></div> Success response</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f87171;"></div> Error response</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div> Decision / branch</div>
+      <div class="legend-item" style="margin-left:auto; color:#475569;">
+        Session: 7 days TTL · refreshed every 24h · single-device enforced
+      </div>
+    </div>
+
+    <script>
+      // ── Session state UI (BUG-09) ──────────────────────────────────────────
+      function setSessionState(email) {
+        const dot   = document.getElementById('sessionDot');
+        const label = document.getElementById('sessionLabel');
+        const btn   = document.getElementById('signOutBtn');
+        if (email) {
+          dot.style.background   = '#10b981';
+          label.textContent      = `Signed in as ${email}`;
+          label.style.color      = '#34d399';
+          btn.disabled           = false;
+          btn.style.opacity      = '1';
+        } else {
+          dot.style.background   = '#475569';
+          label.textContent      = 'Not signed in';
+          label.style.color      = '#64748b';
+          btn.disabled           = true;
+          btn.style.opacity      = '0.4';
+        }
+      }
+
+      // ── Core fetch helper ──────────────────────────────────────────────────
+      async function apiCall(method, path, body = null) {
+        const start = performance.now();
+        try {
+          const res = await fetch(path, {
+            method,
+            headers: body ? { 'Content-Type': 'application/json' } : undefined,
+            credentials: 'include',
+            body: body ? JSON.stringify(body) : null,
+          });
+          const duration = Math.round(performance.now() - start);
+          let data;
+          try { data = await res.json(); } catch { data = null; }
+          log(method, path, res.status, data, duration);
+          return { status: res.status, data };
+        } catch (err) {
+          const duration = Math.round(performance.now() - start);
+          log(method, path, 0, { error: err.message }, duration);
+          return { status: 0, data: { error: err.message } };
+        }
+      }
+
+      function log(method, path, status, data, ms) {
+        const pre = document.getElementById('tLog');
+        const ok  = status >= 200 && status < 300;
+        const line = `[${new Date().toLocaleTimeString()}] ${method} ${path} → ${status} (${ms}ms)\n`;
+        pre.textContent += line + (data ? JSON.stringify(data, null, 2) + '\n\n' : '\n');
+        pre.scrollTop = pre.scrollHeight;
+      }
+
+      function tClearLog() {
+        document.getElementById('tLog').textContent = '';
+      }
+
+      // ── Auth actions ───────────────────────────────────────────────────────
+      async function tSignUp() {
+        const name     = document.getElementById('tSignupName').value;
+        const email    = document.getElementById('tSignupEmail').value;
+        const password = document.getElementById('tSignupPassword').value;
+        if (!name || !email || !password) { alert('Please fill all sign-up fields.'); return; }
+        await apiCall('POST', '/api/v1/auth/sign-up', { name, email, password });
+      }
+
+      async function tSignIn() {
+        const email    = document.getElementById('tSigninEmail').value;
+        const password = document.getElementById('tSigninPassword').value;
+        if (!email || !password) { alert('Please fill all sign-in fields.'); return; }
+        const { status, data } = await apiCall('POST', '/api/v1/auth/sign-in', { email, password });
+        if (status >= 200 && status < 300) {
+          setSessionState(data?.user?.email ?? email);
+        }
+      }
+
+      async function tSignOut() {
+        const { status } = await apiCall('POST', '/api/v1/auth/sign-out');
+        if (status >= 200 && status < 300) {
+          setSessionState(null);
+        }
+      }
+    </script>
+
+  </body>
+</html>

@@ -1,36 +1,73 @@
 # CodeEthnics Backend
 
-Minimal Express + TypeScript boilerplate for the CodeEthnics backend.
-
-This repository contains a small, testable web server written in TypeScript using Express. The app is split so `src/app.ts` configures the Express application and `src/server.ts` starts the HTTP listener. This makes it easy to run the app during development and import the app in tests without starting the server.
-
-## Features
-- Express server with CORS and JSON body parsing
-- TypeScript-ready configuration
-- Dev workflow using `ts-node-dev` for rapid local development
+Backend for the CodeEthnics student coding platform — authentication, role-based access control, and secure sessions powered by [Better Auth](https://www.better-auth.com/).
 
 ## Prerequisites
-- Node.js (18+ recommended)
-- pnpm (this project uses pnpm as package manager)
 
-## Quick start (fish)
-1. Install dependencies
-   pnpm install
+- Node.js 18+
+- pnpm
+- Docker (for PostgreSQL)
 
-2. Start in development (auto-restarts on change)
-   pnpm run dev
+---
 
-3. Build for production
-   pnpm run build
+## Getting Started
 
-4. Run production build
-   pnpm start
+### 1. Install Dependencies
+```bash
+pnpm install
+```
 
+### 2. Start PostgreSQL via Docker
+```bash
+docker run --name postgres \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=codeethnics \
+  -p 5432:5432 -d postgres:15
+```
+*(If the container is already created, start it with `docker start postgres`)*
 
-## Environment
-The server reads these environment variables:
-- `PORT` — port to listen on (default: `5000`)
+### 3. Configure Environment Variables
+Create a `.env` file in the root directory:
+```env
+DATABASE_URL="postgresql://postgres:password@localhost:5432/codeethnics?schema=public"
+BETTER_AUTH_SECRET="your-random-secret"
+BETTER_AUTH_URL="http://localhost:5000"
+PORT=5000
 
-Provide an `.env` file in development or set the vars in your environment. Example is in `.env.example` (do not commit secrets).
+# Email Configuration for OTPs (Example using Mailtrap)
+EMAIL_HOST="sandbox.smtp.mailtrap.io"
+EMAIL_PORT="2525"
+EMAIL_USER="your-mailtrap-user"
+EMAIL_PASS="your-mailtrap-pass"
+```
 
+### 4. Setup Database Schema
+Push the latest schema to the database and generate the Prisma client:
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
 
+### 5. Start Development Server
+```bash
+pnpm run dev
+```
+
+---
+
+## Important URLs
+
+| Service | URL |
+|---------|-------------|
+| **API Server** | `http://localhost:5000/api/v1` |
+| **API Documentation** | `http://localhost:5000/api-docs` |
+| **Test Frontend Mockup** | `http://localhost:5000/test/login.html` |
+
+---
+
+## Future Updates
+
+- **Social Logins:** Implement Google/GitHub OAuth integrations to improve sign-up conversion.
+- **Two-Factor Authentication (2FA):** Enforce TOTP for `college_admin` and `product_admin` roles.
+- **Strict Password Policy:** Apply regex validation to ensure all passwords contain special characters, numbers, and uppercase letters.
+- **Alternative Verification:** Re-evaluate if email verification should switch from OTP codes back to Magic Links depending on user feedback.

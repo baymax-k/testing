@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeEthnics — Auth Test Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface-hover: #22263a;
+      --border: #2a2e3e;
+      --primary: #6c5ce7;
+      --primary-hover: #7c6ff7;
+      --success: #00b894;
+      --error: #ff4757;
+      --warn: #ffa502;
+      --text: #e4e6eb;
+      --text-muted: #8b8fa3;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --mono: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--surface) 0%, #1e1b2e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(0, 184, 148, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(0, 184, 148, 0.2);
+    }
+
+    header .status-badge.logged-out {
+      background: rgba(139, 143, 163, 0.1);
+      color: var(--text-muted);
+      border-color: rgba(139, 143, 163, 0.2);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    .logged-out .dot {
+      background: var(--text-muted);
+      animation: none;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-header h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .card-header .badge {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-post {
+      background: rgba(0, 184, 148, 0.15);
+      color: var(--success);
+    }
+
+    .badge-get {
+      background: rgba(108, 92, 231, 0.15);
+      color: var(--primary);
+    }
+
+    .card-body {
+      padding: 1.25rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: var(--font);
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.7rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-danger {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--error);
+      border: 1px solid rgba(255, 71, 87, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 71, 87, 0.25);
+    }
+
+    .btn-secondary {
+      background: rgba(108, 92, 231, 0.1);
+      color: var(--primary);
+      border: 1px solid rgba(108, 92, 231, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(108, 92, 231, 0.2);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .response-panel {
+      grid-column: 1 / -1;
+    }
+
+    .response-panel .card-body {
+      padding: 0;
+    }
+
+    .response-content {
+      padding: 1rem 1.25rem;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .status-code {
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    .status-2xx {
+      background: rgba(0, 184, 148, 0.15);
+      color: var (--success);
+    }
+
+    .status-4xx {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--error);
+    }
+
+    .status-429 {
+      background: rgba(255, 165, 2, 0.15);
+      color: var(--warn);
+    }
+
+    .method-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-family: var(--mono);
+    }
+
+    .method-post {
+      background: rgba(0, 184, 148, 0.15);
+      color: var(--success);
+    }
+
+    .method-get {
+      background: rgba(108, 92, 231, 0.15);
+      color: var(--primary);
+    }
+
+    .time-badge {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .session-info {
+      grid-column: 1 / -1;
+    }
+
+    .user-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .detail-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .detail-item .label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.2rem;
+      font-weight: 600;
+    }
+
+    .detail-item .value {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .role-tag {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .role-student {
+      background: rgba(108, 92, 231, 0.15);
+      color: var(--primary);
+    }
+
+    .role-college_admin {
+      background: rgba(255, 165, 2, 0.15);
+      color: var(--warn);
+    }
+
+    .role-product_admin {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--error);
+    }
+
+    .role-instructor_staff {
+      background: rgba(0, 184, 148, 0.15);
+      color: var(--success);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state .icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .quick-actions .btn {
+      width: auto;
+      flex: 1;
+      min-width: 140px;
+      margin-top: 0;
+      font-size: 0.8rem;
+      padding: 0.6rem 1rem;
+    }
+
+    .log-entry {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-entry .timestamp {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Header ── -->
+  <header>
+    <h1>⚡ CodeEthnics Auth Tester</h1>
+    <div class="status-badge logged-out" id="statusBadge">
+      <span class="dot"></span>
+      <span id="statusText">Not Authenticated</span>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ══════════════════════ ROW 1: Sign Up + Sign In ══════════════════════ -->
+
+    <!-- ── Sign Up (no role field — auto-set to student) ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/sign-up</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="signupName" placeholder="Jane Doe" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="signupEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="signupPassword" placeholder="Min 8 characters" />
+        </div>
+        <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem">
+          Role is auto-set to <strong>student</strong>. Staff accounts are created by product_admin via
+          <code>/admin/create-user</code>.
+        </p>
+        <button class="btn btn-primary" onclick="doSignUp()">Create Account</button>
+      </div>
+    </div>
+
+    <!-- ── Sign In ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/sign-in</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="signinEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="signinPassword" placeholder="Your password" />
+        </div>
+        <button class="btn btn-primary" onclick="doSignIn()">Sign In</button>
+        <button class="btn btn-danger" onclick="doSignOut()" style="margin-top:0.5rem">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ ROW 2: OTP Sections ══════════════════════════ -->
+
+    <!-- ── Send Verification OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/send-verification-otp</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="otpSendEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="otpSendType">
+            <option value="email-verification">email-verification</option>
+            <option value="forget-password">forget-password</option>
+            <option value="sign-in">sign-in</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="doSendOTP()">Send OTP</button>
+      </div>
+    </div>
+
+    <!-- ── Verify Email with OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/verify-email</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="otpVerifyEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>OTP (6 digits)</label>
+          <input type="text" id="otpVerifyCode" placeholder="123456" maxlength="6" />
+        </div>
+        <button class="btn btn-primary" onclick="doVerifyOTP()">Verify Email</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ ROW 3: Password Reset ═══════════════════════ -->
+
+    <!-- ── Request Password Reset OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/request-password-reset</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="resetReqEmail" placeholder="jane@example.com" />
+        </div>
+        <button class="btn btn-primary" onclick="doRequestReset()">Request Reset OTP</button>
+      </div>
+    </div>
+
+    <!-- ── Reset Password with OTP ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <h2>/auth/email-otp/reset-password</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="resetEmail" placeholder="jane@example.com" />
+        </div>
+        <div class="form-group">
+          <label>OTP (6 digits)</label>
+          <input type="text" id="resetOTP" placeholder="123456" maxlength="6" />
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="resetPassword" placeholder="Min 8 characters" />
+        </div>
+        <button class="btn btn-primary" onclick="doResetPassword()">Reset Password</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ Session & Quick Actions ══════════════════════ -->
+
+    <div class="card session-info">
+      <div class="card-header">
+        <span class="badge badge-get">GET</span>
+        <h2>Session &amp; Quick Actions</h2>
+      </div>
+      <div class="card-body">
+        <div id="sessionEmpty" class="empty-state">
+          <div class="icon">🔒</div>
+          <p>No active session — sign in or register to get started.</p>
+        </div>
+        <div id="sessionDetails" class="hidden">
+          <div class="user-details" id="userDetails"></div>
+        </div>
+        <div class="quick-actions" style="margin-top:1rem">
+          <button class="btn btn-secondary" onclick="doGetSession()">🔄 Refresh Session</button>
+          <a class="btn btn-primary" href="/test/login.html"
+            style="text-align:center; text-decoration:none; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; font-family: var(--font);">✨
+            Premium Login UI</a>
+          <a class="btn btn-secondary" href="/test/userflow.html"
+            style="text-align:center; text-decoration:none; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; font-family: var(--font);">🔄
+            User Flow Test</a>
+          <button class="btn btn-secondary" onclick="doStudentDashboard()">🎓 Student Dashboard</button>
+          <button class="btn btn-secondary" onclick="doStudentProfile()">👤 Student Profile</button>
+          <button class="btn btn-secondary" onclick="doAdminDashboard()">👑 Admin Dashboard</button>
+          <button class="btn btn-secondary" onclick="doAdminUsers()">📋 Admin Users</button>
+          <button class="btn btn-secondary" onclick="doRateTest()">⚡ Rate Limit Test</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ Response Log ═════════════════════════════════ -->
+
+    <div class="card response-panel">
+      <div class="card-header">
+        <h2>Response Log</h2>
+      </div>
+      <div class="response-panel">
+        <div class="response-content" id="responseLog">
+          <div class="empty-state">
+            <div class="icon">📡</div>
+            <p>Make a request to see the response here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    let logEntries = [];
+
+    // ── Helpers ──
+
+    function statusClass(code) {
+      if (code === 429) return 'status-429';
+      if (code >= 200 && code < 300) return 'status-2xx';
+      return 'status-4xx';
+    }
+
+    function addLog(method, path, status, body, duration) {
+      const time = new Date().toLocaleTimeString();
+      logEntries.unshift({ method, path, status, body, duration, time });
+      if (logEntries.length > 50) logEntries.pop();
+      renderLog();
+    }
+
+    function renderLog() {
+      const el = document.getElementById('responseLog');
+      if (logEntries.length === 0) return;
+      el.innerHTML = logEntries.map((e, i) => `
+        <div class="log-entry" ${i === 0 ? 'style="background:rgba(108,92,231,0.04);padding:0.8rem;border-radius:8px;margin-bottom:0.5rem"' : ''}>
+          <div class="status-line">
+            <span class="method-badge method-${e.method.toLowerCase()}">${e.method}</span>
+            <span style="font-family:var(--mono);font-size:0.8rem">${e.path}</span>
+            <span class="status-code ${statusClass(e.status)}">${e.status}</span>
+            <span class="time-badge">${e.duration}ms</span>
+            <span class="timestamp" style="margin-left:auto">${e.time}</span>
+          </div>
+          ${i === 0 ? `<pre>${syntaxHighlight(e.body)}</pre>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function syntaxHighlight(json) {
+      if (typeof json !== 'string') json = JSON.stringify(json, null, 2);
+      try { json = JSON.stringify(JSON.parse(json), null, 2); } catch { }
+      return json
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"([^"]+)":/g, '<span style="color:#a29bfe">"$1"</span>:')
+        .replace(/: "([^"]*)"/g, ': <span style="color:#00b894">"$1"</span>')
+        .replace(/: (\d+)/g, ': <span style="color:#ffa502">$1</span>')
+        .replace(/: (true|false)/g, ': <span style="color:#ff6348">$1</span>')
+        .replace(/: null/g, ': <span style="color:#636e72">null</span>');
+    }
+
+    async function apiCall(method, path, body = null) {
+      const start = performance.now();
+      try {
+        const opts = {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(`${API}${path}`, opts);
+        const duration = Math.round(performance.now() - start);
+        let data;
+        const text = await res.text();
+        try { data = JSON.parse(text); } catch { data = text; }
+        addLog(method, path, res.status, data, duration);
+        return { status: res.status, data };
+      } catch (err) {
+        const duration = Math.round(performance.now() - start);
+        addLog(method, path, 0, { error: err.message }, duration);
+        return { status: 0, data: { error: err.message } };
+      }
+    }
+
+    function updateSessionUI(session) {
+      const badge = document.getElementById('statusBadge');
+      const statusText = document.getElementById('statusText');
+      const empty = document.getElementById('sessionEmpty');
+      const details = document.getElementById('sessionDetails');
+      const userDetails = document.getElementById('userDetails');
+
+      if (session && session.user) {
+        badge.className = 'status-badge';
+        statusText.textContent = `${session.user.name} (${session.user.role})`;
+        empty.classList.add('hidden');
+        details.classList.remove('hidden');
+
+        const u = session.user;
+        const s = session.session;
+        userDetails.innerHTML = `
+          <div class="detail-item"><div class="label">Name</div><div class="value">${u.name}</div></div>
+          <div class="detail-item"><div class="label">Email</div><div class="value">${u.email}</div></div>
+          <div class="detail-item"><div class="label">Role</div><div class="value"><span class="role-tag role-${u.role}">${u.role}</span></div></div>
+          <div class="detail-item"><div class="label">User ID</div><div class="value" style="font-family:var(--mono);font-size:0.75rem">${u.id}</div></div>
+          <div class="detail-item"><div class="label">Email Verified</div><div class="value">${u.emailVerified ? '✅ Yes' : '❌ No'}</div></div>
+          ${s ? `<div class="detail-item"><div class="label">Session Expires</div><div class="value">${new Date(s.expiresAt).toLocaleString()}</div></div>` : ''}
+        `;
+      } else {
+        badge.className = 'status-badge logged-out';
+        statusText.textContent = 'Not Authenticated';
+        empty.classList.remove('hidden');
+        details.classList.add('hidden');
+      }
+    }
+
+    // ── Auth Actions ──
+
+    async function doSignUp() {
+      const name = document.getElementById('signupName').value;
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      if (!name || !email || !password) { alert('Please fill in all fields.'); return; }
+      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-up', { name, email, password });
+      if (status === 200 && data.user) {
+        updateSessionUI({ user: data.user });
+        setTimeout(doGetSession, 300);
+      }
+    }
+
+    async function doSignIn() {
+      const email = document.getElementById('signinEmail').value;
+      const password = document.getElementById('signinPassword').value;
+      if (!email || !password) { alert('Please fill in email and password.'); return; }
+      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-in', { email, password });
+      if (status === 200 && data.user) {
+        updateSessionUI({ user: data.user });
+        setTimeout(doGetSession, 300);
+      }
+    }
+
+    async function doSignOut() {
+      const { status } = await apiCall('POST', '/api/v1/auth/sign-out');
+      if (status === 200) updateSessionUI(null);
+    }
+
+    async function doGetSession() {
+      const { status, data } = await apiCall('GET', '/api/v1/auth/get-session');
+      if (status === 200 && data && data.user) updateSessionUI(data);
+      else updateSessionUI(null);
+    }
+
+    // ── OTP Actions ──
+
+    async function doSendOTP() {
+      const email = document.getElementById('otpSendEmail').value;
+      const type = document.getElementById('otpSendType').value;
+      if (!email) { alert('Please enter an email.'); return; }
+      await apiCall('POST', '/api/v1/auth/email-otp/send-verification-otp', { email, type });
+    }
+
+    async function doVerifyOTP() {
+      const email = document.getElementById('otpVerifyEmail').value;
+      const otp = document.getElementById('otpVerifyCode').value;
+      if (!email || !otp) { alert('Please enter email and OTP.'); return; }
+      await apiCall('POST', '/api/v1/auth/email-otp/verify-email', { email, otp });
+    }
+
+    // ── Password Reset Actions ──
+
+    async function doRequestReset() {
+      const email = document.getElementById('resetReqEmail').value;
+      if (!email) { alert('Please enter an email.'); return; }
+      await apiCall('POST', '/api/v1/auth/email-otp/request-password-reset', { email });
+    }
+
+    async function doResetPassword() {
+      const email = document.getElementById('resetEmail').value;
+      const otp = document.getElementById('resetOTP').value;
+      const password = document.getElementById('resetPassword').value;
+      if (!email || !otp || !password) { alert('Please fill in all fields.'); return; }
+      await apiCall('POST', '/api/v1/auth/email-otp/reset-password', { email, otp, password });
+    }
+
+    // ── Panel Actions ──
+
+    async function doStudentDashboard() { await apiCall('GET', '/api/v1/student/dashboard'); }
+    async function doStudentProfile() { await apiCall('GET', '/api/v1/student/profile'); }
+    async function doAdminDashboard() { await apiCall('GET', '/api/v1/admin/dashboard'); }
+    async function doAdminUsers() { await apiCall('GET', '/api/v1/admin/users'); }
+
+    async function doRateTest() {
+      addLog('INFO', '/api/v1/auth/sign-in', '-', { info: 'Sending 10 rapid requests to test rate limiter (limit: 8/min)...' }, 0);
+      for (let i = 1; i <= 10; i++) {
+        const start = performance.now();
+        try {
+          const res = await fetch(`${API}/api/v1/auth/sign-in`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email: 'ratelimit@test.com', password: 'wrong' }),
+          });
+          const duration = Math.round(performance.now() - start);
+          let data; try { data = await res.json(); } catch { data = {}; }
+          addLog('POST', `/api/v1/auth/sign-in [${i}/10]`, res.status, data, duration);
+          if (res.status === 429) {
+            addLog('INFO', '/api/v1/auth/sign-in', 429, { info: `✅ Rate limiter kicked in at request #${i}` }, 0);
+            break;
+          }
+        } catch (err) {
+          addLog('POST', `/api/v1/auth/sign-in [${i}/10]`, 0, { error: err.message }, 0);
+        }
+      }
+    }
+
+    // ── Init ──
+    doGetSession();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Auth Tester</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .section {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0052a3;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #0066cc;
+            border: 1px solid #0066cc;
+        }
+
+        .btn-outline:hover {
+            background: #f0f8ff;
+        }
+
+        .alert {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .alert.error {
+            background: #fee;
+            color: #c00;
+            border: 1px solid #c00;
+            display: block;
+        }
+
+        .alert.success {
+            background: #efe;
+            color: #090;
+            border: 1px solid #090;
+            display: block;
+        }
+
+        .links {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .links a {
+            color: #0066cc;
+            text-decoration: underline;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        #session-info {
+            background: #f0f8ff;
+            border: 1px solid #bce8f1;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Auth Testing Mockup</h1>
+
+    <div id="alertBox" class="alert"></div>
+
+    <div id="session-info" style="display: none;">
+        <h3>Currently Logged In:</h3>
+        <p>Name: <span id="user-name"></span></p>
+        <p>Email: <span id="user-email"></span></p>
+        <p>Role: <span id="user-role"></span></p>
+        <button id="btn-change-password" class="btn-outline" style="margin-right: 8px;">Change Password</button>
+        <button id="btn-logout">Logout</button>
+    </div>
+
+    <!-- Change Password Form (visible only when logged in) -->
+    <div id="view-change-password" class="section">
+        <h2>Change Password</h2>
+        <form id="form-change-password">
+            <div class="form-group">
+                <label>Current Password</label>
+                <input type="password" id="cp-current" required>
+            </div>
+            <div class="form-group">
+                <label>New Password (min 8 chars)</label>
+                <input type="password" id="cp-new" required minlength="8">
+            </div>
+            <div class="form-group">
+                <label>Confirm New Password</label>
+                <input type="password" id="cp-confirm" required minlength="8">
+            </div>
+            <button type="submit">Update Password</button>
+        </form>
+        <div class="links">
+            <a id="link-cancel-change-password">Cancel</a>
+        </div>
+    </div>
+
+    <!-- Sign In Form -->
+    <div id="view-login" class="section active">
+        <h2>Sign In</h2>
+        <form id="form-login">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="login-email" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="login-password" required>
+            </div>
+            <button type="submit">Sign In</button>
+        </form>
+        <div class="links">
+            <a id="link-to-signup">Create Account</a> |
+            <a id="link-to-forgot">Forgot Password?</a>
+        </div>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="view-signup" class="section">
+        <h2>Sign Up</h2>
+        <form id="form-signup">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="signup-name" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="signup-email" required>
+            </div>
+            <div class="form-group">
+                <label>Password (min 8 chars)</label>
+                <input type="password" id="signup-password" required minlength="8">
+            </div>
+            <div style="margin-bottom: 10px; font-size: 0.85em; color: #555;">
+                Note: Upon signing up, you will be registered as a <strong>student</strong>.
+            </div>
+            <button type="submit">Create Account</button>
+        </form>
+        <div class="links">
+            <a id="link-to-login">Back to Sign In</a>
+        </div>
+    </div>
+
+    <!-- Verify Email Form -->
+    <div id="view-verify" class="section">
+        <h2>Verify Email</h2>
+        <p>An OTP code has been sent to your email. Please enter it below to verify your account before logging in.</p>
+        <form id="form-verify">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="verify-email" readonly required>
+            </div>
+            <div class="form-group">
+                <label>OTP Code</label>
+                <input type="text" id="verify-otp" required maxlength="6">
+            </div>
+            <button type="submit">Verify Email</button>
+        </form>
+        <div class="links">
+            <a id="link-resend-verify">Resend OTP</a> |
+            <a id="link-to-login-from-verify">Back to Sign In</a>
+        </div>
+        <p style="font-size: 0.8em; color: #888; margin-top: 10px;">
+            ⚠️ Resending generates a new code. Previous codes become invalid.
+        </p>
+    </div>
+
+    <!-- Forgot Password Form -->
+    <div id="view-forgot" class="section">
+        <h2>Forgot Password</h2>
+        <p>Enter your email to receive a reset OTP code.</p>
+        <form id="form-forgot">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="forgot-email" required>
+            </div>
+            <button type="submit">Send OTP</button>
+        </form>
+        <div class="links">
+            <a id="link-to-login-from-forgot">Back to Sign In</a>
+        </div>
+    </div>
+
+    <!-- Reset Password Form -->
+    <div id="view-reset" class="section">
+        <h2>Reset Password</h2>
+        <form id="form-reset">
+            <div class="form-group">
+                <label>Email (Confirm)</label>
+                <input type="email" id="reset-email" required>
+            </div>
+            <div class="form-group">
+                <label>OTP Code (from email)</label>
+                <input type="text" id="reset-otp" required>
+            </div>
+            <div class="form-group">
+                <label>New Password (min 8 chars)</label>
+                <input type="password" id="reset-password" required minlength="8">
+            </div>
+            <button type="submit">Set New Password</button>
+        </form>
+        <div class="links">
+            <a id="link-resend-reset">Resend OTP</a> |
+            <a id="link-to-login-from-reset">Cancel & Back to Sign In</a>
+        </div>
+        <p style="font-size: 0.8em; color: #888; margin-top: 10px;">
+            ⚠️ Resending generates a new code. Previous codes become invalid.
+        </p>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+
+        function switchView(viewId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            document.getElementById('alertBox').className = 'alert'; // hide alerts on switch
+        }
+
+        function showAlert(msg, isError = false) {
+            const box = document.getElementById('alertBox');
+            box.textContent = msg;
+            box.className = `alert ${isError ? 'error' : 'success'}`;
+        }
+
+        async function apiRequest(path, body = null) {
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            try {
+                const res = await fetch(`${API}${path}`, options);
+                let data;
+                try { data = await res.json(); } catch { data = {}; }
+                return { ok: res.ok, data };
+            } catch (err) {
+                return { ok: false, data: { message: 'Network error. Is API running?' } };
+            }
+        }
+
+        async function checkSession() {
+            try {
+                const res = await fetch(`${API}/api/v1/auth/get-session`, { credentials: 'include' });
+                const data = await res.json();
+
+                if (data && data.user) {
+                    document.getElementById('session-info').style.display = 'block';
+                    document.getElementById('user-name').textContent = data.user.name;
+                    document.getElementById('user-email').textContent = data.user.email;
+                    document.getElementById('user-role').textContent = data.user.role || 'student';
+                    document.getElementById('view-login').style.display = 'none';
+                    switchView(''); // Hide all forms
+                } else {
+                    document.getElementById('session-info').style.display = 'none';
+                    switchView('view-login');
+                }
+            } catch (e) {
+                console.log("Not logged in");
+            }
+        }
+
+        // --- Event Listeners to avoid CSP inline-script blocking ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check session initially
+            checkSession();
+
+            // Link listeners
+            document.getElementById('link-to-signup').addEventListener('click', () => switchView('view-signup'));
+            document.getElementById('link-to-login').addEventListener('click', () => switchView('view-login'));
+            document.getElementById('link-to-forgot').addEventListener('click', () => switchView('view-forgot'));
+            document.getElementById('link-to-login-from-verify').addEventListener('click', () => switchView('view-login'));
+            document.getElementById('link-to-login-from-forgot').addEventListener('click', () => switchView('view-login'));
+            document.getElementById('link-to-login-from-reset').addEventListener('click', () => switchView('view-login'));
+
+            // Change Password button (visible when logged in)
+            document.getElementById('btn-change-password').addEventListener('click', () => {
+                document.getElementById('alertBox').className = 'alert';
+                switchView('view-change-password');
+            });
+            document.getElementById('link-cancel-change-password').addEventListener('click', () => {
+                document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+                document.getElementById('alertBox').className = 'alert';
+            });
+
+            // Logout
+            document.getElementById('btn-logout').addEventListener('click', async () => {
+                const { ok } = await apiRequest('/api/v1/auth/sign-out');
+                if (ok) {
+                    showAlert('Logged out successfully');
+                    document.getElementById('session-info').style.display = 'none';
+                    switchView('view-login');
+                }
+            });
+
+            // Form Submissions
+            document.getElementById('form-login').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('alertBox').className = 'alert';
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+
+                const { ok, data } = await apiRequest('/api/v1/auth/sign-in', { email, password });
+
+                if (ok && data.user) {
+                    showAlert('Signed in successfully!');
+                    checkSession();
+                } else {
+                    showAlert(data.message || data.error || 'Invalid credentials', true);
+                    // Handle unverified email fallback
+                    if (data.error === "Email is not verified") {
+                        document.getElementById('verify-email').value = email;
+                        switchView('view-verify');
+                        showAlert('Your email is not verified. Please verify it now.', true);
+                    }
+                }
+            });
+
+            document.getElementById('form-signup').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('alertBox').className = 'alert';
+                const name = document.getElementById('signup-name').value;
+                const email = document.getElementById('signup-email').value;
+                const password = document.getElementById('signup-password').value;
+
+                const { ok, data } = await apiRequest('/api/v1/auth/sign-up', { name, email, password });
+
+                if (ok && data.user) {
+                    // Better Auth automatically sends the OTP because sendVerificationOnSignUp is true
+
+                    document.getElementById('verify-email').value = email;
+                    switchView('view-verify');
+                    showAlert('Account created! A verification code has been sent to your email.');
+                } else {
+                    let err = data.error || data.message || 'Failed to sign up';
+                    if (data.name === "APIError" && data.body?.message) err = data.body.message;
+                    showAlert(err, true);
+                }
+            });
+
+            // Resend OTP logic for verify view
+            document.getElementById('link-resend-verify').addEventListener('click', async () => {
+                const email = document.getElementById('verify-email').value;
+                if (!email) return showAlert('No email specified.', true);
+
+                const { ok } = await apiRequest('/api/v1/auth/email-otp/send-verification-otp', { email, type: 'email-verification' });
+                if (ok) {
+                    document.getElementById('verify-otp').value = '';
+                    showAlert('A new verification code has been sent. Previous codes are now invalid.');
+                } else {
+                    showAlert('Failed to resend code. Please try again later.', true);
+                }
+            });
+
+            // Resend OTP logic for password reset view
+            document.getElementById('link-resend-reset').addEventListener('click', async () => {
+                const email = document.getElementById('reset-email').value;
+                if (!email) return showAlert('No email specified.', true);
+
+                const { ok } = await apiRequest('/api/v1/auth/email-otp/request-password-reset', { email });
+                if (ok) {
+                    document.getElementById('reset-otp').value = '';
+                    showAlert('A new reset code has been sent. Previous codes are now invalid.');
+                } else {
+                    showAlert('Failed to resend code. Please try again later.', true);
+                }
+            });
+
+            document.getElementById('form-verify').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('alertBox').className = 'alert';
+                const email = document.getElementById('verify-email').value;
+                const otp = document.getElementById('verify-otp').value;
+
+                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/verify-email', { email, otp });
+
+                if (ok) {
+                    showAlert('Email verified successfully! You can now log in.');
+                    switchView('view-login');
+                    document.getElementById('login-email').value = email;
+                } else {
+                    showAlert(data.message || data.error || 'Invalid OTP code', true);
+                }
+            });
+
+            document.getElementById('form-forgot').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('alertBox').className = 'alert';
+                const email = document.getElementById('forgot-email').value;
+
+                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/request-password-reset', { email });
+
+                if (ok || data.message) {
+                    showAlert('If an account exists, a reset code was sent.');
+                    document.getElementById('reset-email').value = email;
+                    switchView('view-reset');
+                } else {
+                    showAlert(data.message || data.error || 'Failed to request reset', true);
+                }
+            });
+
+            document.getElementById('form-reset').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('alertBox').className = 'alert';
+                const email = document.getElementById('reset-email').value;
+                const otp = document.getElementById('reset-otp').value;
+                const password = document.getElementById('reset-password').value;
+
+                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/reset-password', { email, otp, password });
+
+                if (ok || data.message === "Password reset successfully") {
+                    showAlert('Password reset successfully! You can now sign in.');
+                    switchView('view-login');
+                } else {
+                    showAlert(data.message || data.error || 'Invalid OTP code', true);
+                }
+            });
+
+            // Change Password (logged-in user)
+            document.getElementById('form-change-password').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('alertBox').className = 'alert';
+                const currentPassword = document.getElementById('cp-current').value;
+                const newPassword = document.getElementById('cp-new').value;
+                const confirmPassword = document.getElementById('cp-confirm').value;
+
+                if (newPassword !== confirmPassword) {
+                    return showAlert('New passwords do not match.', true);
+                }
+                if (newPassword.length < 8) {
+                    return showAlert('New password must be at least 8 characters.', true);
+                }
+
+                const { ok, data } = await apiRequest('/api/v1/auth/change-password', {
+                    currentPassword,
+                    newPassword,
+                    revokeOtherSessions: true,
+                });
+
+                if (ok) {
+                    showAlert('Password changed successfully!');
+                    document.getElementById('cp-current').value = '';
+                    document.getElementById('cp-new').value = '';
+                    document.getElementById('cp-confirm').value = '';
+                    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+                } else {
+                    const msg = data?.message || data?.error || data?.body?.message || 'Failed to change password';
+                    showAlert(msg, true);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
