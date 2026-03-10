@@ -2,7 +2,7 @@
 // Serverless-safe singleton: reuses the same PrismaClient instance across
 // hot-reloads in development and across invocations in serverless (Vercel).
 
-import { PrismaClient } from "../generated/prisma/client.js";
+import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

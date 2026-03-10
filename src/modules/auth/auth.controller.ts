@@ -150,11 +150,9 @@ export async function signIn(req: Request, res: Response): Promise<void> {
 
     // Accept email address or username as identifier
     const isEmail = data.identifier.includes("@");
-    const user = await prisma.user.findUnique(
-      isEmail
-        ? { where: { email: data.identifier } }
-        : { where: { username: data.identifier } }
-    );
+    const user = isEmail
+      ? await prisma.user.findUnique({ where: { email: data.identifier } })
+      : await prisma.user.findUnique({ where: { username: data.identifier } });
     if (!user) {
       res.status(401).json({ error: "Invalid credentials" });
       return;

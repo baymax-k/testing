@@ -1,6 +1,5 @@
 // ─── OpenAPI / Swagger Specification ────────────────────────────────────────────
-// Extracted from app.ts so it can evolve independently.
-// Devs: add new paths here when creating endpoints in route modules.
+// Reflects the current JWT cookie-based auth, all route modules, and Prisma schema.
 
 import swaggerJsdoc from "swagger-jsdoc";
 
@@ -9,18 +8,20 @@ const swaggerOptions: swaggerJsdoc.Options = {
     openapi: "3.0.0",
     info: {
       title: "CodeEthnics Backend API",
-      version: "3.0.0",
+      version: "4.0.0",
       description:
-        "Backend API for the CodeEthnics student coding platform.\n\n" +
-        "**Authentication** — Email/password, OTP verification, role-based access\n" +
-        "**Problems** — Browse coding problems with sample test cases\n" +
-        "**Code Execution** — Run code in a sandbox (playground) or submit against test cases\n" +
+        "Backend API for the CodeEthnics institutional coding platform.\n\n" +
+        "**Authentication** — JWT cookie-based (access_token + refresh_token), email/username sign-in, OTP verification, RBAC\n" +
+        "**Problems** — Browse coding problems (JSON-defined) with sample test cases\n" +
+        "**Practice** — Filter problems by difficulty/tag/type, submit MCQ answers\n" +
+        "**Contests** — Join contests, submit DSA solutions, view leaderboards\n" +
+        "**Code Execution** — Run code in a sandbox (playground) or submit against test cases via Judge0\n" +
         "**Submissions** — Track submission history and verdicts\n\n" +
-        "Rate limits: 15 submissions/min per user, 8 auth requests/min per IP.",
+        "Rate limits: 15 submissions/min, 15 sign-in attempts/min, 100 auth requests/15min per IP.",
     },
     servers: [
       {
-        url: process.env.BETTER_AUTH_URL || "http://localhost:5000",
+        url: process.env.APP_URL || "http://localhost:5000",
         description: "Development server",
       },
     ],
@@ -31,8 +32,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
         cookieAuth: {
           type: "apiKey",
           in: "cookie",
-          name: "better-auth.session_token",
-          description: "Session cookie set automatically on sign-in / sign-up.",
+          name: "access_token",
+          description:
+            "JWT access token cookie (httpOnly, 15-min TTL). Set automatically on sign-in, verify-email, and refresh.",
         },
       },
       schemas: {
@@ -41,47 +43,30 @@ const swaggerOptions: swaggerJsdoc.Options = {
           properties: {
             id: { type: "string" },
             email: { type: "string", format: "email" },
+            username: { type: "string", example: "jane_doe" },
             name: { type: "string" },
             role: {
               type: "string",
               enum: ["student", "college_admin", "product_admin", "instructor_staff"],
             },
             emailVerified: { type: "boolean" },
-            image: { type: "string", nullable: true },
-            createdAt: { type: "string", format: "date-time" },
-            updatedAt: { type: "string", format: "date-time" },
-          },
-        },
-        Session: {
-          type: "object",
-          properties: {
-            // token may be null when signup requires email verification; clients should
-            // call /get-session after OTP verification to obtain a real token.
-            token: { type: "string", nullable: true },
-            user: { $ref: "#/components/schemas/User" },
-            session: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                userId: { type: "string" },
-                expiresAt: { type: "string", format: "date-time" },
-                ipAddress: { type: "string" },
-                userAgent: { type: "string" },
-              },
-            },
           },
         },
         Error: {
           type: "object",
           properties: {
-            code: { type: "string" },
-            message: { type: "string" },
+            error: { type: "string" },
+            details: {
+              type: "array",
+              items: { type: "object" },
+              description: "Zod validation issues (only on validation errors)",
+            },
           },
         },
-        Success: {
+        Message: {
           type: "object",
           properties: {
-            success: { type: "boolean" },
+            message: { type: "string" },
           },
         },
         ProblemSummary: {
@@ -185,6 +170,34 @@ const swaggerOptions: swaggerJsdoc.Options = {
             createdAt: { type: "string", format: "date-time" },
           },
         },
+        Question: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            type: { type: "string", enum: ["mcq", "dsa"] },
+            title: { type: "string" },
+            description: { type: "string" },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+            tags: { type: "array", items: { type: "string" } },
+            company: { type: "string", nullable: true },
+            options: { type: "array", items: { type: "string" }, description: "MCQ options (MCQ only)" },
+            timeLimit: { type: "integer", description: "Seconds (DSA only)", nullable: true },
+            memoryLimit: { type: "integer", description: "KB (DSA only)", nullable: true },
+            sampleTestCases: { type: "array", items: { type: "object" }, description: "DSA only", nullable: true },
+          },
+        },
+        Contest: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            title: { type: "string" },
+            description: { type: "string" },
+            type: { type: "string", enum: ["contest", "practice"] },
+            startTime: { type: "string", format: "date-time", nullable: true },
+            endTime: { type: "string", format: "date-time", nullable: true },
+            duration: { type: "integer", description: "Duration in minutes", nullable: true },
+          },
+        },
       },
     },
 
@@ -196,8 +209,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
           summary: "Register a new student",
           description:
             "Creates a new user with the 'student' role. A 6-digit OTP verification email is sent automatically. " +
-            "Because the account requires email verification (`requireEmailVerification: true`), the returned `token` field will be `null` until the user completes OTP verification. " +
-            "Clients should call `GET /api/v1/auth/get-session` after verification to retrieve a valid session token.",
+            "The account is not usable until the email is verified via `POST /auth/verify-email`. " +
+            "Rate limited to 15 req/min per IP.",
           tags: ["Authentication"],
           security: [],
           requestBody: {
@@ -208,33 +221,42 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   type: "object",
                   properties: {
                     email: { type: "string", format: "email" },
+                    username: {
+                      type: "string",
+                      minLength: 3,
+                      maxLength: 30,
+                      pattern: "^[a-z0-9_]+$",
+                      description: "Lowercase letters, numbers, and underscores only",
+                    },
                     password: { type: "string", minLength: 8 },
                     name: { type: "string" },
                   },
-                  required: ["email", "password", "name"],
+                  required: ["email", "username", "password", "name"],
                 },
               },
             },
           },
           responses: {
-            "200": {
-              description: "User registered & verification email sent. `token` may be null until email is verified.",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Session" } } },
+            "201": {
+              description: "Account created, verification OTP emailed",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
-            "422": {
-              description: "Validation error / user already exists",
+            "400": {
+              description: "Validation error / email or username already taken",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
+            "429": { description: "Rate limited" },
           },
         },
       },
 
       "/api/v1/auth/sign-in": {
         post: {
-          summary: "Login with email & password (alias)",
+          summary: "Sign in with email or username",
           description:
-            "Alias for /auth/sign-in/email. Rate-limited to 8 req/min per IP. " +
-            "Returns 403 if email is not verified.",
+            "Verifies credentials and sets `access_token` (15-min) and `refresh_token` (7-day) httpOnly cookies. " +
+            "The `identifier` field accepts either an email address or a username. " +
+            "Returns 403 if email is not verified. Rate limited to 15 req/min per IP.",
           tags: ["Authentication"],
           security: [],
           requestBody: {
@@ -244,18 +266,28 @@ const swaggerOptions: swaggerJsdoc.Options = {
                 schema: {
                   type: "object",
                   properties: {
-                    email: { type: "string", format: "email" },
+                    identifier: { type: "string", description: "Email address or username" },
                     password: { type: "string" },
                   },
-                  required: ["email", "password"],
+                  required: ["identifier", "password"],
                 },
               },
             },
           },
           responses: {
             "200": {
-              description: "Logged in – session cookie set",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Session" } } },
+              description: "Signed in — cookies set",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      user: { $ref: "#/components/schemas/User" },
+                    },
+                  },
+                },
+              },
             },
             "401": {
               description: "Invalid credentials",
@@ -263,88 +295,68 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
             "403": {
               description: "Email not verified",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string" },
+                      code: { type: "string", example: "EMAIL_NOT_VERIFIED" },
+                    },
+                  },
+                },
+              },
             },
-            "429": {
-              description: "Rate-limited (8 req/min)",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
+            "429": { description: "Rate limited (15 req/min)" },
           },
         },
       },
 
       "/api/v1/auth/sign-out": {
         post: {
-          summary: "Logout (invalidate session)",
+          summary: "Sign out (revoke refresh token, clear cookies)",
+          description: "Deletes the refresh token from the database and clears both auth cookies.",
           tags: ["Authentication"],
+          security: [],
           responses: {
-            "200": { description: "Session destroyed" },
+            "200": {
+              description: "Signed out",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
+            },
           },
         },
       },
 
-      "/api/v1/auth/get-session": {
-        get: {
-          summary: "Get current session",
+      "/api/v1/auth/refresh": {
+        post: {
+          summary: "Refresh access token",
+          description:
+            "Reads the `refresh_token` cookie, validates it, deletes the old refresh token, " +
+            "and issues a new access_token + refresh_token pair (token rotation). " +
+            "Clears cookies if the refresh token is invalid or expired.",
           tags: ["Authentication"],
+          security: [],
           responses: {
             "200": {
-              description: "Active session with user info (includes role)",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Session" } } },
+              description: "Tokens refreshed — new cookies set",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
             "401": {
-              description: "No valid session",
+              description: "No refresh token, expired, or revoked",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
           },
         },
       },
 
-      // ── Email OTP ──────────────────────────────────────────────────────────
-      "/api/v1/auth/email-otp/send-verification-otp": {
-        post: {
-          summary: "Send a 6-digit OTP",
-          description:
-            "Sends a 6-digit OTP to the given email. Use `type` to specify the purpose: " +
-            "`email-verification`, `forget-password`, or `sign-in`. OTP is valid for 10 minutes, max 10 attempts.",
-          tags: ["Email OTP"],
-          security: [],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    email: { type: "string", format: "email" },
-                    type: {
-                      type: "string",
-                      enum: ["email-verification", "forget-password", "sign-in"],
-                    },
-                  },
-                  required: ["email", "type"],
-                },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "OTP sent",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
-            },
-            "400": {
-              description: "Invalid request",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-          },
-        },
-      },
-
-      "/api/v1/auth/email-otp/verify-email": {
+      // ── Email Verification ─────────────────────────────────────────────────
+      "/api/v1/auth/verify-email": {
         post: {
           summary: "Verify email with OTP",
-          description: "Verifies the user's email using the 6-digit OTP.",
-          tags: ["Email OTP"],
+          description:
+            "Verifies the user's email using the 6-digit OTP sent on sign-up. " +
+            "On success, marks email as verified and auto-signs the user in (sets auth cookies).",
+          tags: ["Authentication"],
           security: [],
           requestBody: {
             required: true,
@@ -363,74 +375,37 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Email verified",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
-            },
-            "400": {
-              description: "Invalid OTP or expired",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-            "429": {
-              description: "Too many attempts",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-          },
-        },
-      },
-
-      // ── Change Password (logged-in user) ────────────────────────────────────
-      "/api/v1/auth/change-password": {
-        post: {
-          summary: "Change password (logged-in user)",
-          description:
-            "Allows a logged-in user to change their password by providing their current password " +
-            "and a new password. Handled natively by Better Auth. " +
-            "Set `revokeOtherSessions` to true to invalidate all other active sessions.",
-          tags: ["Authentication"],
-          security: [{ cookieAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    currentPassword: { type: "string", description: "The user's current password" },
-                    newPassword: { type: "string", minLength: 8, description: "The new password (min 8 chars)" },
-                    revokeOtherSessions: {
-                      type: "boolean",
-                      description: "If true, all other active sessions are invalidated",
-                      default: false,
+              description: "Email verified — auto signed in, cookies set",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      user: { $ref: "#/components/schemas/User" },
                     },
                   },
-                  required: ["currentPassword", "newPassword"],
                 },
               },
             },
-          },
-          responses: {
-            "200": {
-              description: "Password changed successfully",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
-            },
             "400": {
-              description: "Invalid current password or weak new password",
+              description: "Invalid/expired OTP or email already verified",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
-            "401": {
-              description: "Not authenticated",
+            "404": {
+              description: "User not found",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
           },
         },
       },
 
-      // ── Password Reset ─────────────────────────────────────────────────────
-      "/api/v1/auth/email-otp/request-password-reset": {
+      "/api/v1/auth/send-otp": {
         post: {
-          summary: "Request password reset OTP",
-          description: "Sends a 6-digit OTP for password reset. User must have a verified email.",
-          tags: ["Password Reset"],
+          summary: "Resend email verification OTP",
+          description:
+            "Sends a new 6-digit OTP to the given email for verification. Previous OTPs are invalidated.",
+          tags: ["Authentication"],
           security: [],
           requestBody: {
             required: true,
@@ -448,18 +423,55 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "OTP sent if the email exists and is verified",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+              description: "OTP sent (or silent success if account doesn't exist)",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
+            },
+            "400": {
+              description: "Email already verified",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
           },
         },
       },
 
-      "/api/v1/auth/email-otp/reset-password": {
+      // ── Password Reset ─────────────────────────────────────────────────────
+      "/api/v1/auth/forgot-password": {
+        post: {
+          summary: "Request password reset OTP",
+          description:
+            "Sends a 6-digit OTP for password reset. Always returns success to prevent email enumeration.",
+          tags: ["Authentication"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                  },
+                  required: ["email"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "OTP sent if the email exists",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
+            },
+          },
+        },
+      },
+
+      "/api/v1/auth/reset-password": {
         post: {
           summary: "Reset password with OTP",
-          description: "Resets the user's password using the 6-digit OTP received via email.",
-          tags: ["Password Reset"],
+          description:
+            "Resets the user's password using a valid OTP. All refresh tokens for the user are revoked, " +
+            "forcing re-login on all devices.",
+          tags: ["Authentication"],
           security: [],
           requestBody: {
             required: true,
@@ -470,38 +482,39 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   properties: {
                     email: { type: "string", format: "email" },
                     otp: { type: "string", minLength: 6, maxLength: 6 },
-                    password: { type: "string", minLength: 8 },
+                    newPassword: { type: "string", minLength: 8 },
                   },
-                  required: ["email", "otp", "password"],
+                  required: ["email", "otp", "newPassword"],
                 },
               },
             },
           },
           responses: {
             "200": {
-              description: "Password reset successfully",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+              description: "Password reset — all sessions revoked",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
             "400": {
-              description: "Invalid OTP, expired, or weak password",
+              description: "Invalid/expired OTP",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
-            "429": {
-              description: "Too many attempts",
+            "404": {
+              description: "User not found",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
           },
         },
       },
 
-      "/api/v1/auth/email-otp/check-verification-otp": {
+      // ── Change Password (authenticated) ─────────────────────────────────────
+      "/api/v1/auth/change-password": {
         post: {
-          summary: "Verify an OTP code (optional pre-check)",
+          summary: "Change password (logged-in user)",
           description:
-            "Validates the OTP before resetting the password. Use this to show the user " +
-            "an error early if the code is wrong, before they type a new password.",
-          tags: ["Password Reset"],
-          security: [],
+            "Changes the authenticated user's password. The current password must be provided. " +
+            "All other refresh tokens are revoked (current session stays active).",
+          tags: ["Authentication"],
+          security: [{ cookieAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -509,102 +522,98 @@ const swaggerOptions: swaggerJsdoc.Options = {
                 schema: {
                   type: "object",
                   properties: {
-                    email: { type: "string", format: "email" },
-                    otp: { type: "string", minLength: 6, maxLength: 6 },
-                    type: { type: "string", enum: ["forget-password"] },
+                    currentPassword: { type: "string" },
+                    newPassword: { type: "string", minLength: 8 },
                   },
-                  required: ["email", "otp", "type"],
+                  required: ["currentPassword", "newPassword"],
                 },
               },
             },
           },
           responses: {
             "200": {
-              description: "OTP is valid",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+              description: "Password changed, other sessions revoked",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
             "400": {
-              description: "Invalid or expired OTP",
+              description: "Current password incorrect or new password same as current",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
+            "401": { description: "Not authenticated" },
+            "404": { description: "User not found" },
+          },
+        },
+      },
+
+      // ── Common ─────────────────────────────────────────────────────────────
+      "/api/v1/": {
+        get: {
+          summary: "Health check",
+          tags: ["Common"],
+          security: [],
+          responses: {
+            "200": {
+              description: "API is running",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { type: "string", example: "ok" },
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/v1/me": {
+        get: {
+          summary: "Get current user & role-based redirect URL",
+          description:
+            "Returns the authenticated user's info (from the JWT access_token) and the panel URL " +
+            "they should be redirected to based on their role.",
+          tags: ["Common"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "User info with redirect path",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      user: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string" },
+                          name: { type: "string" },
+                          role: { type: "string" },
+                          emailVerified: { type: "boolean" },
+                        },
+                      },
+                      redirect: {
+                        type: "string",
+                        example: "/student/dashboard",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
           },
         },
       },
 
       // ── Admin ──────────────────────────────────────────────────────────────
-      "/api/v1/admin/create-user": {
-        post: {
-          summary: "Create a staff/admin user (product_admin only)",
-          description:
-            "Allows a product_admin to create users with any role (college_admin, product_admin, instructor_staff). " +
-            "Students are created via the public sign-up endpoint.",
-          tags: ["Admin"],
-          security: [{ cookieAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    email: { type: "string", format: "email" },
-                    password: { type: "string", minLength: 8 },
-                    name: { type: "string" },
-                    role: {
-                      type: "string",
-                      enum: ["college_admin", "product_admin", "instructor_staff"],
-                    },
-                  },
-                  required: ["email", "password", "name", "role"],
-                },
-              },
-            },
-          },
-          responses: {
-            "201": {
-              description: "User created",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } },
-            },
-            "400": {
-              description: "Validation error",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-            "401": { description: "Unauthorized" },
-            "403": { description: "Forbidden – not a product_admin" },
-            "409": {
-              description: "User with this email already exists",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
-            },
-          },
-        },
-      },
-
-      "/api/v1/admin/users": {
-        get: {
-          summary: "List all users (product_admin only)",
-          tags: ["Admin"],
-          security: [{ cookieAuth: [] }],
-          responses: {
-            "200": {
-              description: "List of users",
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/User" },
-                  },
-                },
-              },
-            },
-            "401": { description: "Unauthorized" },
-            "403": { description: "Forbidden – not a product_admin" },
-          },
-        },
-      },
-
       "/api/v1/admin/dashboard": {
         get: {
-          summary: "Admin dashboard – product_admin only",
+          summary: "Admin dashboard",
           tags: ["Admin"],
           security: [{ cookieAuth: [] }],
           responses: {
@@ -640,8 +649,69 @@ const swaggerOptions: swaggerJsdoc.Options = {
                 },
               },
             },
-            "401": { description: "Unauthorized" },
-            "403": { description: "Forbidden – not an admin" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden — not a product_admin" },
+          },
+        },
+      },
+
+      "/api/v1/admin/create-user": {
+        post: {
+          summary: "Create a staff/admin user",
+          description:
+            "Allows product_admin or college_admin to create users with non-student roles.",
+          tags: ["Admin"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    username: { type: "string" },
+                    password: { type: "string", minLength: 8 },
+                    name: { type: "string" },
+                    role: {
+                      type: "string",
+                      enum: ["college_admin", "product_admin", "instructor_staff"],
+                    },
+                  },
+                  required: ["email", "username", "password", "name", "role"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "User created",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden — insufficient role" },
+            "409": { description: "Email or username already exists" },
+          },
+        },
+      },
+
+      "/api/v1/admin/users": {
+        get: {
+          summary: "List all users (product_admin only)",
+          tags: ["Admin"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "List of users",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/User" } },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden — not a product_admin" },
           },
         },
       },
@@ -649,7 +719,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       // ── Student ────────────────────────────────────────────────────────────
       "/api/v1/student/dashboard": {
         get: {
-          summary: "Student dashboard – students only",
+          summary: "Student dashboard",
           tags: ["Student"],
           security: [{ cookieAuth: [] }],
           responses: {
@@ -662,30 +732,15 @@ const swaggerOptions: swaggerJsdoc.Options = {
                     properties: {
                       panel: { type: "string", example: "student" },
                       message: { type: "string" },
-                      dashboard: {
-                        type: "object",
-                        properties: {
-                          title: { type: "string" },
-                          sections: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              properties: {
-                                name: { type: "string" },
-                                status: { type: "string" },
-                              },
-                            },
-                          },
-                        },
-                      },
+                      dashboard: { type: "object" },
                       user: { $ref: "#/components/schemas/User" },
                     },
                   },
                 },
               },
             },
-            "401": { description: "Unauthorized" },
-            "403": { description: "Forbidden – not a student" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden — not a student" },
           },
         },
       },
@@ -700,42 +755,250 @@ const swaggerOptions: swaggerJsdoc.Options = {
               description: "Student profile",
               content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } },
             },
-            "401": { description: "Unauthorized" },
-            "403": { description: "Forbidden – not a student" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden — not a student" },
           },
         },
       },
 
-      // ── Common ─────────────────────────────────────────────────────────────
-      "/api/v1/me": {
+      // ── Practice ───────────────────────────────────────────────────────────
+      "/api/v1/student/practice": {
         get: {
-          summary: "Get current user & role-based redirect URL",
-          description:
-            "Returns the authenticated user's info and the panel URL they should be " +
-            "redirected to based on their role. The frontend should call this after " +
-            "login/sign-up and navigate to `redirect`.",
-          tags: ["Common"],
+          summary: "List practice problems",
+          description: "Returns filterable practice problems. Supports difficulty, tag, and type filters.",
+          tags: ["Practice"],
           security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "difficulty", in: "query", schema: { type: "string", enum: ["easy", "medium", "hard"] } },
+            { name: "tag", in: "query", schema: { type: "string" } },
+            { name: "type", in: "query", schema: { type: "string", enum: ["mcq", "dsa"] } },
+            { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+            { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          ],
           responses: {
             "200": {
-              description: "User info with redirect",
+              description: "List of practice problems",
               content: {
                 "application/json": {
                   schema: {
                     type: "object",
                     properties: {
-                      user: { $ref: "#/components/schemas/User" },
-                      redirect: {
-                        type: "string",
-                        example: "/student/dashboard",
-                        description: "Panel URL based on user role",
+                      questions: { type: "array", items: { $ref: "#/components/schemas/Question" } },
+                      total: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/{id}": {
+        get: {
+          summary: "Get practice problem details",
+          description: "Returns practice problem details. Hidden test cases and MCQ correct answers are excluded.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": {
+              description: "Practice problem details",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Question" } } },
+            },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Problem not found" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq": {
+        post: {
+          summary: "Submit MCQ answer (instant feedback)",
+          description: "Submit an MCQ answer for instant feedback. No database record is created.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    questionId: { type: "string" },
+                    selectedOption: { type: "integer", minimum: 0, maximum: 3 },
+                  },
+                  required: ["questionId", "selectedOption"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "MCQ result",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      correct: { type: "boolean" },
+                      correctAnswer: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Question not found" },
+          },
+        },
+      },
+
+      // ── Contests ───────────────────────────────────────────────────────────
+      "/api/v1/student/contest": {
+        get: {
+          summary: "List contests",
+          description: "Returns contests with pagination and optional status filter (upcoming, active, past).",
+          tags: ["Contests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "status", in: "query", schema: { type: "string", enum: ["upcoming", "active", "past"] } },
+            { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+            { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          ],
+          responses: {
+            "200": {
+              description: "List of contests",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      contests: { type: "array", items: { $ref: "#/components/schemas/Contest" } },
+                      total: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/contest/{id}": {
+        get: {
+          summary: "Get contest details",
+          description: "Returns contest details including questions. User must have joined and contest must be active.",
+          tags: ["Contests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": { description: "Contest details with questions" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Not joined or contest not active" },
+            "404": { description: "Contest not found" },
+          },
+        },
+      },
+
+      "/api/v1/student/contest/join": {
+        post: {
+          summary: "Join a contest",
+          tags: ["Contests"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    contestId: { type: "string" },
+                  },
+                  required: ["contestId"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Joined contest" },
+            "400": { description: "Already joined or contest not joinable" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Contest not found" },
+          },
+        },
+      },
+
+      "/api/v1/student/contest/submit-dsa": {
+        post: {
+          summary: "Submit DSA solution in contest",
+          tags: ["Contests"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    contestId: { type: "string" },
+                    questionId: { type: "string" },
+                    language: { type: "string", enum: ["c", "cpp", "java", "javascript", "python", "go", "rust"] },
+                    sourceCode: { type: "string" },
+                  },
+                  required: ["contestId", "questionId", "language", "sourceCode"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Submission result",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SubmitResult" } } },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Not participating or contest ended" },
+          },
+        },
+      },
+
+      "/api/v1/student/contest/{id}/leaderboard": {
+        get: {
+          summary: "Get contest leaderboard",
+          tags: ["Contests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": {
+              description: "Leaderboard sorted by score",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        rank: { type: "integer" },
+                        userId: { type: "string" },
+                        userName: { type: "string" },
+                        score: { type: "integer" },
                       },
                     },
                   },
                 },
               },
             },
-            "401": { description: "Unauthorized" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Contest not found" },
           },
         },
       },

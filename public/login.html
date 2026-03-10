@@ -156,8 +156,8 @@
         <h2>Sign In</h2>
         <form id="form-login">
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="login-email" required>
+                <label>Email or Username</label>
+                <input type="text" id="login-identifier" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
@@ -182,6 +182,10 @@
             <div class="form-group">
                 <label>Email</label>
                 <input type="email" id="signup-email" required>
+            </div>
+            <div class="form-group">
+                <label>Username (lowercase, numbers, underscores)</label>
+                <input type="text" id="signup-username" required minlength="3" maxlength="30" pattern="^[a-z0-9_]+$">
             </div>
             <div class="form-group">
                 <label>Password (min 8 chars)</label>
@@ -299,7 +303,7 @@
 
         async function checkSession() {
             try {
-                const res = await fetch(`${API}/api/v1/auth/get-session`, { credentials: 'include' });
+                const res = await fetch(`${API}/api/v1/me`, { credentials: 'include' });
                 const data = await res.json();
 
                 if (data && data.user) {
@@ -355,18 +359,17 @@
             document.getElementById('form-login').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 document.getElementById('alertBox').className = 'alert';
-                const email = document.getElementById('login-email').value;
+                const email = document.getElementById('login-identifier').value;
                 const password = document.getElementById('login-password').value;
 
-                const { ok, data } = await apiRequest('/api/v1/auth/sign-in', { email, password });
+                const { ok, data } = await apiRequest('/api/v1/auth/sign-in', { identifier: email, password });
 
                 if (ok && data.user) {
                     showAlert('Signed in successfully!');
                     checkSession();
                 } else {
                     showAlert(data.message || data.error || 'Invalid credentials', true);
-                    // Handle unverified email fallback
-                    if (data.error === "Email is not verified") {
+                    if (data.error === "Email is not verified" || data.code === "EMAIL_NOT_VERIFIED") {
                         document.getElementById('verify-email').value = email;
                         switchView('view-verify');
                         showAlert('Your email is not verified. Please verify it now.', true);
@@ -379,9 +382,10 @@
                 document.getElementById('alertBox').className = 'alert';
                 const name = document.getElementById('signup-name').value;
                 const email = document.getElementById('signup-email').value;
+                const username = document.getElementById('signup-username').value;
                 const password = document.getElementById('signup-password').value;
 
-                const { ok, data } = await apiRequest('/api/v1/auth/sign-up', { name, email, password });
+                const { ok, data } = await apiRequest('/api/v1/auth/sign-up', { name, email, username, password });
 
                 if (ok && data.user) {
                     // Better Auth automatically sends the OTP because sendVerificationOnSignUp is true
@@ -401,7 +405,7 @@
                 const email = document.getElementById('verify-email').value;
                 if (!email) return showAlert('No email specified.', true);
 
-                const { ok } = await apiRequest('/api/v1/auth/email-otp/send-verification-otp', { email, type: 'email-verification' });
+                const { ok } = await apiRequest('/api/v1/auth/send-otp', { email });
                 if (ok) {
                     document.getElementById('verify-otp').value = '';
                     showAlert('A new verification code has been sent. Previous codes are now invalid.');
@@ -415,7 +419,7 @@
                 const email = document.getElementById('reset-email').value;
                 if (!email) return showAlert('No email specified.', true);
 
-                const { ok } = await apiRequest('/api/v1/auth/email-otp/request-password-reset', { email });
+                const { ok } = await apiRequest('/api/v1/auth/forgot-password', { email });
                 if (ok) {
                     document.getElementById('reset-otp').value = '';
                     showAlert('A new reset code has been sent. Previous codes are now invalid.');
@@ -430,12 +434,12 @@
                 const email = document.getElementById('verify-email').value;
                 const otp = document.getElementById('verify-otp').value;
 
-                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/verify-email', { email, otp });
+                const { ok, data } = await apiRequest('/api/v1/auth/verify-email', { email, otp });
 
                 if (ok) {
                     showAlert('Email verified successfully! You can now log in.');
                     switchView('view-login');
-                    document.getElementById('login-email').value = email;
+                    document.getElementById('login-identifier').value = email;
                 } else {
                     showAlert(data.message || data.error || 'Invalid OTP code', true);
                 }
@@ -446,7 +450,7 @@
                 document.getElementById('alertBox').className = 'alert';
                 const email = document.getElementById('forgot-email').value;
 
-                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/request-password-reset', { email });
+                const { ok, data } = await apiRequest('/api/v1/auth/forgot-password', { email });
 
                 if (ok || data.message) {
                     showAlert('If an account exists, a reset code was sent.');
@@ -462,9 +466,9 @@
                 document.getElementById('alertBox').className = 'alert';
                 const email = document.getElementById('reset-email').value;
                 const otp = document.getElementById('reset-otp').value;
-                const password = document.getElementById('reset-password').value;
+                const newPassword = document.getElementById('reset-password').value;
 
-                const { ok, data } = await apiRequest('/api/v1/auth/email-otp/reset-password', { email, otp, password });
+                const { ok, data } = await apiRequest('/api/v1/auth/reset-password', { email, otp, newPassword });
 
                 if (ok || data.message === "Password reset successfully") {
                     showAlert('Password reset successfully! You can now sign in.');
@@ -492,7 +496,6 @@
                 const { ok, data } = await apiRequest('/api/v1/auth/change-password', {
                     currentPassword,
                     newPassword,
-                    revokeOtherSessions: true,
                 });
 
                 if (ok) {

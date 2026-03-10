@@ -15,7 +15,7 @@ import {
   changePassword,
 } from "./auth.controller.js";
 
-const router = Router();
+const router: Router = Router();
 
 // Apply broad rate limit to all auth routes
 router.use(authLimiter);

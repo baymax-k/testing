@@ -503,6 +503,10 @@
           <input type="email" id="signupEmail" placeholder="jane@example.com" />
         </div>
         <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="signupUsername" placeholder="jane_doe (lowercase, numbers, underscores)" />
+        </div>
+        <div class="form-group">
           <label>Password</label>
           <input type="password" id="signupPassword" placeholder="Min 8 characters" />
         </div>
@@ -522,8 +526,8 @@
       </div>
       <div class="card-body">
         <div class="form-group">
-          <label>Email</label>
-          <input type="email" id="signinEmail" placeholder="jane@example.com" />
+          <label>Email or Username</label>
+          <input type="text" id="signinIdentifier" placeholder="jane@example.com or jane_doe" />
         </div>
         <div class="form-group">
           <label>Password</label>
@@ -540,20 +544,12 @@
     <div class="card">
       <div class="card-header">
         <span class="badge badge-post">POST</span>
-        <h2>/auth/email-otp/send-verification-otp</h2>
+        <h2>/auth/send-otp</h2>
       </div>
       <div class="card-body">
         <div class="form-group">
           <label>Email</label>
           <input type="email" id="otpSendEmail" placeholder="jane@example.com" />
-        </div>
-        <div class="form-group">
-          <label>Type</label>
-          <select id="otpSendType">
-            <option value="email-verification">email-verification</option>
-            <option value="forget-password">forget-password</option>
-            <option value="sign-in">sign-in</option>
-          </select>
         </div>
         <button class="btn btn-primary" onclick="doSendOTP()">Send OTP</button>
       </div>
@@ -563,7 +559,7 @@
     <div class="card">
       <div class="card-header">
         <span class="badge badge-post">POST</span>
-        <h2>/auth/email-otp/verify-email</h2>
+        <h2>/auth/verify-email</h2>
       </div>
       <div class="card-body">
         <div class="form-group">
@@ -584,7 +580,7 @@
     <div class="card">
       <div class="card-header">
         <span class="badge badge-post">POST</span>
-        <h2>/auth/email-otp/request-password-reset</h2>
+        <h2>/auth/forgot-password</h2>
       </div>
       <div class="card-body">
         <div class="form-group">
@@ -599,7 +595,7 @@
     <div class="card">
       <div class="card-header">
         <span class="badge badge-post">POST</span>
-        <h2>/auth/email-otp/reset-password</h2>
+        <h2>/auth/reset-password</h2>
       </div>
       <div class="card-body">
         <div class="form-group">
@@ -623,7 +619,7 @@
     <div class="card session-info">
       <div class="card-header">
         <span class="badge badge-get">GET</span>
-        <h2>Session &amp; Quick Actions</h2>
+        <h2>User Info &amp; Quick Actions</h2>
       </div>
       <div class="card-body">
         <div id="sessionEmpty" class="empty-state">
@@ -634,7 +630,7 @@
           <div class="user-details" id="userDetails"></div>
         </div>
         <div class="quick-actions" style="margin-top:1rem">
-          <button class="btn btn-secondary" onclick="doGetSession()">🔄 Refresh Session</button>
+          <button class="btn btn-secondary" onclick="doGetMe()">🔄 Refresh User Info</button>
           <a class="btn btn-primary" href="/test/login.html"
             style="text-align:center; text-decoration:none; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; font-family: var(--font);">✨
             Premium Login UI</a>
@@ -739,28 +735,27 @@
       }
     }
 
-    function updateSessionUI(session) {
+    function updateSessionUI(data) {
       const badge = document.getElementById('statusBadge');
       const statusText = document.getElementById('statusText');
       const empty = document.getElementById('sessionEmpty');
       const details = document.getElementById('sessionDetails');
       const userDetails = document.getElementById('userDetails');
 
-      if (session && session.user) {
+      if (data && data.user) {
         badge.className = 'status-badge';
-        statusText.textContent = `${session.user.name} (${session.user.role})`;
+        statusText.textContent = `${data.user.name} (${data.user.role})`;
         empty.classList.add('hidden');
         details.classList.remove('hidden');
 
-        const u = session.user;
-        const s = session.session;
+        const u = data.user;
         userDetails.innerHTML = `
           <div class="detail-item"><div class="label">Name</div><div class="value">${u.name}</div></div>
           <div class="detail-item"><div class="label">Email</div><div class="value">${u.email}</div></div>
           <div class="detail-item"><div class="label">Role</div><div class="value"><span class="role-tag role-${u.role}">${u.role}</span></div></div>
           <div class="detail-item"><div class="label">User ID</div><div class="value" style="font-family:var(--mono);font-size:0.75rem">${u.id}</div></div>
           <div class="detail-item"><div class="label">Email Verified</div><div class="value">${u.emailVerified ? '✅ Yes' : '❌ No'}</div></div>
-          ${s ? `<div class="detail-item"><div class="label">Session Expires</div><div class="value">${new Date(s.expiresAt).toLocaleString()}</div></div>` : ''}
+          ${data.redirect ? `<div class="detail-item"><div class="label">Redirect</div><div class="value">${data.redirect}</div></div>` : ''}
         `;
       } else {
         badge.className = 'status-badge logged-out';
@@ -775,23 +770,23 @@
     async function doSignUp() {
       const name = document.getElementById('signupName').value;
       const email = document.getElementById('signupEmail').value;
+      const username = document.getElementById('signupUsername').value;
       const password = document.getElementById('signupPassword').value;
-      if (!name || !email || !password) { alert('Please fill in all fields.'); return; }
-      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-up', { name, email, password });
-      if (status === 200 && data.user) {
-        updateSessionUI({ user: data.user });
-        setTimeout(doGetSession, 300);
+      if (!name || !email || !username || !password) { alert('Please fill in all fields.'); return; }
+      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-up', { name, email, username, password });
+      if (status === 201 && data.message) {
+        // Account created, OTP sent — user must verify email
       }
     }
 
     async function doSignIn() {
-      const email = document.getElementById('signinEmail').value;
+      const identifier = document.getElementById('signinIdentifier').value;
       const password = document.getElementById('signinPassword').value;
-      if (!email || !password) { alert('Please fill in email and password.'); return; }
-      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-in', { email, password });
+      if (!identifier || !password) { alert('Please fill in identifier and password.'); return; }
+      const { status, data } = await apiCall('POST', '/api/v1/auth/sign-in', { identifier, password });
       if (status === 200 && data.user) {
-        updateSessionUI({ user: data.user });
-        setTimeout(doGetSession, 300);
+        updateSessionUI(data);
+        setTimeout(doGetMe, 300);
       }
     }
 
@@ -800,8 +795,8 @@
       if (status === 200) updateSessionUI(null);
     }
 
-    async function doGetSession() {
-      const { status, data } = await apiCall('GET', '/api/v1/auth/get-session');
+    async function doGetMe() {
+      const { status, data } = await apiCall('GET', '/api/v1/me');
       if (status === 200 && data && data.user) updateSessionUI(data);
       else updateSessionUI(null);
     }
@@ -810,16 +805,15 @@
 
     async function doSendOTP() {
       const email = document.getElementById('otpSendEmail').value;
-      const type = document.getElementById('otpSendType').value;
       if (!email) { alert('Please enter an email.'); return; }
-      await apiCall('POST', '/api/v1/auth/email-otp/send-verification-otp', { email, type });
+      await apiCall('POST', '/api/v1/auth/send-otp', { email });
     }
 
     async function doVerifyOTP() {
       const email = document.getElementById('otpVerifyEmail').value;
       const otp = document.getElementById('otpVerifyCode').value;
       if (!email || !otp) { alert('Please enter email and OTP.'); return; }
-      await apiCall('POST', '/api/v1/auth/email-otp/verify-email', { email, otp });
+      await apiCall('POST', '/api/v1/auth/verify-email', { email, otp });
     }
 
     // ── Password Reset Actions ──
@@ -827,15 +821,15 @@
     async function doRequestReset() {
       const email = document.getElementById('resetReqEmail').value;
       if (!email) { alert('Please enter an email.'); return; }
-      await apiCall('POST', '/api/v1/auth/email-otp/request-password-reset', { email });
+      await apiCall('POST', '/api/v1/auth/forgot-password', { email });
     }
 
     async function doResetPassword() {
       const email = document.getElementById('resetEmail').value;
       const otp = document.getElementById('resetOTP').value;
-      const password = document.getElementById('resetPassword').value;
-      if (!email || !otp || !password) { alert('Please fill in all fields.'); return; }
-      await apiCall('POST', '/api/v1/auth/email-otp/reset-password', { email, otp, password });
+      const newPassword = document.getElementById('resetPassword').value;
+      if (!email || !otp || !newPassword) { alert('Please fill in all fields.'); return; }
+      await apiCall('POST', '/api/v1/auth/reset-password', { email, otp, newPassword });
     }
 
     // ── Panel Actions ──
@@ -846,7 +840,7 @@
     async function doAdminUsers() { await apiCall('GET', '/api/v1/admin/users'); }
 
     async function doRateTest() {
-      addLog('INFO', '/api/v1/auth/sign-in', '-', { info: 'Sending 10 rapid requests to test rate limiter (limit: 8/min)...' }, 0);
+      addLog('INFO', '/api/v1/auth/sign-in', '-', { info: 'Sending 10 rapid requests to test rate limiter (limit: 15/min)...' }, 0);
       for (let i = 1; i <= 10; i++) {
         const start = performance.now();
         try {
@@ -854,7 +848,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ email: 'ratelimit@test.com', password: 'wrong' }),
+            body: JSON.stringify({ identifier: 'ratelimit@test.com', password: 'wrong' }),
           });
           const duration = Math.round(performance.now() - start);
           let data; try { data = await res.json(); } catch { data = {}; }
@@ -870,7 +864,7 @@
     }
 
     // ── Init ──
-    doGetSession();
+    doGetMe();
   </script>
 </body>
 
