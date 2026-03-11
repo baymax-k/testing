@@ -7,3 +7,5 @@ local_files
 docs
 certs/
 scripts/
+.claude/
+github/

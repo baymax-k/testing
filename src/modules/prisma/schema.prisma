@@ -1,7 +1,6 @@
 generator client {
-  provider      = "prisma-client"
-  output        = "../../generated/prisma"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -9,58 +8,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Auth Models ─────────────────────────────────────────────────────────────
+
 model User {
-  id            String       @id @default(cuid())
-  email         String       @unique
-  role          Role         @default(student)
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
   name          String
-  emailVerified Boolean      @default(false)
-  image         String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  submissions   Submission[]
-  participations ContestParticipation[]  // new
+  passwordHash  String
+  role          Role      @default(student)
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  refreshTokens  RefreshToken[]
+  submissions    Submission[]
+  participations ContestParticipation[]
 
   @@map("user")
 }
 
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
+// Stores active refresh tokens (one per device/session).
+// Deleted on sign-out or when a new sign-in invalidates all previous sessions.
+model RefreshToken {
+  id        String   @id @default(cuid())
+  jti       String   @unique   // JWT ID — used to look up and revoke tokens
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@map("session")
+  @@map("refresh_token")
 }
 
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("account")
-}
-
+// Stores temporary OTP codes for email verification and password reset.
+// identifier = "<email>:<type>"  e.g. "user@example.com:email-verification"
+// value      = SHA-256 hash of the 6-digit OTP
 model Verification {
   id         String   @id
   identifier String
@@ -72,6 +57,8 @@ model Verification {
   @@index([identifier])
   @@map("verification")
 }
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum Role {
   student
@@ -101,11 +88,14 @@ enum ContestType {
   practice
 }
 
+// ─── Problem Models ──────────────────────────────────────────────────────────
+
 model Tag {
-  id    String @id @default(cuid())
-  name  String @unique
-  type  String // "topic" or "company"
+  id        String     @id @default(cuid())
+  name      String     @unique
+  type      String     // "topic" or "company"
   questions Question[]
+
   @@map("tag")
 }
 
@@ -116,24 +106,27 @@ model Question {
   description String       // markdown for DSA, text for MCQ
   difficulty  String       // "easy", "medium", "hard"
   tags        Tag[]
-  company     String?      // e.g., "Google"
+  company     String?
   createdBy   String       // admin user ID
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   // MCQ-specific
-  options     Json?        // ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"]
-  correctAnswer Int?       // 0-3
+  options       Json?  // ["A) Option 1", ...]
+  correctAnswer Int?   // 0-3
 
   // DSA-specific
-  timeLimit   Int?         // seconds
-  memoryLimit Int?         // KB
-  sampleTestCases Json?    // [{input: "2 3", output: "5", explanation: "..."}]
-  hiddenTestCases Json?    // [{input: "...", expectedOutput: "..."}]
+  timeLimit       Int?   // seconds
+  memoryLimit     Int?   // KB
+  sampleTestCases Json?  // [{input, output, explanation}]
+  hiddenTestCases Json?  // [{input, expectedOutput}]
 
-  contests    ContestQuestion[]
+  contests ContestQuestion[]
+
   @@map("question")
 }
+
+// ─── Contest Models ──────────────────────────────────────────────────────────
 
 model Contest {
   id          String      @id @default(cuid())
@@ -142,67 +135,69 @@ model Contest {
   type        ContestType @default(contest)
   startTime   DateTime?
   endTime     DateTime?
-  duration    Int?        // minutes for contests
+  duration    Int?        // minutes
   createdBy   String      // admin user ID
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  questions   ContestQuestion[]
+  questions      ContestQuestion[]
   participations ContestParticipation[]
+
   @@map("contest")
 }
 
 model ContestQuestion {
   contestId  String
   questionId String
-  order      Int       // display order in contest
-  points     Int       // points awarded
+  order      Int    // display order
+  points     Int    // points awarded
 
-  contest    Contest   @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  contest  Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@id([contestId, questionId])
   @@map("contest_question")
 }
 
 model ContestParticipation {
-  id         String   @id @default(cuid())
-  userId     String
-  contestId  String
-  startedAt  DateTime @default(now())
+  id          String    @id @default(cuid())
+  userId      String
+  contestId   String
+  startedAt   DateTime  @default(now())
   submittedAt DateTime?
-  score      Int      @default(0)
-  mcqAnswers Json?    // {questionId: selectedOptionIndex}
-  dsaSubmissions Submission[]
+  score       Int       @default(0)
+  mcqAnswers  Json?     // {questionId: selectedOptionIndex}
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  contest    Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  dsaSubmissions Submission[]
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contest        Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contestId])
   @@map("contest_participation")
 }
 
+// ─── Submission Model ─────────────────────────────────────────────────────────
+
 model Submission {
   id              String           @id @default(cuid())
   userId          String
-  problemId       String           // references JSON slug (for now, will migrate to questionId)
-  language        String?          // "python", "cpp", etc.
-  languageId      Int?             // Judge0 language ID
+  problemId       String           // references JSON slug (will migrate to questionId)
+  language        String?
+  languageId      Int?
   sourceCode      String?
   status          SubmissionStatus @default(processing)
   testCasesPassed Int              @default(0)
   totalTestCases  Int              @default(0)
-  failedAt        Int?             // which test case failed (1-indexed)
-  runtime         String?          // execution time (slowest TC)
+  failedAt        Int?             // 1-indexed test case that failed
+  runtime         String?
   memory          Int?             // peak memory in KB
-  errorOutput     String?          // stderr or compile_output
+  errorOutput     String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // New: link to contest participation
   contestParticipationId String?
   contestParticipation   ContestParticipation? @relation(fields: [contestParticipationId], references: [id])
+  user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([problemId])

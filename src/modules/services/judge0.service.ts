@@ -2,7 +2,7 @@
 // Handles all communication with the Judge0 code execution engine.
 // Single execution (run) and batched execution (submit) with early exit.
 
-import type { SubmissionStatus } from "../../generated/prisma/enums.js";
+import type { SubmissionStatus } from "@prisma/client";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 

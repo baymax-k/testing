@@ -1,7 +1,7 @@
 // ─── Problem Controller ─────────────────────────────────────────────────────────
 
 import type { Request, Response } from "express";
-import { prisma } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 
 /**
  * GET /api/v1/problems

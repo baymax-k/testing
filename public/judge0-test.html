@@ -37,7 +37,7 @@
 
     <div class="section">
         <h2>Login</h2>
-        <input type="email" id="email" placeholder="Email" value="test@example.com"><br>
+        <input type="text" id="identifier" placeholder="Email or Username" value="test@example.com"><br>
         <input type="password" id="password" placeholder="Password" value="password123"><br>
         <button onclick="login()">Login</button>
         <pre id="loginResult"></pre>
@@ -94,14 +94,14 @@
         // No token needed, using session cookies
 
         async function login() {
-            const email = document.getElementById('email').value;
+            const identifier = document.getElementById('identifier').value;
             const password = document.getElementById('password').value;
             try {
                 const response = await fetch('/api/v1/auth/sign-in', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ identifier, password })
                 });
                 const data = await response.json();
                 document.getElementById('loginResult').textContent = JSON.stringify(data, null, 2);

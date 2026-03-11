@@ -4,7 +4,7 @@
 // Set CORS_ORIGINS in .env as a comma-separated list:
 //   CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 //
-// Falls back to FRONTEND_URL + BETTER_AUTH_URL if CORS_ORIGINS is not set.
+// Falls back to APP_URL + FRONTEND_URL if CORS_ORIGINS is not set.
 
 import type { CorsOptions } from "cors";
 
@@ -16,7 +16,7 @@ function buildOrigins(): (string | RegExp)[] {
 
   // Default: backend + frontend URLs
   const origins: string[] = [
-    process.env.BETTER_AUTH_URL || "http://localhost:5000",
+    process.env.APP_URL || "http://localhost:5000",
     process.env.FRONTEND_URL || "http://localhost:3000",
   ];
 

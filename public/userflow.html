@@ -318,13 +318,14 @@
           <h3 style="color:#a5b4fc;font-size:1rem;margin-bottom:8px;">Sign Up</h3>
           <input id="tSignupName" type="text" placeholder="Name" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
           <input id="tSignupEmail" type="email" placeholder="Email" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
+          <input id="tSignupUsername" type="text" placeholder="Username" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
           <input id="tSignupPassword" type="password" placeholder="Password" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
           <button onclick="tSignUp()" style="width:100%;padding:8px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;">Create</button>
         </div>
         <!-- sign-in form -->
         <div style="flex:1;min-width:220px;">
           <h3 style="color:#a5b4fc;font-size:1rem;margin-bottom:8px;">Sign In</h3>
-          <input id="tSigninEmail" type="email" placeholder="Email" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
+          <input id="tSigninIdentifier" type="text" placeholder="Email or Username" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
           <input id="tSigninPassword" type="password" placeholder="Password" style="width:100%;padding:8px;border:1px solid #2d2d4e;border-radius:6px;margin-bottom:8px;background:#13131f;color:#e2e8f0;" />
           <button onclick="tSignIn()" style="width:100%;padding:8px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;">Login</button>
         </div>
@@ -353,7 +354,7 @@
           <div class="step-title">Student Registers</div>
         </div>
         <p class="step-desc">
-          A new user submits their name, email, and password. The <code>role</code> is
+          A new user submits their name, email, username, and password. The <code>role</code> is
           always forced to <strong>student</strong> by the server — it cannot be set by the client.
         </p>
         <div class="endpoint">
@@ -366,24 +367,20 @@
             <pre>{
   "name": "Jane Doe",
   "email": "jane@uni.edu",
+  "username": "jane_doe",
   "password": "SecurePass123"
 }</pre>
           </div>
           <div class="box">
-            <div class="box-label res">Response 200</div>
+            <div class="box-label res">Response 201</div>
             <pre>{
-  "user": {
-    "id": "...",
-    "email": "jane@uni.edu",
-    "emailVerified": false,
-    "role": "student"
-  }
+  "message": "Account created. Please check your email for a verification OTP."
 }</pre>
           </div>
         </div>
         <div class="note">
-          📧 A <strong>verification email</strong> is sent automatically via Nodemailer.
-          The session is NOT yet active — user must verify first.
+          📧 A <strong>verification email</strong> with a 6-digit OTP is sent automatically via Nodemailer.
+          The account is NOT usable until the email is verified.
         </div>
       </div>
 
@@ -396,34 +393,36 @@
           <div class="step-title">Verify Email Address</div>
         </div>
         <p class="step-desc">
-          The user clicks the link in their inbox, which hits the backend verify endpoint.
-          On success, the email is marked verified and the user is auto-signed-in.
+          The user receives a 6-digit OTP by email and submits it to verify their address.
+          On success, the email is marked verified and the user is auto-signed-in (cookies set).
         </p>
         <div class="endpoint">
-          <span class="method get">GET</span>
-          <span class="path">/auth/verify-email?token=&lt;token&gt;</span>
+          <span class="method post">POST</span>
+          <span class="path">/auth/verify-email</span>
         </div>
         <div class="req-res">
           <div class="box">
-            <div class="box-label req">Email Link</div>
-            <pre>http://localhost:3000
-/verify-email
-?token=eyJhbGci...</pre>
+            <div class="box-label req">Request Body</div>
+            <pre>{
+  "email": "jane@uni.edu",
+  "otp": "123456"
+}</pre>
           </div>
           <div class="box">
             <div class="box-label res">On Success</div>
             <pre>{
+  "message": "Email verified",
   "user": {
-    "emailVerified": true
-  },
-  "session": { ... }
+    "emailVerified": true,
+    "role": "student"
+  }
 }
-→ auto-signed in</pre>
+→ auto-signed in (cookies set)</pre>
           </div>
         </div>
         <div class="note">
-          ⏰ Token expires in <strong>1 hour</strong>.
-          If expired, the user can request a new OTP via <code>POST /auth/email-otp/send-verification-otp</code>.
+          ⏰ OTP expires in <strong>10 minutes</strong>.
+          If expired, the user can request a new OTP via <code>POST /auth/send-otp</code>.
         </div>
       </div>
 
@@ -436,9 +435,10 @@
           <div class="step-title">Sign In</div>
         </div>
         <p class="step-desc">
-          Verified user submits credentials. Rate-limited to <strong>8 requests/min per IP</strong>.
-          A session cookie (<code>better-auth.session_token</code>) is set automatically.
-          All previous sessions are deleted (single-device enforcement).
+          Verified user submits credentials. Rate-limited to <strong>15 requests/min per IP</strong>.
+          Two httpOnly cookies are set: <code>access_token</code> (15 min) and
+          <code>refresh_token</code> (7 days, path-restricted to <code>/api/v1/auth/refresh</code>).
+          The <code>identifier</code> field accepts either an email or username.
         </p>
         <div class="endpoint">
           <span class="method post">POST</span>
@@ -448,31 +448,31 @@
           <div class="box">
             <div class="box-label req">Request Body</div>
             <pre>{
-  "email": "jane@uni.edu",
+  "identifier": "jane@uni.edu",
   "password": "SecurePass123"
 }</pre>
           </div>
           <div class="box">
             <div class="box-label res">Response 200</div>
             <pre>{
-  "session": {
-    "token": "...",
-    "expiresAt": "7 days"
-  },
+  "message": "Signed in",
   "user": {
+    "id": "...",
+    "email": "jane@uni.edu",
     "role": "student"
   }
-}</pre>
+}
+→ access_token + refresh_token cookies set</pre>
           </div>
         </div>
         <div class="req-res" style="margin-top:10px">
           <div class="box">
             <div class="box-label err">Error — Not Verified (403)</div>
-            <pre>{ "message": "Email not verified" }</pre>
+            <pre>{ "error": "Email not verified", "code": "EMAIL_NOT_VERIFIED" }</pre>
           </div>
           <div class="box">
             <div class="box-label err">Error — Wrong Password (401)</div>
-            <pre>{ "message": "Invalid credentials" }</pre>
+            <pre>{ "error": "Invalid credentials" }</pre>
           </div>
         </div>
       </div>
@@ -486,9 +486,8 @@
           <div class="step-title">Frontend Reads Session &amp; Role</div>
         </div>
         <p class="step-desc">
-          After sign-in the frontend calls <code>/me</code> to get user info and the redirect path,
-          or <code>/auth/get-session</code> to get the full session object.
-          The session cookie is sent automatically on every request.
+          After sign-in the frontend calls <code>GET /me</code> to get user info and the redirect path.
+          The <code>access_token</code> cookie is sent automatically on every request.
         </p>
         <div class="req-res">
           <div class="box">
@@ -497,6 +496,7 @@
   "user": {
     "id": "...",
     "email": "jane@uni.edu",
+    "name": "Jane Doe",
     "role": "student",
     "emailVerified": true
   },
@@ -504,14 +504,14 @@
 }</pre>
           </div>
           <div class="box">
-            <div class="box-label req">GET /auth/get-session</div>
-            <pre>{
-  "user": { ... },
-  "session": {
-    "id": "...",
-    "expiresAt": "...",
-    "ipAddress": "..."
-  }
+            <div class="box-label req">POST /auth/refresh</div>
+            <pre>// When access_token expires,
+// call POST /auth/refresh.
+// The refresh_token cookie is
+// sent automatically (path-restricted).
+// Both tokens are rotated.
+{
+  "message": "Tokens refreshed"
 }</pre>
           </div>
         </div>
@@ -555,8 +555,9 @@
           <div class="step-title">Access Protected Panel</div>
         </div>
         <p class="step-desc">
-          Every protected route runs through middleware that checks the session cookie first,
-          then optionally checks the user's role. Session is valid for 7 days, auto-refreshed every 24h.
+          Every protected route runs through middleware that verifies the <code>access_token</code> JWT cookie,
+          then optionally checks the user's role. Access tokens are valid for 15 minutes;
+          use <code>POST /auth/refresh</code> for token rotation.
         </p>
 
         <div class="panel">
@@ -567,6 +568,18 @@
             <div class="panel-row">
               <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
               <code style="color:#a5b4fc;font-size:0.82rem;">/student/dashboard</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span style="color:#94a3b8;font-size:0.8rem; margin-left:auto;">student role</span>
+            </div>
+            <div class="panel-row">
+              <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/student/practice</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span style="color:#94a3b8;font-size:0.8rem; margin-left:auto;">student role</span>
+            </div>
+            <div class="panel-row">
+              <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/student/contest</code>
               <span class="tag auth-tag">requireAuth</span>
               <span style="color:#94a3b8;font-size:0.8rem; margin-left:auto;">student role</span>
             </div>
@@ -589,6 +602,12 @@
               <span class="tag role-tag">product_admin</span>
             </div>
             <div class="panel-row">
+              <span class="method post" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">POST</span>
+              <code style="color:#a5b4fc;font-size:0.82rem;">/submissions</code>
+              <span class="tag auth-tag">requireAuth</span>
+              <span style="color:#94a3b8;font-size:0.8rem; margin-left:auto;">any role</span>
+            </div>
+            <div class="panel-row">
               <span class="method get" style="font-weight:700;font-size:0.72rem;padding:2px 7px;border-radius:4px;">GET</span>
               <code style="color:#a5b4fc;font-size:0.82rem;">/me</code>
               <span class="tag auth-tag">requireAuth</span>
@@ -598,8 +617,8 @@
         </div>
 
         <div class="note" style="margin-top:16px;">
-          🚪 <strong>Sign-out</strong> via <code>POST /auth/sign-out</code> immediately deletes the session from DB.
-          Next request to any protected route returns <strong>401 Unauthorized</strong>.
+          🚪 <strong>Sign-out</strong> via <code>POST /auth/sign-out</code> revokes the refresh token from DB
+          and clears both cookies. Next request to any protected route returns <strong>401 Unauthorized</strong>.
         </div>
       </div>
 
@@ -612,7 +631,7 @@
       <div class="legend-item"><div class="legend-dot" style="background:#f87171;"></div> Error response</div>
       <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div> Decision / branch</div>
       <div class="legend-item" style="margin-left:auto; color:#475569;">
-        Session: 7 days TTL · refreshed every 24h · single-device enforced
+        access_token: 15min · refresh_token: 7d · token rotation on refresh
       </div>
     </div>
 
@@ -675,18 +694,19 @@
       async function tSignUp() {
         const name     = document.getElementById('tSignupName').value;
         const email    = document.getElementById('tSignupEmail').value;
+        const username = document.getElementById('tSignupUsername').value;
         const password = document.getElementById('tSignupPassword').value;
-        if (!name || !email || !password) { alert('Please fill all sign-up fields.'); return; }
-        await apiCall('POST', '/api/v1/auth/sign-up', { name, email, password });
+        if (!name || !email || !username || !password) { alert('Please fill all sign-up fields.'); return; }
+        await apiCall('POST', '/api/v1/auth/sign-up', { name, email, username, password });
       }
 
       async function tSignIn() {
-        const email    = document.getElementById('tSigninEmail').value;
-        const password = document.getElementById('tSigninPassword').value;
-        if (!email || !password) { alert('Please fill all sign-in fields.'); return; }
-        const { status, data } = await apiCall('POST', '/api/v1/auth/sign-in', { email, password });
+        const identifier = document.getElementById('tSigninIdentifier').value;
+        const password   = document.getElementById('tSigninPassword').value;
+        if (!identifier || !password) { alert('Please fill all sign-in fields.'); return; }
+        const { status, data } = await apiCall('POST', '/api/v1/auth/sign-in', { identifier, password });
         if (status >= 200 && status < 300) {
-          setSessionState(data?.user?.email ?? email);
+          setSessionState(data?.user?.email ?? identifier);
         }
       }
 

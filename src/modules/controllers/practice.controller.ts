@@ -5,7 +5,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import type { AuthRequest } from "../../middleware/auth.js";
-import { prisma } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 
 // ─── MCQ Submission Schema ─────────────────────────────────────────────────────
 const mcqSubmissionSchema = z.object({

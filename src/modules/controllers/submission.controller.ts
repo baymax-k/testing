@@ -50,7 +50,7 @@ export async function submitCodeHandler(req: Request, res: Response): Promise<vo
     const data = submitCodeSchema.parse(req.body);
 
     const result = await submitCode(
-      user.id,
+      user.userId,
       data.problemId,
       data.language,
       data.sourceCode
@@ -87,7 +87,7 @@ export async function listSubmissionsHandler(req: Request, res: Response): Promi
   try {
     const query = submissionQuerySchema.parse(req.query);
 
-    const { submissions, total } = await getSubmissions(user.id, {
+    const { submissions, total } = await getSubmissions(user.userId, {
       problemId: query.problemId,
       limit: query.limit,
       offset: query.offset,
@@ -118,7 +118,7 @@ export async function getSubmissionHandler(req: Request, res: Response): Promise
   const id = req.params.id as string;
 
   try {
-    const submission = await getSubmissionById(id, user.id);
+    const submission = await getSubmissionById(id, user.userId);
     if (!submission) {
       res.status(404).json({ error: "Submission not found" });
       return;
