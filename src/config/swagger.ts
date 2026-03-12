@@ -131,7 +131,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
             status: { type: "string", example: "accepted" },
             input: { type: "string", description: "Only shown for sample/public test cases" },
             expectedOutput: { type: "string", description: "Only shown for sample/public test cases" },
-            actualOutput: { type: "string", description: "Only shown for sample/public test cases on failure" },
+            actualOutput: { type: "string", description: "Only shown for sample/public test cases" },
             errorOutput: { type: "string", nullable: true, description: "Only shown for sample/public test cases" },
           },
         },
@@ -153,6 +153,26 @@ const swaggerOptions: swaggerJsdoc.Options = {
               type: "array",
               items: { $ref: "#/components/schemas/TestCaseDetail" },
               description: "Per-test-case results with visibility-controlled details",
+            },
+          },
+        },
+        PreSubmitResult: {
+          type: "object",
+          properties: {
+            status: {
+              type: "string",
+              enum: ["processing", "accepted", "wrong_answer", "time_limit_exceeded", "memory_limit_exceeded", "runtime_error", "compilation_error", "internal_error"],
+            },
+            testCasesPassed: { type: "integer" },
+            totalTestCases: { type: "integer", description: "Number of sample test cases executed" },
+            failedAt: { type: "integer", nullable: true, description: "1-indexed sample test case that failed first" },
+            runtime: { type: "string", nullable: true, example: "0.045" },
+            memory: { type: "number", nullable: true, description: "Peak memory in KB" },
+            errorOutput: { type: "string", nullable: true },
+            testCaseResults: {
+              type: "array",
+              items: { $ref: "#/components/schemas/TestCaseDetail" },
+              description: "Per-sample-test-case results",
             },
           },
         },
@@ -1007,17 +1027,63 @@ const swaggerOptions: swaggerJsdoc.Options = {
       "/api/v1/problems": {
         get: {
           summary: "List all problems",
-          description: "Returns a list of all available coding problems (summary only, no test cases).",
+          description: "Returns paginated coding problem summaries (no test cases). Supports difficulty/tag/search filters.",
           tags: ["Problems"],
           security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1, default: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+            },
+            {
+              name: "difficulty",
+              in: "query",
+              required: false,
+              schema: { type: "string", enum: ["easy", "medium", "hard"] },
+            },
+            {
+              name: "tag",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+            },
+            {
+              name: "search",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+            },
+          ],
           responses: {
             "200": {
-              description: "List of problems",
+              description: "Paginated list of problems",
               content: {
                 "application/json": {
                   schema: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/ProblemSummary" },
+                    type: "object",
+                    properties: {
+                      problems: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/ProblemSummary" },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -1045,7 +1111,16 @@ const swaggerOptions: swaggerJsdoc.Options = {
           responses: {
             "200": {
               description: "Problem details with sample test cases",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/ProblemDetail" } } },
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      problem: { $ref: "#/components/schemas/ProblemDetail" },
+                    },
+                  },
+                },
+              },
             },
             "401": { description: "Unauthorized" },
             "404": { description: "Problem not found" },
@@ -1091,6 +1166,49 @@ const swaggerOptions: swaggerJsdoc.Options = {
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
             "401": { description: "Unauthorized" },
+            "429": { description: "Rate limited (15 req/min)" },
+          },
+        },
+      },
+
+      "/api/v1/submissions/test": {
+        post: {
+          summary: "Pre-submit test (sample test cases only)",
+          description:
+            "Runs submitted code against sample test cases only (typically 2-4) for fast feedback before full submission. " +
+            "No submission record is stored in the database.",
+          tags: ["Code Execution"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    problemId: { type: "string", example: "fizzbuzz", description: "Problem slug" },
+                    language: {
+                      type: "string",
+                      enum: ["c", "cpp", "java", "javascript", "python", "go", "rust"],
+                    },
+                    sourceCode: { type: "string", maxLength: 100000 },
+                  },
+                  required: ["problemId", "language", "sourceCode"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Pre-submit sample test result",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/PreSubmitResult" } } },
+            },
+            "400": {
+              description: "Validation error",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "401": { description: "Unauthorized" },
+            "404": { description: "Problem not found" },
             "429": { description: "Rate limited (15 req/min)" },
           },
         },

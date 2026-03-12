@@ -272,14 +272,17 @@ export async function executeTestCases(
   languageId: number,
   testCases: { input: string; output: string }[],
   cpuTimeLimit?: number,
-  memoryLimit?: number
+  memoryLimit?: number,
+  options?: { stopOnFirstFailure?: boolean }
 ): Promise<{
   results: TestCaseResult[];
   allPassed: boolean;
   firstFailure: TestCaseResult | null;
 }> {
+  const stopOnFirstFailure = options?.stopOnFirstFailure ?? true;
   const batchSize = calculateBatchSize(testCases.length);
   const allResults: TestCaseResult[] = [];
+  let firstFailure: TestCaseResult | null = null;
 
   for (let i = 0; i < testCases.length; i += batchSize) {
     const batch = testCases.slice(i, i + batchSize);
@@ -331,12 +334,16 @@ export async function executeTestCases(
 
       allResults.push(testCaseResult);
 
-      // Early exit on first failure
-      if (!passed) {
+      if (!passed && !firstFailure) {
+        firstFailure = testCaseResult;
+      }
+
+      // Early exit on first failure (default submit behavior)
+      if (!passed && stopOnFirstFailure) {
         return {
           results: allResults,
           allPassed: false,
-          firstFailure: testCaseResult,
+          firstFailure,
         };
       }
     }
@@ -344,7 +351,7 @@ export async function executeTestCases(
 
   return {
     results: allResults,
-    allPassed: true,
-    firstFailure: null,
+    allPassed: !firstFailure,
+    firstFailure,
   };
 }

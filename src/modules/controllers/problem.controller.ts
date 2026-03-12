@@ -1,7 +1,7 @@
 // ─── Problem Controller ─────────────────────────────────────────────────────────
 
 import type { Request, Response } from "express";
-import { prisma } from "../../config/prisma.js";
+import { getProblems, getProblemBySlug } from "../../data/problems/index.js";
 
 /**
  * GET /api/v1/problems
@@ -9,32 +9,38 @@ import { prisma } from "../../config/prisma.js";
  */
 export async function listProblems(req: Request, res: Response): Promise<void> {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
     const offset = (page - 1) * limit;
 
-    const [problems, total] = await Promise.all([
-      prisma.question.findMany({
-        select: {
-          id: true,
-          title: true,
-          difficulty: true,
-          tags: { select: { name: true } },
-          company: true,
-          type: true,
-        },
-        skip: offset,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.question.count(),
-    ]);
+    const difficulty = (req.query.difficulty as string | undefined)?.toLowerCase();
+    const tag = (req.query.tag as string | undefined)?.toLowerCase();
+    const search = (req.query.search as string | undefined)?.toLowerCase();
+
+    let problems = getProblems();
+
+    if (difficulty) {
+      problems = problems.filter((p) => p.difficulty.toLowerCase() === difficulty);
+    }
+
+    if (tag) {
+      problems = problems.filter((p) => p.tags.some((value) => value.toLowerCase() === tag));
+    }
+
+    if (search) {
+      problems = problems.filter(
+        (p) =>
+          p.title.toLowerCase().includes(search) ||
+          p.slug.toLowerCase().includes(search) ||
+          p.id.toLowerCase().includes(search)
+      );
+    }
+
+    const total = problems.length;
+    const paginatedProblems = problems.slice(offset, offset + limit);
 
     res.json({
-      problems: problems.map(p => ({
-        ...p,
-        tags: p.tags.map(t => t.name),
-      })),
+      problems: paginatedProblems,
       pagination: {
         page,
         limit,
@@ -49,31 +55,20 @@ export async function listProblems(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * GET /api/v1/problems/:id
- * Get a single problem by ID (with sample test cases, no hidden)
+ * GET /api/v1/problems/:slug
+ * Get a single problem by slug (with sample test cases, no hidden)
  */
 export async function getProblem(req: Request, res: Response): Promise<void> {
   try {
-    const id = req.params.id as string;
-
-    const problem = await prisma.question.findUnique({
-      where: { id },
-      include: { tags: { select: { name: true } } },
-    });
+    const slug = req.params.slug as string;
+    const problem = getProblemBySlug(slug);
 
     if (!problem) {
       res.status(404).json({ error: "Problem not found" });
       return;
     }
 
-    // Hide hidden test cases
-    const { hiddenTestCases, ...publicProblem } = problem;
-    const problemWithTags = {
-      ...publicProblem,
-      tags: publicProblem.tags.map(t => t.name),
-    };
-
-    res.json({ problem: problemWithTags });
+    res.json({ problem });
   } catch (error) {
     console.error("[getProblem]", error);
     res.status(500).json({ error: "Failed to fetch problem" });

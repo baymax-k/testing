@@ -8,12 +8,13 @@
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/src/server.js",
-    "seed": "tsx src/seed.ts",
+    "seed": "tsx src/scripts/seed.ts",
     "db:tables": "tsx src/scripts/show-tables.ts",
     "vercel-build": "prisma generate && tsc",
     "test": "vitest run",
     "test:auth": "tsx test/auth.test.ts",
-    "test:judge0": "RUN_JUDGE0_INTEGRATION=true vitest run test/judge0.integration.test.ts"
+    "test:judge0": "RUN_JUDGE0_INTEGRATION=true vitest run test/judge0.integration.test.ts",
+    "test:problems": "vitest run test/problem.fetch.test.ts"
   },
   "keywords": [],
   "author": "",

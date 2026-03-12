@@ -9,7 +9,7 @@ const router: RouterType = Router();
 // GET /api/v1/problems — List all problems
 router.get("/", requireAuth, listProblems);
 
-// GET /api/v1/problems/:id — Get problem details  
-router.get("/:id", requireAuth, getProblem);
+// GET /api/v1/problems/:slug — Get problem details
+router.get("/:slug", requireAuth, getProblem);
 
 export default router;

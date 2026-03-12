@@ -5,11 +5,13 @@ import { z } from "zod";
 import type { AuthRequest } from "../../middleware/auth.js";
 import {
   runCodeSchema,
+  preSubmitCodeSchema,
   submitCodeSchema,
   submissionQuerySchema,
 } from "../validators/submission.validator.js";
 import {
   runCode,
+  preSubmitCode,
   submitCode,
   getSubmissions,
   getSubmissionById,
@@ -35,6 +37,35 @@ export async function runCodeHandler(req: Request, res: Response): Promise<void>
     console.error("[run] Error:", error);
     res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to run code",
+    });
+  }
+}
+
+/**
+ * POST /api/v1/submissions/test
+ * Pre-submit code against sample test cases only (no save)
+ */
+export async function preSubmitCodeHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const data = preSubmitCodeSchema.parse(req.body);
+
+    const result = await preSubmitCode(data.problemId, data.language, data.sourceCode);
+
+    res.json(result);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Validation failed", details: error.issues });
+      return;
+    }
+
+    if (error instanceof Error && error.message.includes("Problem not found")) {
+      res.status(404).json({ error: error.message });
+      return;
+    }
+
+    console.error("[preSubmit] Error:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to test code",
     });
   }
 }
