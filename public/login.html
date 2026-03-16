@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple Auth Tester</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         body {
             font-family: sans-serif;
@@ -103,6 +104,32 @@
             margin-top: 0;
         }
 
+        .divider {
+            margin: 14px 0;
+            text-align: center;
+            color: #666;
+            font-size: 0.85rem;
+            position: relative;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .divider::before {
+            left: 0;
+        }
+
+        .divider::after {
+            right: 0;
+        }
+
         #session-info {
             background: #f0f8ff;
             border: 1px solid #bce8f1;
@@ -165,6 +192,11 @@
             </div>
             <button type="submit">Sign In</button>
         </form>
+
+        <div class="divider">OR</div>
+
+        <div id="google-signin-button" style="margin-top: 10px;"></div>
+
         <div class="links">
             <a id="link-to-signup">Create Account</a> |
             <a id="link-to-forgot">Forgot Password?</a>
@@ -273,7 +305,18 @@
 
         function switchView(viewId) {
             document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
+            if (!viewId) {
+                document.getElementById('alertBox').className = 'alert';
+                return;
+            }
+
+            const target = document.getElementById(viewId);
+            if (!target) {
+                document.getElementById('alertBox').className = 'alert';
+                return;
+            }
+
+            target.classList.add('active');
             document.getElementById('alertBox').className = 'alert'; // hide alerts on switch
         }
 
@@ -312,9 +355,10 @@
                     document.getElementById('user-email').textContent = data.user.email;
                     document.getElementById('user-role').textContent = data.user.role || 'student';
                     document.getElementById('view-login').style.display = 'none';
-                    switchView(''); // Hide all forms
+                    switchView(''); // Hide all forms safely
                 } else {
                     document.getElementById('session-info').style.display = 'none';
+                    document.getElementById('view-login').style.display = 'block';
                     switchView('view-login');
                 }
             } catch (e) {
@@ -322,8 +366,35 @@
             }
         }
 
+        async function handleGoogleCredentialResponse(response) {
+            const idToken = response?.credential;
+            if (!idToken) {
+                showAlert('Google login failed: missing token.', true);
+                return;
+            }
+
+            const { ok, data } = await apiRequest('/api/v1/auth/sign-in/google', { idToken });
+            if (ok && data.user) {
+                showAlert('Signed in with Google successfully!');
+                checkSession();
+            } else {
+                showAlert(data.message || data.error || 'Google login failed', true);
+            }
+        }
+
+        async function waitForGoogleIdentity(timeoutMs = 5000) {
+            const start = Date.now();
+            while (Date.now() - start < timeoutMs) {
+                if (window.google?.accounts?.id) {
+                    return true;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            return false;
+        }
+
         // --- Event Listeners to avoid CSP inline-script blocking ---
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             // Check session initially
             checkSession();
 
@@ -334,6 +405,39 @@
             document.getElementById('link-to-login-from-verify').addEventListener('click', () => switchView('view-login'));
             document.getElementById('link-to-login-from-forgot').addEventListener('click', () => switchView('view-login'));
             document.getElementById('link-to-login-from-reset').addEventListener('click', () => switchView('view-login'));
+
+            // Auto-fetch Google client id from backend and initialize button (if set)
+            try {
+                const r = await fetch(`${API}/api/v1/auth/google-client-id`);
+                const d = await r.json();
+                const clientId = d?.clientId;
+                if (clientId) {
+                    const ready = await waitForGoogleIdentity();
+                    if (!ready) {
+                        showAlert('Google sign-in is temporarily unavailable. Please refresh and try again.', true);
+                        return;
+                    }
+
+                    // initialize and render button automatically
+                    const buttonContainer = document.getElementById('google-signin-button');
+                    buttonContainer.innerHTML = '';
+
+                    window.google.accounts.id.initialize({
+                        client_id: clientId,
+                        callback: handleGoogleCredentialResponse,
+                    });
+
+                    window.google.accounts.id.renderButton(buttonContainer, {
+                        theme: 'outline', size: 'large', text: 'signin_with', width: 280,
+                    });
+
+                    showAlert('Google sign-in ready. Click the Google button to continue.');
+                } else {
+                    showAlert('Google Client ID is not configured on server.', true);
+                }
+            } catch (e) {
+                showAlert('Unable to initialize Google sign-in. You can still use email/password.', true);
+            }
 
             // Change Password button (visible when logged in)
             document.getElementById('btn-change-password').addEventListener('click', () => {
@@ -351,6 +455,7 @@
                 if (ok) {
                     showAlert('Logged out successfully');
                     document.getElementById('session-info').style.display = 'none';
+                    document.getElementById('view-login').style.display = 'block';
                     switchView('view-login');
                 }
             });

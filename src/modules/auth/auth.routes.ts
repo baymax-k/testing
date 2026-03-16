@@ -6,6 +6,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import {
   signUp,
   signIn,
+  signInWithGoogle,
   signOut,
   refresh,
   verifyEmail,
@@ -25,6 +26,13 @@ router.use(authLimiter);
 // Credential endpoints — tighter rate limit (brute-force protection)
 router.post("/sign-up", loginLimiter, signUp);
 router.post("/sign-in", loginLimiter, signIn);
+router.post("/sign-in/google", loginLimiter, signInWithGoogle);
+
+// Expose Google client id to frontend (safe to expose)
+router.get("/google-client-id", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ clientId: process.env.GOOGLE_CLIENT_ID || null });
+});
 
 // Token management
 router.post("/sign-out", signOut);

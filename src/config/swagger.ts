@@ -332,6 +332,64 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      "/api/v1/auth/sign-in/google": {
+        post: {
+          summary: "Sign in with Google ID token",
+          description:
+            "Verifies a Google ID token received from the frontend and signs the user in. " +
+            "If no account exists for the token email, a new `student` account is created automatically. " +
+            "Sets `access_token` and `refresh_token` httpOnly cookies on success.",
+          tags: ["Authentication"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    idToken: {
+                      type: "string",
+                      description: "Google ID token from frontend Google Sign-In flow",
+                    },
+                  },
+                  required: ["idToken"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Signed in with Google — cookies set",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string", example: "Signed in with Google" },
+                      user: { $ref: "#/components/schemas/User" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Validation error (missing/invalid idToken)",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "401": {
+              description: "Google sign-in failed (invalid/expired token)",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "403": {
+              description: "Google account email is not verified",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "429": { description: "Rate limited (15 req/min)" },
+          },
+        },
+      },
+
       "/api/v1/auth/sign-out": {
         post: {
           summary: "Sign out (revoke refresh token, clear cookies)",

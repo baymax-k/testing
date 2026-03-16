@@ -39,6 +39,9 @@ EMAIL_HOST="sandbox.smtp.mailtrap.io"
 EMAIL_PORT="2525"
 EMAIL_USER="your-mailtrap-user"
 EMAIL_PASS="your-mailtrap-pass"
+
+# Google Auth (frontend sends ID token to backend)
+GOOGLE_CLIENT_ID="your-google-oauth-client-id"
 ```
 
 ### 4. Setup Database Schema
@@ -67,7 +70,7 @@ pnpm run dev
 
 ## Future Updates
 
-- **Social Logins:** Implement Google/GitHub OAuth integrations to improve sign-up conversion.
+- **Social Logins:** Google sign-in is available via `POST /api/v1/auth/sign-in/google` (ID token flow). GitHub OAuth integration is pending.
 - **Two-Factor Authentication (2FA):** Enforce TOTP for `college_admin` and `product_admin` roles.
 - **Strict Password Policy:** Apply regex validation to ensure all passwords contain special characters, numbers, and uppercase letters.
 - **Alternative Verification:** Re-evaluate if email verification should switch from OTP codes back to Magic Links depending on user feedback.
