@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeEthnics — Google Login</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2e3e;
+      --primary: #6c5ce7;
+      --text: #e4e6eb;
+      --muted: #8b8fa3;
+      --success: #00b894;
+      --error: #ff4757;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(560px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.4rem;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #11141d;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      opacity: 0.95;
+    }
+
+    #google-button {
+      min-height: 40px;
+      display: grid;
+      align-items: center;
+    }
+
+    .result {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      background: #11141d;
+      color: var(--muted);
+      min-height: 86px;
+    }
+
+    .result.success {
+      border-color: rgba(0, 184, 148, 0.45);
+      color: var(--success);
+    }
+
+    .result.error {
+      border-color: rgba(255, 71, 87, 0.45);
+      color: var(--error);
+    }
+  </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body>
+  <main class="card">
+    <h1>Google Sign-In Tester</h1>
+    <p>Uses <code>POST /api/v1/auth/sign-in/google</code> and stores auth via HttpOnly cookies.</p>
+
+    <div class="stack">
+      <div>
+        <label for="client-id">Google Client ID</label>
+        <input id="client-id" type="text" placeholder="Paste your GOOGLE_CLIENT_ID" />
+      </div>
+
+      <button id="init-google" type="button">Initialize Google Button</button>
+      <div id="google-button"></div>
+
+      <button id="check-session" type="button">Check Session (/api/v1/me)</button>
+      <div id="result" class="result">Waiting for action...</div>
+    </div>
+  </main>
+
+  <script>
+    const resultEl = document.getElementById("result");
+    const googleButtonEl = document.getElementById("google-button");
+    const initGoogleBtn = document.getElementById("init-google");
+    const checkSessionBtn = document.getElementById("check-session");
+    const clientIdInput = document.getElementById("client-id");
+
+    function setResult(message, type) {
+      resultEl.className = "result" + (type ? ` ${type}` : "");
+      resultEl.textContent = message;
+    }
+
+    async function onGoogleCredentialResponse(response) {
+      try {
+        setResult("Sending Google ID token to backend...", "");
+
+        const res = await fetch(`${window.location.origin}/api/v1/auth/sign-in/google`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken: response.credential }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setResult(`Login failed (${res.status}): ${data.error || "Unknown error"}`, "error");
+          return;
+        }
+
+        const user = data.user || {};
+        setResult(
+          `Google login successful.\nName: ${user.name || "-"}\nEmail: ${user.email || "-"}\nRole: ${user.role || "-"}`,
+          "success"
+        );
+      } catch (error) {
+        setResult(`Request error: ${error?.message || String(error)}`, "error");
+      }
+    }
+
+    function initGoogle() {
+      const clientId = clientIdInput.value.trim();
+
+      if (!clientId) {
+        setResult("Please provide your Google Client ID first.", "error");
+        return;
+      }
+
+      if (!window.google?.accounts?.id) {
+        setResult("Google script not loaded yet. Try again in a second.", "error");
+        return;
+      }
+
+      googleButtonEl.innerHTML = "";
+
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: onGoogleCredentialResponse,
+      });
+
+      window.google.accounts.id.renderButton(googleButtonEl, {
+        theme: "outline",
+        size: "large",
+        width: 320,
+        text: "signin_with",
+      });
+
+      setResult("Google button initialized. Click it to sign in.", "");
+    }
+
+    async function checkSession() {
+      try {
+        const res = await fetch(`${window.location.origin}/api/v1/me`, {
+          method: "GET",
+          credentials: "include",
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setResult(`No active session (${res.status}). ${data.error || ""}`.trim(), "error");
+          return;
+        }
+
+        const user = data.user || {};
+        setResult(
+          `Session active.\nName: ${user.name || "-"}\nEmail: ${user.email || "-"}\nRole: ${user.role || "-"}`,
+          "success"
+        );
+      } catch (error) {
+        setResult(`Session check error: ${error?.message || String(error)}`, "error");
+      }
+    }
+
+    initGoogleBtn.addEventListener("click", initGoogle);
+    checkSessionBtn.addEventListener("click", checkSession);
+  </script>
+</body>
+
+</html>

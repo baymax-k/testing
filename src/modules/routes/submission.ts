@@ -5,6 +5,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import { submissionLimiter } from "../../config/rateLimiter.js";
 import {
   runCodeHandler,
+  preSubmitCodeHandler,
   submitCodeHandler,
   listSubmissionsHandler,
   getSubmissionHandler,
@@ -15,6 +16,9 @@ const router: RouterType = Router();
 
 // POST /api/v1/submissions/run — Run code with custom stdin (playground)
 router.post("/run", requireAuth, submissionLimiter, runCodeHandler);
+
+// POST /api/v1/submissions/test — Pre-submit against sample test cases only
+router.post("/test", requireAuth, submissionLimiter, preSubmitCodeHandler);
 
 // POST /api/v1/submissions — Submit code against problem test cases
 router.post("/", requireAuth, submissionLimiter, submitCodeHandler);

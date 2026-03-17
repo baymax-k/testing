@@ -23,6 +23,25 @@ export const runCodeSchema = z.object({
 export type RunCodeInput = z.infer<typeof runCodeSchema>;
 
 /**
+ * POST /api/v1/submissions/test
+ * Pre-submit test against sample test cases only
+ */
+export const preSubmitCodeSchema = z.object({
+  problemId: z.string().min(1, "Problem ID is required"),
+  language: z
+    .string()
+    .refine((lang) => SUPPORTED_LANGUAGES.includes(lang), {
+      message: `Unsupported language. Allowed: ${SUPPORTED_LANGUAGES.join(", ")}`,
+    }),
+  sourceCode: z
+    .string()
+    .min(1, "Source code is required")
+    .max(100_000, "Source code too large (max 100KB)"),
+});
+
+export type PreSubmitCodeInput = z.infer<typeof preSubmitCodeSchema>;
+
+/**
  * POST /api/v1/submissions
  * Submit code against a problem's test cases
  */

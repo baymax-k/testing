@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { createId } from "@paralleldrive/cuid2";
 import nodemailer from "nodemailer";
+import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../config/prisma.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -36,6 +37,40 @@ const mailTransporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+
+const googleClient = new OAuth2Client();
+
+function getGoogleClientId(): string {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    throw new Error("GOOGLE_CLIENT_ID is not set");
+  }
+  return clientId;
+}
+
+export interface GoogleUserProfile {
+  email: string;
+  name: string;
+  emailVerified: boolean;
+}
+
+export async function verifyGoogleIdToken(idToken: string): Promise<GoogleUserProfile> {
+  const ticket = await googleClient.verifyIdToken({
+    idToken,
+    audience: getGoogleClientId(),
+  });
+
+  const payload = ticket.getPayload();
+  if (!payload?.email) {
+    throw new Error("Google token does not contain an email");
+  }
+
+  return {
+    email: payload.email,
+    name: payload.name || payload.email.split("@")[0],
+    emailVerified: Boolean(payload.email_verified),
+  };
+}
 
 // ─── Password ─────────────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@
 
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { createId } from "@paralleldrive/cuid2";
 import { prisma } from "../../config/prisma.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import {
@@ -18,6 +19,7 @@ import {
   clearCookieOptions,
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
+  verifyGoogleIdToken,
 } from "./auth.service.js";
 
 // ─── Validators ───────────────────────────────────────────────────────────────
@@ -37,6 +39,10 @@ const signUpSchema = z.object({
 const signInSchema = z.object({
   identifier: z.string().min(1, "Email or username is required"),
   password: z.string().min(1, "Password is required"),
+});
+
+const googleSignInSchema = z.object({
+  idToken: z.string().min(1, "Google ID token is required"),
 });
 
 const verifyEmailSchema = z.object({
@@ -84,6 +90,60 @@ function safeUser(user: { id: string; email: string; username: string; name: str
     role: user.role,
     emailVerified: user.emailVerified,
   };
+}
+
+function parsePrismaUniqueTargets(err: unknown): string[] {
+  const maybeCode = (err as { code?: unknown })?.code;
+  if (maybeCode !== "P2002") {
+    return [];
+  }
+
+  const target = (err as { meta?: { target?: unknown } })?.meta?.target;
+  if (Array.isArray(target)) {
+    return target.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof target === "string") {
+    return [target];
+  }
+
+  return [];
+}
+
+function sanitizeUsernameBase(input: string): string {
+  const normalized = input
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (normalized.length >= 3) {
+    return normalized.slice(0, 24);
+  }
+
+  return `user_${normalized || "acct"}`.slice(0, 24);
+}
+
+async function generateUniqueUsername(seed: string): Promise<string> {
+  const base = sanitizeUsernameBase(seed);
+  const baseCandidate = base.slice(0, 30);
+
+  const existingBase = await prisma.user.findUnique({ where: { username: baseCandidate } });
+  if (!existingBase) {
+    return baseCandidate;
+  }
+
+  for (let i = 0; i < 20; i++) {
+    const suffix = createId().slice(0, 5);
+    const trimmed = base.slice(0, Math.max(3, 30 - (suffix.length + 1)));
+    const candidate = `${trimmed}_${suffix}`;
+    const existing = await prisma.user.findUnique({ where: { username: candidate } });
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `user_${createId().slice(0, 8)}`;
 }
 
 // ─── Sign Up ──────────────────────────────────────────────────────────────────
@@ -183,6 +243,105 @@ export async function signIn(req: Request, res: Response): Promise<void> {
     }
     console.error("[signIn]", err);
     res.status(500).json({ error: "Failed to sign in" });
+  }
+}
+
+// ─── Google Sign In ──────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/auth/sign-in/google
+ * Verifies Google ID token, creates account if needed, then issues JWT cookies.
+ */
+export async function signInWithGoogle(req: Request, res: Response): Promise<void> {
+  try {
+    const { idToken } = googleSignInSchema.parse(req.body);
+    const googleProfile = await verifyGoogleIdToken(idToken);
+
+    if (!googleProfile.emailVerified) {
+      res.status(403).json({ error: "Google account email is not verified" });
+      return;
+    }
+
+    let user = await prisma.user.findUnique({ where: { email: googleProfile.email } });
+
+    if (!user) {
+      const usernameSeed = googleProfile.email.split("@")[0] || googleProfile.name;
+
+      for (let attempt = 0; attempt < 3 && !user; attempt++) {
+        const username = await generateUniqueUsername(usernameSeed);
+        const randomPasswordHash = await hashPassword(createId() + createId());
+
+        try {
+          user = await prisma.user.create({
+            data: {
+              email: googleProfile.email,
+              username,
+              name: googleProfile.name,
+              passwordHash: randomPasswordHash,
+              emailVerified: true,
+              role: "student",
+            },
+          });
+        } catch (createErr) {
+          const targets = parsePrismaUniqueTargets(createErr);
+          const hasEmailConflict = targets.includes("email");
+          const hasUsernameConflict = targets.includes("username");
+
+          if (hasEmailConflict) {
+            user = await prisma.user.findUnique({ where: { email: googleProfile.email } });
+            if (user) {
+              break;
+            }
+          }
+
+          if (hasUsernameConflict) {
+            continue;
+          }
+
+          throw createErr;
+        }
+      }
+
+      if (!user) {
+        throw new Error("Unable to create Google user account");
+      }
+    } else if (!user.emailVerified) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      });
+    }
+
+    const { accessToken, refreshToken } = await issueTokens(user);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    res.json({ message: "Signed in with Google", user: safeUser(user) });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Validation failed", details: err.issues });
+      return;
+    }
+
+    console.error("[signInWithGoogle]", err);
+    const errorMessage = err instanceof Error ? err.message : "Google sign-in failed";
+    const normalized = errorMessage.toLowerCase();
+    const isTokenVerificationError =
+      normalized.includes("token")
+      || normalized.includes("audience")
+      || normalized.includes("recipient")
+      || normalized.includes("google")
+      || normalized.includes("jwt");
+
+    if (isTokenVerificationError) {
+      res.status(401).json({
+        error: process.env.NODE_ENV === "production" ? "Google sign-in failed" : errorMessage,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: process.env.NODE_ENV === "production" ? "Google sign-in failed" : errorMessage,
+    });
   }
 }
 

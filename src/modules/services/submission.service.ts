@@ -40,6 +40,17 @@ export interface SubmitResult {
   testCaseResults: TestCaseDetail[];
 }
 
+export interface PreSubmitResult {
+  status: SubmissionStatus;
+  testCasesPassed: number;
+  totalTestCases: number;
+  failedAt: number | null;
+  runtime: string | null;
+  memory: number | null;
+  errorOutput?: string | null;
+  testCaseResults: TestCaseDetail[];
+}
+
 // ─── Run Code (Playground) ──────────────────────────────────────────────────────
 
 /**
@@ -56,6 +67,83 @@ export async function runCode(
   }
 
   return await runSync(sourceCode, languageId, stdin);
+}
+
+// ─── Pre-Submit Test (Sample Cases Only) ───────────────────────────────────────
+
+/**
+ * Test code against sample test cases only.
+ * No database record is created.
+ */
+export async function preSubmitCode(
+  problemId: string,
+  language: string,
+  sourceCode: string
+): Promise<PreSubmitResult> {
+  const languageId = LANGUAGE_IDS[language];
+  if (!languageId) {
+    throw new Error(`Unsupported language: ${language}`);
+  }
+
+  const problem = getProblemWithTestCases(problemId);
+  if (!problem) {
+    throw new Error(`Problem not found: ${problemId}`);
+  }
+
+  const sampleTestCases = problem.sampleTestCases.map((tc) => ({
+    input: tc.input,
+    output: tc.output,
+  }));
+
+  if (sampleTestCases.length === 0) {
+    throw new Error(`No sample test cases configured for problem: ${problemId}`);
+  }
+
+  const timeLimit = problem.timeLimits[language as keyof typeof problem.timeLimits] || 5;
+
+  const { results, allPassed, firstFailure } = await executeTestCases(
+    sourceCode,
+    languageId,
+    sampleTestCases,
+    timeLimit,
+    problem.memoryLimit,
+    { stopOnFirstFailure: false }
+  );
+
+  const testCasesPassed = results.filter((r) => r.passed).length;
+  const maxTime = Math.max(...results.map((r) => parseFloat(r.time || "0")));
+  const maxMemory = Math.max(...results.map((r) => r.memory || 0));
+
+  const status: SubmissionStatus = allPassed
+    ? "accepted"
+    : firstFailure?.status || "wrong_answer";
+
+  const failedAt = firstFailure ? firstFailure.index + 1 : null;
+
+  const testCaseResults: TestCaseDetail[] = results.map((r) => {
+    const sample = sampleTestCases[r.index];
+    return {
+      index: r.index + 1,
+      visibility: "sample",
+      passed: r.passed,
+      status: r.status,
+      input: sample.input,
+      expectedOutput: sample.output,
+      actualOutput: r.stdout,
+      errorOutput: r.errorOutput,
+    };
+  });
+
+  return {
+    status,
+    testCasesPassed,
+    totalTestCases: sampleTestCases.length,
+    failedAt,
+    runtime: maxTime.toFixed(3),
+    memory: maxMemory,
+    errorOutput: firstFailure?.errorOutput,
+    testCaseResults,
+  };
 }
 
 // ─── Submit Code (Against Problem) ──────────────────────────────────────────────
