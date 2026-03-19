@@ -861,14 +861,277 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   schema: {
                     type: "object",
                     properties: {
-                      questions: { type: "array", items: { $ref: "#/components/schemas/Question" } },
-                      total: { type: "integer" },
+                      problems: { type: "array", items: { $ref: "#/components/schemas/Question" } },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
                     },
                   },
                 },
               },
             },
             "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/topics": {
+        get: {
+          summary: "List MCQ practice topics",
+          description: "Returns all available MCQ tag topics for topic-based session creation.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "MCQ topic list",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      topics: {
+                        type: "array",
+                        items: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/session": {
+        post: {
+          summary: "Create topic-based MCQ session (POST only)",
+          description:
+            "Creates and persists an MCQ practice session based on selected topics with 10-15 questions. " +
+            "Use POST from Swagger Try it out — opening this URL in browser tab (GET) will not work.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                example: {
+                  topics: ["arrays", "sql"],
+                  count: 10,
+                  difficulty: "easy",
+                },
+                schema: {
+                  type: "object",
+                  properties: {
+                    topics: {
+                      type: "array",
+                      minItems: 1,
+                      items: { type: "string" },
+                    },
+                    count: { type: "integer", minimum: 10, maximum: 15 },
+                    difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                  },
+                  required: ["topics", "count"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Session created",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      session: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          topics: { type: "array", items: { type: "string" } },
+                          requestedCount: { type: "integer" },
+                          returnedCount: { type: "integer" },
+                          status: { type: "string", enum: ["in_progress", "submitted"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      questions: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Question" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation failed / insufficient questions" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "No questions found" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/session/submit": {
+        post: {
+          summary: "Submit full MCQ session (POST only)",
+          description: "Submits all answers for a persisted MCQ session and calculates score on backend.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                example: {
+                  sessionId: "cmmxgd7ql000psb4z4ne8jnt3",
+                  answers: [
+                    { questionId: "mcq-practice-020", selectedOption: 0 },
+                    { questionId: "mcq-practice-019", selectedOption: 0 },
+                  ],
+                },
+                schema: {
+                  type: "object",
+                  properties: {
+                    sessionId: { type: "string" },
+                    answers: {
+                      type: "array",
+                      minItems: 1,
+                      items: {
+                        type: "object",
+                        properties: {
+                          questionId: { type: "string" },
+                          selectedOption: { type: "integer", minimum: 0 },
+                        },
+                        required: ["questionId", "selectedOption"],
+                      },
+                    },
+                  },
+                  required: ["sessionId", "answers"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Session submitted with review",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      session: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          status: { type: "string", enum: ["submitted"] },
+                          topics: { type: "array", items: { type: "string" } },
+                          totalQuestions: { type: "integer" },
+                          correctCount: { type: "integer" },
+                          score: { type: "integer" },
+                          submittedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      review: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            questionId: { type: "string" },
+                            title: { type: "string" },
+                            selectedOption: { type: "integer" },
+                            selectedOptionText: { type: "string" },
+                            correctAnswer: { type: "integer" },
+                            correctOptionText: { type: "string" },
+                            isCorrect: { type: "boolean" },
+                            points: { type: "integer" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation failed / already submitted / incomplete payload" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Session not found" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/history": {
+        get: {
+          summary: "Get MCQ practice history",
+          description: "Returns paginated MCQ session history for the authenticated user.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+            { name: "limit", in: "query", schema: { type: "integer", default: 10, minimum: 1, maximum: 50 } },
+          ],
+          responses: {
+            "200": {
+              description: "MCQ session history",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      history: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            topics: { type: "array", items: { type: "string" } },
+                            status: { type: "string", enum: ["in_progress", "submitted"] },
+                            requestedCount: { type: "integer" },
+                            totalQuestions: { type: "integer" },
+                            answeredCount: { type: "integer" },
+                            correctCount: { type: "integer" },
+                            score: { type: "integer" },
+                            submittedAt: { type: "string", format: "date-time", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/history/{sessionId}": {
+        get: {
+          summary: "Get MCQ session history detail",
+          description: "Returns per-question review for a specific MCQ session owned by the authenticated user.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "sessionId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": { description: "MCQ session detail" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Session not found" },
           },
         },
       },
@@ -896,7 +1159,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       "/api/v1/student/practice/mcq": {
         post: {
           summary: "Submit MCQ answer (instant feedback)",
-          description: "Submit an MCQ answer for instant feedback. No database record is created.",
+          description: "Submit an MCQ answer for instant feedback (single-question check).",
           tags: ["Practice"],
           security: [{ cookieAuth: [] }],
           requestBody: {
@@ -922,8 +1185,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   schema: {
                     type: "object",
                     properties: {
-                      correct: { type: "boolean" },
+                        isCorrect: { type: "boolean" },
                       correctAnswer: { type: "integer" },
+                        points: { type: "integer" },
+                        explanation: { type: "string" },
                     },
                   },
                 },

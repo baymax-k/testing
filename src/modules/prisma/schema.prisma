@@ -24,6 +24,7 @@ model User {
   refreshTokens  RefreshToken[]
   submissions    Submission[]
   participations ContestParticipation[]
+  mcqSessions    McqPracticeSession[]
 
   @@map("user")
 }
@@ -88,6 +89,11 @@ enum ContestType {
   practice
 }
 
+enum McqSessionStatus {
+  in_progress
+  submitted
+}
+
 // ─── Problem Models ──────────────────────────────────────────────────────────
 
 model Tag {
@@ -122,6 +128,7 @@ model Question {
   hiddenTestCases Json?  // [{input, expectedOutput}]
 
   contests ContestQuestion[]
+  mcqAnswers McqPracticeAnswer[]
 
   @@map("question")
 }
@@ -203,4 +210,46 @@ model Submission {
   @@index([problemId])
   @@index([userId, problemId])
   @@map("submission")
+}
+
+model McqPracticeSession {
+  id             String           @id @default(cuid())
+  userId         String
+  topics         Json
+  difficulty     String?
+  requestedCount Int
+  totalQuestions Int
+  questionIds    Json
+  status         McqSessionStatus @default(in_progress)
+  score          Int              @default(0)
+  correctCount   Int              @default(0)
+  submittedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers McqPracticeAnswer[]
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@map("mcq_practice_session")
+}
+
+model McqPracticeAnswer {
+  id             String   @id @default(cuid())
+  sessionId      String
+  questionId     String
+  selectedOption Int
+  correctAnswer  Int
+  isCorrect      Boolean
+  points         Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  session  McqPracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([questionId])
+  @@map("mcq_practice_answer")
 }

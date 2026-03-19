@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeEthnics — MCQ Topic Practice</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2e3e;
+      --primary: #6c5ce7;
+      --primary-hover: #7c6ff7;
+      --success: #00b894;
+      --error: #ff4757;
+      --text: #e4e6eb;
+      --text-muted: #8b8fa3;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .pill {
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(108, 92, 231, 0.15);
+      color: #b8adff;
+      border: 1px solid rgba(108, 92, 231, 0.25);
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.16);
+    }
+
+    .topic-list {
+      display: grid;
+      gap: 8px;
+      max-height: 180px;
+      overflow: auto;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+    }
+
+    .topic-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+
+    .topic-option input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: rgba(139, 143, 163, 0.15);
+      border: 1px solid rgba(139, 143, 163, 0.3);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(139, 143, 163, 0.25);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .meta-box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(15, 17, 23, 0.4);
+    }
+
+    .meta-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .meta-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .question-title {
+      font-size: 1.02rem;
+      margin-bottom: 8px;
+    }
+
+    .question-text {
+      color: #cad1de;
+      margin-bottom: 14px;
+      white-space: pre-wrap;
+    }
+
+    .options {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .option {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(15, 17, 23, 0.55);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .option:hover {
+      border-color: rgba(108, 92, 231, 0.6);
+      background: rgba(108, 92, 231, 0.07);
+    }
+
+    .option.selected {
+      border-color: var(--primary);
+      background: rgba(108, 92, 231, 0.15);
+    }
+
+    .option-letter {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid rgba(139, 143, 163, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .option.selected .option-letter {
+      color: #fff;
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .status {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      background: rgba(15, 17, 23, 0.4);
+      min-height: 56px;
+    }
+
+    .status.success {
+      border-color: rgba(0, 184, 148, 0.35);
+      color: #81e6cc;
+      background: rgba(0, 184, 148, 0.08);
+    }
+
+    .status.error {
+      border-color: rgba(255, 71, 87, 0.35);
+      color: #ffb3bc;
+      background: rgba(255, 71, 87, 0.08);
+    }
+
+    .summary {
+      margin-top: 14px;
+      border: 1px solid rgba(0, 184, 148, 0.35);
+      border-radius: 10px;
+      padding: 12px;
+      background: rgba(0, 184, 148, 0.08);
+      color: #81e6cc;
+      display: none;
+      max-height: 340px;
+      overflow: auto;
+    }
+
+    .summary h3 {
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    .summary p {
+      font-size: 0.86rem;
+      margin-bottom: 4px;
+    }
+
+    .small-note {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">MCQ Session Controls</h2>
+        <span class="pill">Practice API</span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="difficulty">Difficulty</label>
+          <select id="difficulty">
+            <option value="">Any</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="questionCount">Questions in Session</label>
+          <input id="questionCount" type="number" min="10" max="15" value="10" />
+        </div>
+
+        <div class="form-group">
+          <label>Topics (multi-select)</label>
+          <div id="topicList" class="topic-list"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="refreshTopicsBtn">Refresh Topics</button>
+          <button class="btn btn-primary" id="startSessionBtn">Start Topic Session</button>
+          <button class="btn btn-secondary" id="resetBtn">Reset Session</button>
+        </div>
+
+        <p class="small-note">
+          Select one or more topics and solve 10-15 questions one-by-one.
+        </p>
+
+        <div class="status" id="fetchStatus">
+          Choose topics and click Start Topic Session.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">MCQ Solve Panel</h2>
+        <span class="pill" id="progressPill">Q 0 / 0</span>
+      </div>
+      <div class="card-body">
+        <div class="meta-grid">
+          <div class="meta-box">
+            <div class="meta-label">Timer</div>
+            <div class="meta-value" id="timer">00:00</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">Answered</div>
+            <div class="meta-value" id="answeredCount">0</div>
+          </div>
+        </div>
+
+        <h3 class="question-title" id="questionTitle">No question loaded</h3>
+        <p class="question-text" id="questionText">Start a topic-based session to begin solving.</p>
+
+        <div class="options" id="options"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="prevBtn">Previous</button>
+          <button class="btn btn-secondary" id="nextBtn">Next</button>
+          <button class="btn btn-primary" id="submitBtn">Submit Session</button>
+        </div>
+
+        <div class="summary" id="summary"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let questions = [];
+    let currentIndex = 0;
+    let selectedAnswers = [];
+    let selectedTopics = [];
+    let sessionId = null;
+    let totalSeconds = 0;
+    let timerRef = null;
+
+    const fetchStatus = document.getElementById('fetchStatus');
+    const progressPill = document.getElementById('progressPill');
+    const questionTitle = document.getElementById('questionTitle');
+    const questionText = document.getElementById('questionText');
+    const optionsContainer = document.getElementById('options');
+    const answeredCount = document.getElementById('answeredCount');
+    const timerEl = document.getElementById('timer');
+    const summaryEl = document.getElementById('summary');
+    const topicList = document.getElementById('topicList');
+
+    async function apiRequest(path, method = 'GET', body) {
+      const response = await fetch(path, {
+        method,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      return { ok: response.ok, status: response.status, data };
+    }
+
+    function setStatus(message, type = 'default') {
+      fetchStatus.className = 'status';
+      if (type === 'success') fetchStatus.classList.add('success');
+      if (type === 'error') fetchStatus.classList.add('error');
+      fetchStatus.textContent = message;
+    }
+
+    function startTimer() {
+      stopTimer();
+      totalSeconds = 0;
+      renderTimer();
+      timerRef = setInterval(() => {
+        totalSeconds += 1;
+        renderTimer();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerRef) {
+        clearInterval(timerRef);
+        timerRef = null;
+      }
+    }
+
+    function renderTimer() {
+      const mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const ss = String(totalSeconds % 60).padStart(2, '0');
+      timerEl.textContent = `${mm}:${ss}`;
+    }
+
+    function renderQuestion() {
+      if (!questions.length) {
+        progressPill.textContent = 'Q 0 / 0';
+        questionTitle.textContent = 'No question loaded';
+        questionText.textContent = 'Start a topic-based session to begin solving.';
+        optionsContainer.innerHTML = '';
+        answeredCount.textContent = '0';
+        return;
+      }
+
+      const question = questions[currentIndex];
+      progressPill.textContent = `Q ${currentIndex + 1} / ${questions.length}`;
+      questionTitle.textContent = question.title || `Question ${currentIndex + 1}`;
+      questionText.textContent = question.description || 'No description';
+
+      optionsContainer.innerHTML = '';
+      const options = Array.isArray(question.options) ? question.options : [];
+      options.forEach((optionText, optionIndex) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'option';
+        if (selectedAnswers[currentIndex] === optionIndex) {
+          option.classList.add('selected');
+        }
+
+        option.innerHTML = `
+          <span class="option-letter">${String.fromCharCode(65 + optionIndex)}</span>
+          <span>${optionText}</span>
+        `;
+
+        option.addEventListener('click', () => {
+          selectedAnswers[currentIndex] = optionIndex;
+          summaryEl.style.display = 'none';
+          renderQuestion();
+        });
+
+        optionsContainer.appendChild(option);
+      });
+
+      const answered = selectedAnswers.filter((value) => value !== null).length;
+      answeredCount.textContent = String(answered);
+    }
+
+    function renderTopics(topics) {
+      topicList.innerHTML = '';
+
+      topics.forEach((topic) => {
+        const option = document.createElement('label');
+        option.className = 'topic-option';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = topic;
+        checkbox.addEventListener('change', () => {
+          selectedTopics = Array.from(
+            topicList.querySelectorAll('input[type="checkbox"]:checked')
+          ).map((node) => node.value);
+        });
+
+        const text = document.createElement('span');
+        text.textContent = topic;
+
+        option.appendChild(checkbox);
+        option.appendChild(text);
+        topicList.appendChild(option);
+      });
+    }
+
+    async function loadPracticeTopics() {
+      const result = await apiRequest('/api/v1/student/practice/mcq/topics');
+      if (!result.ok) {
+        setStatus(result.data?.error || 'Failed to load MCQ topics. Please login first.', 'error');
+        return;
+      }
+
+      const topics = Array.isArray(result.data?.topics) ? result.data.topics : [];
+      if (!topics.length) {
+        topicList.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted)">No topics found</div>';
+        setStatus('No MCQ topics available.', 'error');
+        return;
+      }
+
+      selectedTopics = [];
+      renderTopics(topics);
+      setStatus(`Loaded ${topics.length} topic(s). Select one or more topics.`, 'success');
+    }
+
+    async function startTopicSession() {
+      const difficulty = document.getElementById('difficulty').value;
+      const count = Number(document.getElementById('questionCount').value || 0);
+
+      if (selectedTopics.length === 0) {
+        setStatus('Please select at least one topic.', 'error');
+        return;
+      }
+
+      if (!Number.isInteger(count) || count < 10 || count > 15) {
+        setStatus('Question count must be between 10 and 15.', 'error');
+        return;
+      }
+
+      const result = await apiRequest('/api/v1/student/practice/mcq/session', 'POST', {
+        topics: selectedTopics,
+        count,
+        ...(difficulty ? { difficulty } : {}),
+      });
+
+      if (!result.ok) {
+        setStatus(result.data?.error || 'Failed to create topic session.', 'error');
+        return;
+      }
+
+      const questionSet = Array.isArray(result.data?.questions) ? result.data.questions : [];
+      if (!questionSet.length) {
+        setStatus('No questions returned for selected topics.', 'error');
+        return;
+      }
+
+      sessionId = result.data?.session?.id || null;
+      questions = questionSet;
+      currentIndex = 0;
+      selectedAnswers = new Array(questions.length).fill(null);
+      summaryEl.style.display = 'none';
+      summaryEl.innerHTML = '';
+      startTimer();
+      renderQuestion();
+      setStatus(
+        `Session ready: ${questions.length} question(s) from topics: ${selectedTopics.join(', ')}.`,
+        'success'
+      );
+    }
+
+    function resetSession() {
+      questions = [];
+      currentIndex = 0;
+      selectedAnswers = [];
+      sessionId = null;
+      summaryEl.style.display = 'none';
+      summaryEl.innerHTML = '';
+      setStatus('Session reset. Start another topic session to continue.');
+      stopTimer();
+      totalSeconds = 0;
+      renderTimer();
+      renderQuestion();
+    }
+
+    function nextQuestion() {
+      if (!questions.length) return;
+      if (currentIndex < questions.length - 1) {
+        currentIndex += 1;
+        renderQuestion();
+      }
+    }
+
+    function prevQuestion() {
+      if (!questions.length) return;
+      if (currentIndex > 0) {
+        currentIndex -= 1;
+        renderQuestion();
+      }
+    }
+
+    async function submitSession() {
+      if (!questions.length) {
+        setStatus('Start a topic session before submitting.', 'error');
+        return;
+      }
+
+      if (!sessionId) {
+        setStatus('Session ID missing. Please start a new session.', 'error');
+        return;
+      }
+
+      const unanswered = selectedAnswers.filter((value) => value === null).length;
+      if (unanswered > 0) {
+        setStatus(`Please answer all questions before submitting. ${unanswered} left.`, 'error');
+        return;
+      }
+
+      const payload = {
+        sessionId,
+        answers: questions.map((question, index) => ({
+          questionId: question.id,
+          selectedOption: selectedAnswers[index],
+        })),
+      };
+
+      const result = await apiRequest('/api/v1/student/practice/mcq/session/submit', 'POST', payload);
+      if (!result.ok) {
+        setStatus(result.data?.error || 'Failed to submit MCQ session.', 'error');
+        return;
+      }
+
+      const reviews = Array.isArray(result.data?.review) ? result.data.review : [];
+
+      stopTimer();
+      const correctCount = Number(result.data?.session?.correctCount ?? 0);
+      const totalPoints = Number(result.data?.session?.score ?? 0);
+
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `
+        <h3>Session Review</h3>
+        <p><strong>Score:</strong> ${correctCount} / ${questions.length}</p>
+        <p><strong>Total Points:</strong> ${totalPoints}</p>
+        <p><strong>Time Taken:</strong> ${timerEl.textContent}</p>
+        ${reviews
+          .map((review, index) => {
+            const matchedQuestion = questions.find((question) => question.id === review.questionId);
+            const options = Array.isArray(matchedQuestion?.options) ? matchedQuestion.options : [];
+            const selectedText = options[review.selectedOption] ?? `Option ${review.selectedOption}`;
+            const correctText = options[review.correctAnswer] ?? `Option ${review.correctAnswer}`;
+            return `
+              <p style="margin-top:10px"><strong>Q${index + 1}:</strong> ${review.title ?? matchedQuestion?.title ?? review.questionId}</p>
+              <p>Selected: ${review.selectedOptionText ?? selectedText}</p>
+              <p>Correct: ${review.correctOptionText ?? correctText}</p>
+              <p>Result: ${review.isCorrect ? 'Correct' : 'Incorrect'}</p>
+            `;
+          })
+          .join('')}
+      `;
+
+      setStatus('Session evaluated with per-question review.', 'success');
+    }
+
+    document.getElementById('refreshTopicsBtn').addEventListener('click', loadPracticeTopics);
+    document.getElementById('startSessionBtn').addEventListener('click', startTopicSession);
+    document.getElementById('resetBtn').addEventListener('click', resetSession);
+    document.getElementById('nextBtn').addEventListener('click', nextQuestion);
+    document.getElementById('prevBtn').addEventListener('click', prevQuestion);
+    document.getElementById('submitBtn').addEventListener('click', submitSession);
+
+    renderTimer();
+    renderQuestion();
+    loadPracticeTopics();
+  </script>
+</body>
+
+</html>
