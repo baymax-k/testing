@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Practice — Random MCQ</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto }
+    input, textarea, select { width: 100%; padding: 8px; margin: 6px 0 }
+    button { padding: 10px 14px }
+    pre { background:#f6f8fa; padding:12px }
+    .question { border:1px solid #ddd; padding:12px; margin:8px 0 }
+  </style>
+</head>
+<body>
+  <h1>Random MCQ Practice</h1>
+  <p>Generate a randomized MCQ set for the signed-in student (requires auth cookies).</p>
+
+  <label>Topics (comma separated)</label>
+  <input id="topics" placeholder="arrays, strings" />
+
+  <label>Count (max 25)</label>
+  <input id="count" type="number" value="10" min="1" max="25" />
+
+  <label>Difficulty</label>
+  <select id="difficulty">
+    <option value="">Any</option>
+    <option value="easy">easy</option>
+    <option value="medium">medium</option>
+    <option value="hard">hard</option>
+  </select>
+
+  <label>Seed (optional)</label>
+  <input id="seed" placeholder="seed for deterministic selection" />
+
+  <label>Exclude IDs (comma separated)</label>
+  <input id="exclude" placeholder="question-id-1,question-id-2" />
+
+  <button id="go">Generate</button>
+
+  <h2>Result</h2>
+  <div id="meta"></div>
+  <div id="list"></div>
+
+  <p style="margin-top:12px"><small>Tip: use the seed to reproduce the same selection later. Click "Copy seed" then paste into the Seed field and click Generate.</small></p>
+
+  <script>
+    const go = document.getElementById('go');
+    go.addEventListener('click', async () => {
+      const topics = (document.getElementById('topics').value || '').split(',').map(s => s.trim()).filter(Boolean);
+      const count = parseInt(document.getElementById('count').value || '10', 10);
+      const difficulty = document.getElementById('difficulty').value || undefined;
+      const seed = document.getElementById('seed').value || undefined;
+      const exclude = (document.getElementById('exclude').value || '').split(',').map(s=>s.trim()).filter(Boolean);
+
+      if (!topics.length) { alert('Please provide at least one topic'); return; }
+
+      const body = { topics, count, difficulty, seed, excludeIds: exclude };
+
+      // Backend base URL — change if your API runs on a different host/port
+      const backendUrl = window.BACKEND_URL || 'http://localhost:5000';
+
+      const res = await fetch(backendUrl + '/api/v1/student/practice/random', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+
+      const elMeta = document.getElementById('meta');
+      const elList = document.getElementById('list');
+      elMeta.innerHTML = '';
+      elList.innerHTML = '';
+
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({ error: res.statusText }));
+        elMeta.innerHTML = '<pre style="color:crimson">'+JSON.stringify(err,null,2)+'</pre>';
+        return;
+      }
+
+      const data = await res.json();
+      elMeta.innerHTML = '<pre>'+JSON.stringify({ seed: data.seed, poolSize: data.poolSize, reset: data.reset, returned: data.questions.length }, null, 2)+'</pre>';
+
+      // Add copy/replay buttons
+      const btns = document.createElement('div');
+      btns.style.margin = '8px 0';
+      const copy = document.createElement('button');
+      copy.textContent = 'Copy seed';
+      copy.addEventListener('click', () => {
+        navigator.clipboard.writeText(data.seed || '').then(()=>{
+          copy.textContent = 'Seed copied';
+          setTimeout(()=>copy.textContent = 'Copy seed', 1200);
+        }).catch(()=>alert('Clipboard not available'));
+      });
+
+      const replay = document.createElement('button');
+      replay.textContent = 'Use seed';
+      replay.style.marginLeft = '8px';
+      replay.addEventListener('click', () => {
+        document.getElementById('seed').value = data.seed || '';
+      });
+
+      btns.appendChild(copy);
+      btns.appendChild(replay);
+      elMeta.appendChild(btns);
+
+      for (const q of data.questions) {
+        const d = document.createElement('div');
+        d.className = 'question';
+        d.innerHTML = '<strong>'+q.title+'</strong> <small>('+q.difficulty+' / '+(q.topic||'')+')</small>' +
+          '<p>'+q.statement+'</p>' +
+          (q.options && q.options.length ? '<ol>'+q.options.map(o => '<li>'+o+'</li>').join('')+'</ol>' : '');
+        elList.appendChild(d);
+      }
+    });
+  </script>
+</body>
+</html>

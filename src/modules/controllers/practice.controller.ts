@@ -6,6 +6,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/prisma.js";
 import type { AuthRequest } from "../../middleware/auth.js";
+import { generateRandomMcqSet } from "../services/practiceRandom.service.js";
 
 // ─── MCQ Submission Schema ─────────────────────────────────────────────────────
 const mcqSubmissionSchema = z.object({
@@ -17,6 +18,14 @@ const mcqSessionSchema = z.object({
   topics: z.array(z.string().min(1)).min(1, "At least one topic is required"),
   // No manual `count` anymore — return all matching topic questions
   difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+});
+
+const randomRequestSchema = z.object({
+  count: z.coerce.number().int().min(1).max(25).optional().default(10),
+  topics: z.array(z.string().min(1)).min(1),
+  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+  seed: z.string().optional(),
+  excludeIds: z.array(z.string()).optional(),
 });
 
 const mcqBatchSubmitSchema = z.object({
@@ -120,7 +129,7 @@ export async function createMcqPracticeSession(req: Request, res: Response): Pro
       session: {
         id: session.id,
         topics: normalizedTopics,
-        requestedCount: count,
+        requestedCount: session.requestedCount,
         returnedCount: selected.length,
         status: session.status,
         createdAt: session.createdAt,
@@ -142,6 +151,36 @@ export async function createMcqPracticeSession(req: Request, res: Response): Pro
     }
     console.error("[createMcqPracticeSession]", error);
     res.status(500).json({ error: "Failed to create MCQ practice session" });
+  }
+}
+
+// POST /api/v1/student/practice/random — Generate non-persistent random MCQ set
+export async function createRandomPractice(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = (req as AuthRequest).user!.userId;
+    const body = randomRequestSchema.parse(req.body);
+
+    const result = await generateRandomMcqSet(userId, {
+      count: body.count,
+      topics: body.topics,
+      difficulty: body.difficulty,
+      seed: body.seed,
+      excludeIds: body.excludeIds,
+    });
+
+    res.json({
+      seed: result.seed,
+      poolSize: result.poolSize,
+      reset: result.reset,
+      questions: result.questions,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Validation failed", details: error.issues });
+      return;
+    }
+    console.error("[createRandomPractice]", error);
+    res.status(500).json({ error: "Failed to generate random MCQ set" });
   }
 }
 

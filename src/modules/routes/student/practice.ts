@@ -15,8 +15,8 @@ import {
   getMcqPracticeHistoryDetail,
   getMcqStats,
   getMcqSessionById,
-  getMcqSessionById,
 } from '../../controllers/practice.controller.js';
+import { createRandomPractice } from '../../controllers/practice.controller.js';
 
 import { postPracticeActivity, getPracticeActivityHandler } from '../../controllers/practiceActivity.controller.js';
 
@@ -33,6 +33,9 @@ router.get("/mcq/stats", requireAuth, getMcqStats);
 
 // POST /api/v1/student/practice/mcq/session — Create MCQ session by selected topics
 router.post("/mcq/session", requireAuth, createMcqPracticeSession);
+
+// POST /api/v1/student/practice/random — Generate a random MCQ set (non-persistent)
+router.post("/random", requireAuth, createRandomPractice);
 
 // GET /api/v1/student/practice/mcq/session/:sessionId — Get/resume session
 router.get("/mcq/session/:sessionId", requireAuth, getMcqSessionById);

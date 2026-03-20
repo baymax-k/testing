@@ -27,6 +27,8 @@ model User {
   mcqSessions    McqPracticeSession[]
   dailySolves    DailyChallengeSolve[]
   streak         UserStreak?
+  dailyPracticeActivities DailyPracticeActivity[]
+  practiceRandomSets      PracticeRandomSet[]
 
   @@map("user")
 }
@@ -277,6 +279,7 @@ model DailyChallengeSolve {
   id               String   @id @default(cuid())
   userId           String
   dailyChallengeId String
+  selectedOption   Int?
   languageId       Int?     // for DSA code submissions
   sourceCode       String?  // for DSA code submissions
   isCorrect        Boolean
@@ -320,4 +323,21 @@ model DailyPracticeActivity {
   @@unique([userId, date])
   @@index([userId])
   @@map("daily_practice_activity")
+}
+
+// ─── Random Practice Sets (Ephemeral, persisted for auditing) ───────────────
+model PracticeRandomSet {
+  id          String   @id @default(cuid())
+  userId      String
+  seed        String?
+  filters     Json     // { topics: string[], difficulty?: string }
+  questionIds Json     // [questionId]
+  count       Int
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("practice_random_set")
 }

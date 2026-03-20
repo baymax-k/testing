@@ -206,6 +206,37 @@ const swaggerOptions: swaggerJsdoc.Options = {
             sampleTestCases: { type: "array", items: { type: "object" }, description: "DSA only", nullable: true },
           },
         },
+        QuestionSummary: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            title: { type: "string" },
+            statement: { type: "string" },
+            options: { type: "array", items: { type: "string" } },
+            topic: { type: "string", nullable: true },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+          },
+        },
+        RandomPracticeRequest: {
+          type: "object",
+          properties: {
+            count: { type: "integer", default: 10, maximum: 25 },
+            topics: { type: "array", items: { type: "string" } },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+            seed: { type: "string" },
+            excludeIds: { type: "array", items: { type: "string" } },
+          },
+          required: ["topics"],
+        },
+        RandomPracticeResponse: {
+          type: "object",
+          properties: {
+            seed: { type: "string" },
+            poolSize: { type: "integer" },
+            reset: { type: "boolean" },
+            questions: { type: "array", items: { $ref: "#/components/schemas/QuestionSummary" } },
+          },
+        },
         Contest: {
           type: "object",
           properties: {
