@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeEthnics — POTD & MCQ Stats Test</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2e3e;
+      --primary: #6c5ce7;
+      --primary-hover: #7c6ff7;
+      --success: #00b894;
+      --error: #ff4757;
+      --warning: #fdcb6e;
+      --text: #e4e6eb;
+      --text-muted: #8b8fa3;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Top nav ── */
+    .topnav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .topnav-brand {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #b8adff;
+      letter-spacing: 0.02em;
+    }
+    .topnav-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .tab-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    .tab-btn.active { background: rgba(108,92,231,0.2); color: #b8adff; }
+    .topnav-auth {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #authStatus {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    #authStatus.ok { color: #81e6cc; border-color: rgba(0,184,148,0.35); background: rgba(0,184,148,0.08); }
+    #authStatus.fail { color: #ffb3bc; border-color: rgba(255,71,87,0.3); background: rgba(255,71,87,0.08); }
+
+    /* ── Pages ── */
+    .page { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .card-title {
+      font-size: 0.88rem; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted);
+    }
+    .card-body { padding: 18px; }
+    .pill {
+      padding: 4px 10px; border-radius: 16px; font-size: 0.72rem; font-weight: 600;
+      background: rgba(108,92,231,0.15); color: #b8adff; border: 1px solid rgba(108,92,231,0.25);
+    }
+    .pill.green { background: rgba(0,184,148,0.12); color: #81e6cc; border-color: rgba(0,184,148,0.3); }
+    .pill.orange { background: rgba(253,203,110,0.12); color: #ffeaa7; border-color: rgba(253,203,110,0.3); }
+
+    /* ── Streak display ── */
+    .streak-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .streak-card {
+      background: linear-gradient(135deg, rgba(108,92,231,0.1), rgba(108,92,231,0.04));
+      border: 1px solid rgba(108,92,231,0.25);
+      border-radius: 12px; padding: 16px; text-align: center;
+    }
+    .streak-card.fire { background: linear-gradient(135deg, rgba(253,203,110,0.12), rgba(253,203,110,0.04)); border-color: rgba(253,203,110,0.3); }
+    .streak-number {
+      font-size: 2.2rem; font-weight: 800;
+      background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .streak-card.fire .streak-number {
+      background: linear-gradient(135deg, #fdcb6e, #e17055);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .streak-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ── POTD question ── */
+    .potd-question {
+      border: 1px solid rgba(108,92,231,0.3);
+      border-radius: 12px; padding: 18px;
+      background: linear-gradient(135deg, rgba(108,92,231,0.06), rgba(108,92,231,0.02));
+      margin-bottom: 16px;
+    }
+    .potd-date-badge {
+      display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 0.72rem; font-weight: 600;
+      background: rgba(108,92,231,0.2); color: #b8adff; margin-bottom: 10px;
+    }
+    .q-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+    .q-desc { color: #cad1de; font-size: 0.9rem; margin-bottom: 14px; white-space: pre-wrap; }
+    .q-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .tag { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; background: rgba(139,143,163,0.12); color: var(--text-muted); border: 1px solid var(--border); }
+    .difficulty-badge { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; border: 1px solid; }
+    .difficulty-badge.easy { background: rgba(0,184,148,0.1); color: #81e6cc; border-color: rgba(0,184,148,0.3); }
+    .difficulty-badge.medium { background: rgba(253,203,110,0.1); color: #ffeaa7; border-color: rgba(253,203,110,0.3); }
+    .difficulty-badge.hard { background: rgba(255,71,87,0.1); color: #ffb3bc; border-color: rgba(255,71,87,0.3); }
+
+    /* ── MCQ options ── */
+    .options { display: grid; gap: 10px; }
+    .option {
+      border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+      background: rgba(15,17,23,0.55); cursor: pointer; transition: all 0.15s;
+      display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%;
+    }
+    .option:hover { border-color: rgba(108,92,231,0.6); background: rgba(108,92,231,0.07); }
+    .option.selected { border-color: var(--primary); background: rgba(108,92,231,0.15); }
+    .option.correct { border-color: rgba(0,184,148,0.7); background: rgba(0,184,148,0.1) !important; }
+    .option.wrong { border-color: rgba(255,71,87,0.7); background: rgba(255,71,87,0.1) !important; }
+    .option.disabled { cursor: default; pointer-events: none; }
+    .option-letter {
+      width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(139,143,163,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; color: var(--text-muted); flex-shrink: 0;
+    }
+    .option.selected .option-letter { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .option.correct .option-letter { color: #fff; background: var(--success); border-color: var(--success); }
+    .option.wrong .option-letter { color: #fff; background: var(--error); border-color: var(--error); }
+
+    /* ── Result banner ── */
+    .result-banner {
+      border-radius: 10px; padding: 14px; margin-top: 16px;
+      font-size: 0.9rem; display: none;
+    }
+    .result-banner.correct {
+      background: rgba(0,184,148,0.1); border: 1px solid rgba(0,184,148,0.35); color: #81e6cc;
+    }
+    .result-banner.wrong {
+      background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); color: #ffb3bc;
+    }
+    .result-banner.info {
+      background: rgba(108,92,231,0.1); border: 1px solid rgba(108,92,231,0.3); color: #b8adff;
+    }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .btn {
+      border: none; border-radius: 8px; padding: 10px 16px;
+      font-size: 0.86rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary {
+      background: rgba(139,143,163,0.12); border: 1px solid rgba(139,143,163,0.25); color: var(--text);
+    }
+    .btn-secondary:hover { background: rgba(139,143,163,0.22); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Stat grid ── */
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .stat-box {
+      background: rgba(15,17,23,0.5); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; text-align: center;
+    }
+    .stat-num { font-size: 1.6rem; font-weight: 800; color: #b8adff; }
+    .stat-lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+
+    /* ── Topic breakdown table ── */
+    .topic-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    .topic-table th {
+      text-align: left; padding: 8px 10px;
+      border-bottom: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .topic-table td { padding: 9px 10px; border-bottom: 1px solid rgba(42,46,62,0.6); }
+    .topic-table tr:last-child td { border-bottom: none; }
+    .accuracy-bar-wrap { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 80px; }
+    .accuracy-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6c5ce7, #a29bfe); }
+    .accuracy-bar.high { background: linear-gradient(90deg, #00b894, #81e6cc); }
+    .accuracy-bar.low { background: linear-gradient(90deg, #e17055, #ff7675); }
+
+    /* ── History ── */
+    .history-list { display: grid; gap: 10px; }
+    .history-item {
+      border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+      background: rgba(15,17,23,0.4); display: flex; align-items: center; gap: 12px;
+    }
+    .solve-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      background: var(--border);
+    }
+    .solve-dot.solved-correct { background: var(--success); }
+    .solve-dot.solved-wrong { background: var(--error); }
+    .history-info { flex: 1; }
+    .history-title { font-size: 0.88rem; font-weight: 600; }
+    .history-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .pagination-row { display: flex; gap: 8px; justify-content: center; margin-top: 14px; align-items: center; }
+    .load-msg { text-align: center; color: var(--text-muted); font-size: 0.86rem; padding: 24px; }
+
+    /* ── Session resume box ── */
+    .input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .input-row input {
+      flex: 1; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.86rem;
+    }
+    .input-row input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,92,231,0.14); }
+  </style>
+</head>
+<body>
+
+<!-- ─── Top navigation ─────────────────────────────────────────────────────── -->
+<nav class="topnav">
+  <span class="topnav-brand">CodeEthnics · Dev Testbed</span>
+  <div class="topnav-tabs">
+    <button class="tab-btn active" onclick="showPage('potd', this)">🔥 POTD</button>
+    <button class="tab-btn" onclick="showPage('streak', this)">🏅 Streak</button>
+    <button class="tab-btn" onclick="showPage('history', this)">📅 History</button>
+    <button class="tab-btn" onclick="showPage('stats', this)">📊 MCQ Stats</button>
+    <button class="tab-btn" onclick="showPage('resume', this)">↩ Resume</button>
+  </div>
+  <div class="topnav-auth">
+    <span id="authStatus">Checking auth…</span>
+    <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem" onclick="location.href='/test/login.html'">Login</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: POTD                                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-potd">
+
+  <!-- Streak snapshot -->
+  <div class="streak-grid" id="potdStreakGrid">
+    <div class="streak-card fire">
+      <div class="streak-number" id="potdCurrentStreak">—</div>
+      <div class="streak-label">🔥 Current Streak</div>
+    </div>
+    <div class="streak-card">
+      <div class="streak-number" id="potdLongestStreak">—</div>
+      <div class="streak-label">🏅 Longest Streak</div>
+    </div>
+    <div class="streak-card">
+      <div class="streak-number" id="potdLastSolve">—</div>
+      <div class="streak-label">📅 Last Solve</div>
+    </div>
+  </div>
+
+  <!-- POTD Question Card -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Today's Problem of the Day</h2>
+      <span class="pill" id="potdStatusPill">Loading…</span>
+    </div>
+    <div class="card-body">
+      <div id="potdContent">
+        <div class="load-msg">Fetching today's challenge…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="loadPotd()">🔄 Refresh POTD</button>
+    <a href="/test/mcq-mockup.html"><button class="btn btn-secondary">MCQ Practice →</button></a>
+    <a href="/api-docs"><button class="btn btn-secondary">Swagger Docs →</button></a>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: STREAK                                                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-streak">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Streak Details</h2>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem" onclick="loadStreak()">Refresh</button>
+    </div>
+    <div class="card-body">
+      <div class="streak-grid" style="margin-bottom:0" id="streakGrid">
+        <div class="streak-card fire">
+          <div class="streak-number" id="sc">—</div>
+          <div class="streak-label">🔥 Current</div>
+        </div>
+        <div class="streak-card">
+          <div class="streak-number" id="sl">—</div>
+          <div class="streak-label">🏅 Longest</div>
+        </div>
+      </div>
+      <div id="streakExtra" style="margin-top:16px;font-size:0.86rem;color:var(--text-muted)"></div>
+
+      <div style="margin-top:24px">
+        <h3 style="font-size:0.88rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">Raw API Response</h3>
+        <pre id="streakRaw" style="background:rgba(15,17,23,0.7);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:0.78rem;overflow:auto;max-height:240px;color:#a29bfe">—</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: HISTORY                                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-history">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">POTD History</h2>
+      <span class="pill" id="historyTotalPill">—</span>
+    </div>
+    <div class="card-body">
+      <div class="history-list" id="historyList">
+        <div class="load-msg">Loading history…</div>
+      </div>
+      <div class="pagination-row" id="historyPagination"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: MCQ STATS                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-stats">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">MCQ Practice Stats</h2>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem" onclick="loadStats()">Refresh</button>
+    </div>
+    <div class="card-body">
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-num" id="statSessions">—</div><div class="stat-lbl">Sessions</div></div>
+        <div class="stat-box"><div class="stat-num" id="statQuestions">—</div><div class="stat-lbl">Questions</div></div>
+        <div class="stat-box"><div class="stat-num" id="statCorrect">—</div><div class="stat-lbl">Correct</div></div>
+        <div class="stat-box"><div class="stat-num" id="statScore">—</div><div class="stat-lbl">Score</div></div>
+        <div class="stat-box"><div class="stat-num" id="statAccuracy">—</div><div class="stat-lbl">Accuracy %</div></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Topic Breakdown</h3>
+      <div style="overflow-x:auto">
+        <table class="topic-table">
+          <thead>
+            <tr>
+              <th>Topic</th>
+              <th>Answered</th>
+              <th>Correct</th>
+              <th>Accuracy</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="statsTopicBody">
+            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">Load stats to see breakdown</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: SESSION RESUME                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-resume">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Resume MCQ Session</h2>
+      <span class="pill">GET /mcq/session/:id</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:0.86rem;color:var(--text-muted);margin-bottom:12px">
+        Enter a session ID from a previous MCQ practice session to resume it. Find IDs in the MCQ practice history.
+      </p>
+      <div class="input-row">
+        <input id="resumeSessionId" type="text" placeholder="Paste session ID here…" />
+        <button class="btn btn-primary" onclick="loadSession()">Load Session</button>
+      </div>
+
+      <div id="resumeResult">
+        <div class="load-msg" style="padding:16px">Enter a session ID above.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Scripts ───────────────────────────────────────────────────────────────── -->
+<script>
+  // ─── State ──────────────────────────────────────────────────────────────────
+  let potdData = null;
+  let selectedPotdOption = null;
+  let historyPage = 1;
+
+  // ─── API helper ─────────────────────────────────────────────────────────────
+  async function api(path, method = 'GET', body) {
+    const r = await fetch(path, {
+      method, credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data };
+  }
+
+  // ─── Tab navigation ─────────────────────────────────────────────────────────
+  function showPage(name, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'streak') loadStreak();
+    if (name === 'history') loadHistory(1);
+    if (name === 'stats') loadStats();
+  }
+
+  // ─── Check auth ─────────────────────────────────────────────────────────────
+  async function checkAuth() {
+    const el = document.getElementById('authStatus');
+    const r = await api('/api/v1/me');
+    if (r.ok) {
+      el.className = 'ok';
+      el.textContent = `✓ ${r.data?.user?.name ?? r.data?.user?.email ?? 'Logged in'}`;
+    } else {
+      el.className = 'fail';
+      el.textContent = '✗ Not logged in';
+    }
+  }
+
+  // ─── POTD ───────────────────────────────────────────────────────────────────
+  async function loadPotd() {
+    const el = document.getElementById('potdContent');
+    const pill = document.getElementById('potdStatusPill');
+    el.innerHTML = '<div class="load-msg">Fetching…</div>';
+    pill.className = 'pill';
+    pill.textContent = 'Loading…';
+
+    const r = await api('/api/v1/student/potd');
+    if (!r.ok) {
+      el.innerHTML = `<div class="result-banner wrong" style="display:block">⚠️ ${r.data?.error ?? 'Failed to load POTD'}</div>`;
+      pill.textContent = 'Error';
+      return;
+    }
+    potdData = r.data;
+    selectedPotdOption = null;
+
+    // Update streak snapshot
+    const s = r.data.streak;
+    document.getElementById('potdCurrentStreak').textContent = s?.currentStreak ?? 0;
+    document.getElementById('potdLongestStreak').textContent = s?.longestStreak ?? 0;
+    document.getElementById('potdLastSolve').textContent = s?.lastSolveDate
+      ? new Date(s.lastSolveDate).toLocaleDateString()
+      : 'Never';
+
+    renderPotdQuestion(r.data);
+
+    // Pill
+    if (r.data.solved) {
+      pill.className = 'pill green';
+      pill.textContent = r.data.solveResult?.isCorrect ? '✓ Solved Correctly' : '✗ Solved (Wrong)';
+    } else {
+      pill.className = 'pill orange';
+      pill.textContent = '⏳ Unsolved';
+    }
+  }
+
+  function renderPotdQuestion(data) {
+    const q = data.challenge.question;
+    const options = Array.isArray(q.options) ? q.options : [];
+    const alreadySolved = data.solved;
+    const solveRes = data.solveResult;
+
+    const tagsHtml = q.tags.map(t => `<span class="tag">${t}</span>`).join('');
+
+    const optionsHtml = options.map((txt, i) => {
+      let cls = 'option';
+      if (alreadySolved) {
+        cls += ' disabled';
+        if (i === solveRes?.selectedOption) cls += solveRes?.isCorrect ? ' correct' : ' wrong';
+      }
+      return `<button type="button" class="${cls}" onclick="selectPotdOption(${i})" id="potd-opt-${i}">
+        <span class="option-letter">${String.fromCharCode(65+i)}</span>
+        <span>${txt}</span>
+      </button>`;
+    }).join('');
+
+    let resultHtml = '';
+    if (alreadySolved) {
+      resultHtml = `<div class="result-banner ${solveRes.isCorrect ? 'correct' : 'wrong'}" style="display:block">
+        ${solveRes.isCorrect ? '✅ Correct!' : '❌ Incorrect'} — You selected option ${String.fromCharCode(65 + solveRes.selectedOption)}.
+        Solved at ${new Date(solveRes.solvedAt).toLocaleString()}.
+      </div>`;
+    }
+
+    document.getElementById('potdContent').innerHTML = `
+      <div class="potd-question">
+        <span class="potd-date-badge">📅 ${new Date(data.challenge.date).toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric', timeZone:'UTC' })}</span>
+        <div class="q-tags">
+          <span class="difficulty-badge ${q.difficulty}">${q.difficulty}</span>
+          <span class="tag">${q.type.toUpperCase()}</span>
+          ${tagsHtml}
+        </div>
+        <h3 class="q-title">${q.title}</h3>
+        <p class="q-desc">${q.description}</p>
+      </div>
+      <div class="options" id="potdOptions">${optionsHtml}</div>
+      ${resultHtml}
+      ${!alreadySolved ? `<div class="btn-row"><button class="btn btn-primary" onclick="submitPotd()" id="potdSubmitBtn" disabled>Submit Answer</button></div>` : ''}
+      <div id="potdResultBanner"></div>
+    `;
+  }
+
+  function selectPotdOption(i) {
+    if (!potdData || potdData.solved) return;
+    selectedPotdOption = i;
+    document.querySelectorAll('#potdOptions .option').forEach((el, idx) => {
+      el.classList.toggle('selected', idx === i);
+    });
+    const btn = document.getElementById('potdSubmitBtn');
+    if (btn) btn.disabled = false;
+  }
+
+  async function submitPotd() {
+    if (selectedPotdOption === null || !potdData) return;
+    const btn = document.getElementById('potdSubmitBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+    const r = await api('/api/v1/student/potd/solve', 'POST', {
+      dailyChallengeId: potdData.challenge.id,
+      selectedOption: selectedPotdOption,
+    });
+
+    const banner = document.getElementById('potdResultBanner');
+    if (!r.ok) {
+      banner.innerHTML = `<div class="result-banner wrong" style="display:block">⚠️ ${r.data?.error ?? 'Submission failed'}</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit Answer'; }
+      return;
+    }
+
+    // Refresh the entire POTD view to show locked + result
+    await loadPotd();
+
+    // Update top-level streak numbers
+    const s = r.data.streak;
+    if (s) {
+      document.getElementById('potdCurrentStreak').textContent = s.currentStreak;
+      document.getElementById('potdLongestStreak').textContent = s.longestStreak;
+    }
+  }
+
+  // ─── Streak ─────────────────────────────────────────────────────────────────
+  async function loadStreak() {
+    const r = await api('/api/v1/student/potd/streak');
+    document.getElementById('streakRaw').textContent = JSON.stringify(r.data, null, 2);
+    if (!r.ok) return;
+    const s = r.data.streak;
+    document.getElementById('sc').textContent = s?.currentStreak ?? 0;
+    document.getElementById('sl').textContent = s?.longestStreak ?? 0;
+    document.getElementById('streakExtra').innerHTML =
+      `<strong>Last solved:</strong> ${s?.lastSolveDate ? new Date(s.lastSolveDate).toLocaleDateString() : 'Never'}`;
+  }
+
+  // ─── History ─────────────────────────────────────────────────────────────────
+  async function loadHistory(page) {
+    historyPage = page;
+    const listEl = document.getElementById('historyList');
+    listEl.innerHTML = '<div class="load-msg">Loading…</div>';
+    const r = await api(`/api/v1/student/potd/history?page=${page}&limit=10`);
+    if (!r.ok) {
+      listEl.innerHTML = `<div class="load-msg" style="color:var(--error)">${r.data?.error ?? 'Failed to load'}</div>`;
+      return;
+    }
+    const { history, pagination } = r.data;
+    document.getElementById('historyTotalPill').textContent = `${pagination.total} total`;
+
+    if (!history.length) {
+      listEl.innerHTML = '<div class="load-msg">No history yet. Solve some daily challenges!</div>';
+      document.getElementById('historyPagination').innerHTML = '';
+      return;
+    }
+
+    listEl.innerHTML = history.map(item => {
+      let dotCls = 'solve-dot';
+      let solveTag = '<span class="pill" style="font-size:0.68rem">Unsolved</span>';
+      if (item.solved) {
+        dotCls += item.isCorrect ? ' solved-correct' : ' solved-wrong';
+        solveTag = item.isCorrect
+          ? '<span class="pill green" style="font-size:0.68rem">✓ Correct</span>'
+          : '<span class="pill" style="font-size:0.68rem;background:rgba(255,71,87,0.1);color:#ffb3bc;border-color:rgba(255,71,87,0.3)">✗ Wrong</span>';
+      }
+      return `<div class="history-item">
+        <div class="${dotCls}"></div>
+        <div class="history-info">
+          <div class="history-title">${item.question.title}</div>
+          <div class="history-meta">
+            ${new Date(item.date).toLocaleDateString('en-IN', { weekday:'short', year:'numeric', month:'short', day:'numeric', timeZone:'UTC' })}
+            · <span class="difficulty-badge ${item.question.difficulty}" style="font-size:0.65rem">${item.question.difficulty}</span>
+            · ${item.question.tags.slice(0,3).join(', ')}
+          </div>
+        </div>
+        ${solveTag}
+      </div>`;
+    }).join('');
+
+    // Pagination
+    const pag = document.getElementById('historyPagination');
+    if (pagination.pages <= 1) { pag.innerHTML = ''; return; }
+    pag.innerHTML = `
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem" ${page <= 1 ? 'disabled' : ''} onclick="loadHistory(${page-1})">‹ Prev</button>
+      <span style="font-size:0.82rem;color:var(--text-muted)">Page ${page} of ${pagination.pages}</span>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem" ${page >= pagination.pages ? 'disabled' : ''} onclick="loadHistory(${page+1})">Next ›</button>
+    `;
+  }
+
+  // ─── MCQ Stats ───────────────────────────────────────────────────────────────
+  async function loadStats() {
+    const r = await api('/api/v1/student/practice/mcq/stats');
+    if (!r.ok) {
+      document.getElementById('statsTopicBody').innerHTML =
+        `<tr><td colspan="5" style="text-align:center;color:var(--error);padding:20px">${r.data?.error ?? 'Failed'}</td></tr>`;
+      return;
+    }
+    const s = r.data.stats;
+    document.getElementById('statSessions').textContent = s.totalSessions;
+    document.getElementById('statQuestions').textContent = s.totalQuestions;
+    document.getElementById('statCorrect').textContent = s.totalCorrect;
+    document.getElementById('statScore').textContent = s.totalScore;
+    document.getElementById('statAccuracy').textContent = s.overallAccuracy.toFixed(1) + '%';
+
+    const tbody = document.getElementById('statsTopicBody');
+    if (!s.topicBreakdown?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">No data yet. Complete MCQ sessions first.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = s.topicBreakdown.map(t => {
+      const pct = t.accuracy;
+      const barCls = pct >= 70 ? 'high' : pct >= 40 ? '' : 'low';
+      return `<tr>
+        <td style="font-weight:600">${t.topic}</td>
+        <td>${t.total}</td>
+        <td>${t.correct}</td>
+        <td>${pct.toFixed(1)}%</td>
+        <td><div class="accuracy-bar-wrap"><div class="accuracy-bar ${barCls}" style="width:${pct}%"></div></div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ─── Session Resume ───────────────────────────────────────────────────────────
+  async function loadSession() {
+    const sessionId = document.getElementById('resumeSessionId').value.trim();
+    const el = document.getElementById('resumeResult');
+    if (!sessionId) {
+      el.innerHTML = '<div class="result-banner wrong" style="display:block">Please enter a session ID.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="load-msg">Fetching session…</div>';
+    const r = await api(`/api/v1/student/practice/mcq/session/${sessionId}`);
+    if (!r.ok) {
+      el.innerHTML = `<div class="result-banner wrong" style="display:block">⚠️ ${r.data?.error ?? 'Session not found'}</div>`;
+      return;
+    }
+    const { session, questions, answeredQuestions } = r.data;
+    const answeredCount = Object.keys(answeredQuestions || {}).length;
+
+    el.innerHTML = `
+      <div class="result-banner info" style="display:block;margin-bottom:14px">
+        <strong>Session found:</strong> ${session.status === 'submitted' ? '✅ Already submitted' : `⏳ In progress — ${answeredCount}/${session.totalQuestions} answered`}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px">
+        <div class="stat-box"><div class="stat-num" style="font-size:1.2rem">${session.totalQuestions}</div><div class="stat-lbl">Questions</div></div>
+        <div class="stat-box"><div class="stat-num" style="font-size:1.2rem">${answeredCount}</div><div class="stat-lbl">Answered</div></div>
+        <div class="stat-box"><div class="stat-num" style="font-size:1.2rem">${session.difficulty || 'Any'}</div><div class="stat-lbl">Difficulty</div></div>
+        <div class="stat-box"><div class="stat-num" style="font-size:1.1rem">${Array.isArray(session.topics) ? session.topics.join(', ') : '—'}</div><div class="stat-lbl">Topics</div></div>
+      </div>
+      <h3 style="font-size:0.82rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">Questions</h3>
+      <div style="display:grid;gap:8px">
+        ${questions.map((q, i) => {
+          const answered = answeredQuestions[q.id];
+          const isAnswered = answered !== undefined;
+          const opts = Array.isArray(q.options) ? q.options : [];
+          return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px;background:rgba(15,17,23,0.4)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <strong style="font-size:0.88rem">Q${i+1}. ${q.title}</strong>
+              ${isAnswered
+                ? `<span class="pill green" style="font-size:0.68rem">Answered: ${String.fromCharCode(65+answered)}</span>`
+                : `<span class="pill orange" style="font-size:0.68rem">Not answered</span>`}
+            </div>
+            <p style="font-size:0.8rem;color:var(--text-muted)">${q.description}</p>
+          </div>`;
+        }).join('')}
+      </div>
+      ${session.status !== 'submitted' ? `<div class="btn-row"><a href="/test/mcq-mockup.html"><button class="btn btn-primary">Go to MCQ Practice to Submit →</button></a></div>` : ''}
+    `;
+  }
+
+  // ─── Init ────────────────────────────────────────────────────────────────────
+  checkAuth();
+  loadPotd();
+</script>
+</body>
+</html>

@@ -15,7 +15,7 @@ const mcqSubmissionSchema = z.object({
 
 const mcqSessionSchema = z.object({
   topics: z.array(z.string().min(1)).min(1, "At least one topic is required"),
-  count: z.number().int().min(10).max(15),
+  // No manual `count` anymore — return all matching topic questions
   difficulty: z.enum(["easy", "medium", "hard"]).optional(),
 });
 
@@ -66,7 +66,7 @@ export async function listMcqTopics(req: Request, res: Response): Promise<void> 
 export async function createMcqPracticeSession(req: Request, res: Response): Promise<void> {
   try {
     const userId = (req as AuthRequest).user!.userId;
-    const { topics, count, difficulty } = mcqSessionSchema.parse(req.body);
+    const { topics, difficulty } = mcqSessionSchema.parse(req.body);
     const normalizedTopics = Array.from(
       new Set(topics.map((topic) => topic.trim().toLowerCase()).filter(Boolean))
     );
@@ -102,15 +102,7 @@ export async function createMcqPracticeSession(req: Request, res: Response): Pro
       return;
     }
 
-    if (questions.length < count) {
-      res.status(400).json({
-        error: `Not enough questions for selected topics. Requested ${count}, available ${questions.length}`,
-      });
-      return;
-    }
-
-    const shuffled = [...questions].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(count, shuffled.length));
+    const selected = questions; // return all matching questions for the topics
     const questionIds = selected.map((question) => question.id);
 
     const session = await prisma.mcqPracticeSession.create({
@@ -118,7 +110,7 @@ export async function createMcqPracticeSession(req: Request, res: Response): Pro
         userId,
         topics: normalizedTopics,
         difficulty: difficulty ?? null,
-        requestedCount: count,
+        requestedCount: selected.length,
         totalQuestions: selected.length,
         questionIds,
       },
@@ -580,5 +572,163 @@ export async function getMcqPracticeHistoryDetail(req: Request, res: Response): 
   } catch (error) {
     console.error("[getMcqPracticeHistoryDetail]", error);
     res.status(500).json({ error: "Failed to fetch MCQ history detail" });
+  }
+}
+
+// ─── MCQ Practice Stats ───────────────────────────────────────────────────────
+export async function getMcqStats(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = (req as AuthRequest).user!.userId;
+
+    const sessions = await prisma.mcqPracticeSession.findMany({
+      where: { userId, status: "submitted" },
+      select: {
+        id: true,
+        topics: true,
+        totalQuestions: true,
+        correctCount: true,
+        score: true,
+        createdAt: true,
+      },
+    });
+
+    const totalSessions = sessions.length;
+    const totalQuestions = sessions.reduce((sum, s) => sum + s.totalQuestions, 0);
+    const totalCorrect = sessions.reduce((sum, s) => sum + s.correctCount, 0);
+    const totalScore = sessions.reduce((sum, s) => sum + s.score, 0);
+    const overallAccuracy = totalQuestions > 0
+      ? Math.round((totalCorrect / totalQuestions) * 10000) / 100
+      : 0;
+
+    // Topic-wise breakdown
+    const topicMap = new Map<string, { total: number; correct: number }>();
+
+    const answers = await prisma.mcqPracticeAnswer.findMany({
+      where: {
+        session: { userId, status: "submitted" },
+      },
+      select: {
+        isCorrect: true,
+        question: {
+          select: {
+            tags: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    for (const answer of answers) {
+      for (const tag of answer.question.tags) {
+        const entry = topicMap.get(tag.name) ?? { total: 0, correct: 0 };
+        entry.total++;
+        if (answer.isCorrect) entry.correct++;
+        topicMap.set(tag.name, entry);
+      }
+    }
+
+    const topicBreakdown = Array.from(topicMap.entries())
+      .map(([topic, data]) => ({
+        topic,
+        total: data.total,
+        correct: data.correct,
+        accuracy: Math.round((data.correct / data.total) * 10000) / 100,
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    res.json({
+      stats: {
+        totalSessions,
+        totalQuestions,
+        totalCorrect,
+        totalScore,
+        overallAccuracy,
+        topicBreakdown,
+      },
+    });
+  } catch (error) {
+    console.error("[getMcqStats]", error);
+    res.status(500).json({ error: "Failed to fetch MCQ stats" });
+  }
+}
+
+// ─── Get MCQ Session By ID (Resume) ───────────────────────────────────────────
+export async function getMcqSessionById(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = (req as AuthRequest).user!.userId;
+    const sessionId = req.params.sessionId as string;
+
+    const session = await prisma.mcqPracticeSession.findFirst({
+      where: {
+        id: sessionId,
+        userId,
+      },
+      include: {
+        answers: {
+          select: {
+            questionId: true,
+            selectedOption: true,
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      res.status(404).json({ error: "MCQ session not found" });
+      return;
+    }
+
+    const questionIds = Array.isArray(session.questionIds)
+      ? (session.questionIds as string[])
+      : [];
+
+    const questions = await prisma.question.findMany({
+      where: { id: { in: questionIds } },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        difficulty: true,
+        options: true,
+        tags: { select: { name: true } },
+        type: true,
+      },
+    });
+
+    // Preserve original question order
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+    const orderedQuestions = questionIds
+      .map((id) => questionMap.get(id))
+      .filter(Boolean)
+      .map((q) => ({
+        id: q!.id,
+        title: q!.title,
+        description: q!.description,
+        difficulty: q!.difficulty,
+        options: Array.isArray(q!.options) ? q!.options : [],
+        tags: q!.tags.map((t) => t.name),
+        type: q!.type,
+      }));
+
+    // Map already-answered questions
+    const answeredMap = new Map(
+      session.answers.map((a) => [a.questionId, a.selectedOption])
+    );
+
+    res.json({
+      session: {
+        id: session.id,
+        topics: session.topics,
+        difficulty: session.difficulty,
+        requestedCount: session.requestedCount,
+        totalQuestions: session.totalQuestions,
+        status: session.status,
+        createdAt: session.createdAt,
+      },
+      questions: orderedQuestions,
+      answeredQuestions: Object.fromEntries(answeredMap),
+    });
+  } catch (error) {
+    console.error("[getMcqSessionById]", error);
+    res.status(500).json({ error: "Failed to fetch MCQ session" });
   }
 }

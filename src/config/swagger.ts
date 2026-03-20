@@ -922,23 +922,21 @@ const swaggerOptions: swaggerJsdoc.Options = {
             content: {
               "application/json": {
                 example: {
-                  topics: ["arrays", "sql"],
-                  count: 10,
-                  difficulty: "easy",
-                },
-                schema: {
-                  type: "object",
-                  properties: {
-                    topics: {
-                      type: "array",
-                      minItems: 1,
-                      items: { type: "string" },
-                    },
-                    count: { type: "integer", minimum: 10, maximum: 15 },
-                    difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                    topics: ["arrays", "sql"],
+                    difficulty: "easy",
                   },
-                  required: ["topics", "count"],
-                },
+                  schema: {
+                    type: "object",
+                    properties: {
+                      topics: {
+                        type: "array",
+                        minItems: 1,
+                        items: { type: "string" },
+                      },
+                      difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                    },
+                    required: ["topics"],
+                  },
               },
             },
           },
@@ -1060,6 +1058,61 @@ const swaggerOptions: swaggerJsdoc.Options = {
             "400": { description: "Validation failed / already submitted / incomplete payload" },
             "401": { description: "Not authenticated" },
             "404": { description: "Session not found" },
+          },
+        },
+      },
+      "/api/v1/student/practice/activity": {
+        post: {
+          summary: "Record practice activity",
+          description: "Record a practice activity for the authenticated user. Use `type` to indicate action: `mcq`, `dsa`, `visit`, or `solve`.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["type"],
+                  properties: {
+                    type: { type: "string", enum: ["mcq", "dsa", "visit", "solve"] },
+                  },
+                },
+                example: { type: "mcq" },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Activity recorded",
+              content: {
+                "application/json": {
+                  schema: { type: "object", properties: { activity: { $ref: "#/components/schemas/DailyPracticeActivity" } } },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "400": { description: "Validation failed" },
+          },
+        },
+        get: {
+          summary: "Get today's activity or recent range",
+          description: "Returns today's activity by default. Use `?days=N` to fetch the last N days (max 365).",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "days", in: "query", schema: { type: "integer", minimum: 1, maximum: 365 }, description: "Optional range length in days" },
+          ],
+          responses: {
+            "200": {
+              description: "Activity data",
+              content: {
+                "application/json": {
+                  schema: { type: "object", properties: { activity: { oneOf: [ { $ref: "#/components/schemas/DailyPracticeActivity" }, { type: "array", items: { $ref: "#/components/schemas/DailyPracticeActivity" } } ] } } },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
           },
         },
       },
@@ -1713,9 +1766,354 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
         },
       },
+
+      // ── Problem of the Day (POTD) ─────────────────────────────────────────────
+      "/api/v1/student/potd": {
+        get: {
+          summary: "Get today's Problem of the Day",
+          description:
+            "Returns the current day's challenge question, solve status, and the user's streak summary. " +
+            "If no challenge has been scheduled for today, one is auto-selected from the MCQ question pool.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Today's daily challenge",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/PotdResponse" },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "404": { description: "No MCQ questions available in the database" },
+          },
+        },
+      },
+
+      "/api/v1/student/potd/solve": {
+        post: {
+          summary: "Submit POTD answer",
+          description:
+            "Submit an answer for the daily challenge. For MCQ provide `selectedOption`. For DSA provide `languageId` and `sourceCode`. " +
+            "Once submitted, the answer is locked and cannot be changed. Streak is updated on successful solves.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["dailyChallengeId"],
+                  properties: {
+                    dailyChallengeId: {
+                      type: "string",
+                      description: "ID of the DailyChallenge (from GET /potd)",
+                    },
+                    // MCQ
+                    selectedOption: {
+                      type: "integer",
+                      minimum: 0,
+                      description: "0-indexed option chosen by the student (MCQ)",
+                    },
+                    // DSA
+                    languageId: { type: "integer", description: "Judge0 language id for code execution (DSA)" },
+                    sourceCode: { type: "string", description: "Source code to run against the problem's test cases (DSA)" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Solve result with streak update",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      // Common
+                      isCorrect: { type: "boolean" },
+                      streak: { $ref: "#/components/schemas/UserStreak" },
+                      // MCQ-specific
+                      correctAnswer: { type: "integer", nullable: true },
+                      selectedOption: { type: "integer", nullable: true },
+                      // DSA-specific
+                      languageId: { type: "integer", nullable: true },
+                      testCaseResults: { type: "array", items: { $ref: "#/components/schemas/TestCaseDetail" }, nullable: true },
+                      firstFailure: { type: "object", nullable: true },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Already solved, invalid option, or validation error" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Daily challenge not found" },
+          },
+        },
+      },
+
+      "/api/v1/student/potd/streak": {
+        get: {
+          summary: "Get user's streak info",
+          description: "Returns the current streak, longest streak, and last solve date.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Streak data",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      streak: { $ref: "#/components/schemas/UserStreak" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/potd/history": {
+        get: {
+          summary: "POTD history with solve status",
+          description: "Paginated list of past daily challenges with whether the student solved them.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", default: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", default: 10, maximum: 50 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Paginated POTD history",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      history: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            date: { type: "string", format: "date" },
+                            question: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                title: { type: "string" },
+                                difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                                type: { type: "string", enum: ["mcq", "dsa"] },
+                                tags: { type: "array", items: { type: "string" } },
+                              },
+                            },
+                            solved: { type: "boolean" },
+                            isCorrect: { type: "boolean", nullable: true },
+                            solvedAt: { type: "string", format: "date-time", nullable: true },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      // ── MCQ Stats & Session Resume ─────────────────────────────────────────────
+      "/api/v1/student/practice/mcq/stats": {
+        get: {
+          summary: "Get MCQ practice statistics",
+          description:
+            "Returns overall accuracy, total sessions, total questions answered, and topic-wise performance breakdown.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "MCQ statistics",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      stats: { $ref: "#/components/schemas/McqStats" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/session/{sessionId}": {
+        get: {
+          summary: "Resume an MCQ session",
+          description:
+            "Fetches an in-progress or submitted MCQ session by ID with all questions and any already-saved answers.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "sessionId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Session with questions and answered map",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      session: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          topics: { type: "array", items: { type: "string" } },
+                          difficulty: { type: "string", nullable: true },
+                          requestedCount: { type: "integer" },
+                          totalQuestions: { type: "integer" },
+                          status: { type: "string", enum: ["in_progress", "submitted"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      questions: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Question" },
+                      },
+                      answeredQuestions: {
+                        type: "object",
+                        description: "Map of questionId → selectedOption for already-answered questions",
+                        additionalProperties: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Session not found" },
+          },
+        },
+      },
     },
   },
   apis: [],
 };
 
-export const swaggerSpec = swaggerJsdoc(swaggerOptions);
+// ── Supplementary Schemas ──────────────────────────────────────────────────────
+// Injected after swaggerOptions so we can reference them cleanly.
+const potdSchemas = {
+  DailyChallenge: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      date: { type: "string", format: "date", example: "2026-03-19" },
+      question: { $ref: "#/components/schemas/Question" },
+    },
+  },
+  UserStreak: {
+    type: "object",
+    properties: {
+      currentStreak: { type: "integer", example: 5 },
+      longestStreak: { type: "integer", example: 14 },
+      lastSolveDate: { type: "string", format: "date", nullable: true, example: "2026-03-19" },
+    },
+  },
+  PotdResponse: {
+    type: "object",
+    properties: {
+      challenge: { $ref: "#/components/schemas/DailyChallenge" },
+      solved: { type: "boolean" },
+      solveResult: {
+        nullable: true,
+        type: "object",
+        properties: {
+          isCorrect: { type: "boolean" },
+          selectedOption: { type: "integer" },
+          solvedAt: { type: "string", format: "date-time" },
+        },
+      },
+      streak: { $ref: "#/components/schemas/UserStreak" },
+    },
+  },
+  McqStats: {
+    type: "object",
+    properties: {
+      totalSessions: { type: "integer" },
+      totalQuestions: { type: "integer" },
+      totalCorrect: { type: "integer" },
+      totalScore: { type: "integer" },
+      overallAccuracy: { type: "number", description: "0–100 percentage", example: 73.5 },
+      topicBreakdown: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            topic: { type: "string" },
+            total: { type: "integer" },
+            correct: { type: "integer" },
+            accuracy: { type: "number" },
+          },
+        },
+      },
+    },
+  },
+  DailyPracticeActivity: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      userId: { type: "string" },
+      date: { type: "string", format: "date", example: "2026-03-19" },
+      problemsSolved: { type: "integer", example: 2 },
+      mcqSolved: { type: "integer", example: 1 },
+      dsaSolved: { type: "integer", example: 1 },
+      createdAt: { type: "string", format: "date-time" },
+      updatedAt: { type: "string", format: "date-time" },
+    },
+  },
+};
+
+export const swaggerSpec = (() => {
+  const spec = swaggerJsdoc(swaggerOptions) as {
+    components?: { schemas?: Record<string, unknown> };
+  };
+  if (spec.components?.schemas) {
+    Object.assign(spec.components.schemas, potdSchemas);
+  }
+  return spec;
+})();
+

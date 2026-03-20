@@ -208,6 +208,44 @@ const mcqQuestions = [
   },
 ] as const;
 
+const dsaQuestions = [
+  {
+    id: "dsa-practice-001",
+    title: "Two Sum",
+    description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.",
+    difficulty: "easy",
+    tags: ["arrays", "hashmap"],
+    hiddenTestCases: [
+      { input: "[2,7,11,15]\n9", output: "[0,1]" },
+      { input: "[3,2,4]\n6", output: "[1,2]" },
+      { input: "[3,3]\n6", output: "[0,1]" }
+    ],
+  },
+  {
+    id: "dsa-practice-002",
+    title: "Reverse String",
+    description: "Write a function that reverses a string. The input string is given as an array of characters s.\n\nYou must do this by modifying the input array in-place with O(1) extra memory.",
+    difficulty: "easy",
+    tags: ["strings", "two-pointers"],
+    hiddenTestCases: [
+      { input: "[\"h\",\"e\",\"l\",\"l\",\"o\"]", output: "[\"o\",\"l\",\"l\",\"e\",\"h\"]" },
+      { input: "[\"H\",\"a\",\"n\",\"n\",\"a\",\"h\"]", output: "[\"h\",\"a\",\"n\",\"n\",\"a\",\"H\"]" }
+    ],
+  },
+  {
+    id: "dsa-practice-003",
+    title: "Maximum Subarray",
+    description: "Given an integer array nums, find the subarray with the largest sum, and return its sum.",
+    difficulty: "medium",
+    tags: ["arrays", "divide-and-conquer", "dynamic-programming"],
+    hiddenTestCases: [
+      { input: "[-2,1,-3,4,-1,2,1,-5,4]", output: "6" },
+      { input: "[1]", output: "1" },
+      { input: "[5,4,-1,7,8]", output: "23" }
+    ],
+  }
+];
+
 async function seed() {
   console.log("🌱 Seeding database...\n");
 
@@ -287,6 +325,74 @@ async function seed() {
   }
 
   console.log(`✓ Seeded ${mcqQuestions.length} MCQ practice questions`);
+
+  for (const question of dsaQuestions) {
+    const tagConnections = question.tags.map((name) => ({ name }));
+    // Ensure tags exist
+    for (const tagName of question.tags) {
+      await prisma.tag.upsert({
+        where: { name: tagName },
+        update: { type: "topic" },
+        create: { name: tagName, type: "topic" },
+      });
+    }
+
+    await prisma.question.upsert({
+      where: { id: question.id },
+      update: {
+        type: "dsa",
+        title: question.title,
+        description: question.description,
+        difficulty: question.difficulty,
+        createdBy: adminUserId,
+        hiddenTestCases: question.hiddenTestCases,
+        tags: {
+          set: [],
+          connect: tagConnections,
+        },
+      },
+      create: {
+        id: question.id,
+        type: "dsa",
+        title: question.title,
+        description: question.description,
+        difficulty: question.difficulty,
+        createdBy: adminUserId,
+        hiddenTestCases: question.hiddenTestCases,
+        tags: {
+          connect: tagConnections,
+        },
+      },
+    });
+  }
+
+  console.log(`✓ Seeded ${dsaQuestions.length} DSA practice questions`);
+
+  // ─── Seed Daily Challenges ──────────────────────────────────────────────────
+  const { default: dailyChallengesData } = await import("../data/daily-challenges.json", { with: { type: "json" } });
+
+  const now = new Date();
+
+  for (const entry of dailyChallengesData) {
+    const challengeDate = new Date(
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + entry.daysFromToday)
+    );
+
+    await prisma.dailyChallenge.upsert({
+      where: { date: challengeDate },
+      update: {
+        questionId: entry.questionId,
+        createdBy: adminUserId,
+      },
+      create: {
+        questionId: entry.questionId,
+        date: challengeDate,
+        createdBy: adminUserId,
+      },
+    });
+  }
+
+  console.log(`✓ Seeded ${dailyChallengesData.length} daily challenges`);
 
   console.log("\n✅ Seed complete.");
 }

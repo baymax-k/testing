@@ -25,6 +25,8 @@ model User {
   submissions    Submission[]
   participations ContestParticipation[]
   mcqSessions    McqPracticeSession[]
+  dailySolves    DailyChallengeSolve[]
+  streak         UserStreak?
 
   @@map("user")
 }
@@ -129,6 +131,7 @@ model Question {
 
   contests ContestQuestion[]
   mcqAnswers McqPracticeAnswer[]
+  dailyChallenges DailyChallenge[]
 
   @@map("question")
 }
@@ -252,4 +255,69 @@ model McqPracticeAnswer {
   @@index([sessionId])
   @@index([questionId])
   @@map("mcq_practice_answer")
+}
+
+// ─── Problem of the Day Models ───────────────────────────────────────────────
+
+model DailyChallenge {
+  id         String   @id @default(cuid())
+  questionId String
+  date       DateTime @unique @db.Date
+  createdBy  String   // admin user ID or "system" for auto-select
+  createdAt  DateTime @default(now())
+
+  question Question              @relation(fields: [questionId], references: [id])
+  solves   DailyChallengeSolve[]
+
+  @@index([date])
+  @@map("daily_challenge")
+}
+
+model DailyChallengeSolve {
+  id               String   @id @default(cuid())
+  userId           String
+  dailyChallengeId String
+  languageId       Int?     // for DSA code submissions
+  sourceCode       String?  // for DSA code submissions
+  isCorrect        Boolean
+  attempts         Int      @default(1)
+  solvedAt         DateTime @default(now())
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyChallenge DailyChallenge @relation(fields: [dailyChallengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dailyChallengeId])
+  @@index([userId])
+  @@map("daily_challenge_solve")
+}
+
+model UserStreak {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastSolveDate DateTime? @db.Date
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_streak")
+}
+
+// ─── Daily Practice Activity ─────────────────────────────────────────────────
+model DailyPracticeActivity {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime @db.Date
+  problemsSolved Int      @default(0)
+  mcqSolved      Int      @default(0)
+  dsaSolved      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_practice_activity")
 }
