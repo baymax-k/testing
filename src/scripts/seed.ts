@@ -3,24 +3,19 @@
 // Run after migration: npx tsx src/seed.ts
 
 import "dotenv/config";
-import bcrypt from "bcrypt";
-import { PrismaClient } from "@prisma/client";
-const SALT_ROUNDS = 12;
+import { PrismaClient } from "../generated/prisma/client";
+
 const prisma = new PrismaClient();
 
 const users = [
   {
     email: "admin@codeethnics.com",
-    username: "admin",
     name: "Admin User",
-    password: "Admin@1234",
     role: "product_admin" as const,
   },
   {
     email: "student@codeethnics.com",
-    username: "student",
     name: "Sample Student",
-    password: "Student@1234",
     role: "student" as const,
   },
 ];
@@ -29,22 +24,22 @@ async function seed() {
   console.log("🌱 Seeding database...\n");
 
   for (const u of users) {
-    const passwordHash = await bcrypt.hash(u.password, SALT_ROUNDS);
+    try {
+      const user = await prisma.user.upsert({
+        where: { email: u.email },
+        update: { name: u.name, role: u.role, emailVerified: true },
+        create: {
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          emailVerified: true,
+        },
+      });
 
-    const user = await prisma.user.upsert({
-      where: { email: u.email },
-      update: { passwordHash, username: u.username, name: u.name, role: u.role, emailVerified: true },
-      create: {
-        email: u.email,
-        username: u.username,
-        name: u.name,
-        passwordHash,
-        role: u.role,
-        emailVerified: true,
-      },
-    });
-
-    console.log(`✓ ${user.role.padEnd(15)} ${user.email}  (password: ${u.password})`);
+      console.log(`✓ ${user.role.padEnd(15)} ${user.email}`);
+    } catch (error) {
+      console.error(`✗ Failed to seed ${u.email}:`, (error as Error).message);
+    }
   }
 
   console.log("\n✅ Seed complete.");

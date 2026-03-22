@@ -106,7 +106,7 @@ export async function submitMcqPractice(req: Request, res: Response): Promise<vo
     // Get the question
     const question = await prisma.question.findUnique({
       where: { id: questionId },
-      select: { correctAnswer: true, type: true },
+      select: { correctOption: true, correctAnswer: true, type: true },
     });
 
     if (!question || question.type !== "mcq") {
@@ -114,12 +114,15 @@ export async function submitMcqPractice(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const isCorrect = selectedOption === question.correctAnswer;
+    const expectedOption =
+      question.correctOption ??
+      (typeof question.correctAnswer === "string" ? Number.parseInt(question.correctAnswer, 10) : null);
+    const isCorrect = expectedOption !== null && selectedOption === expectedOption;
     const points = isCorrect ? 10 : 0; // Simple scoring
 
     res.json({
       isCorrect,
-      correctAnswer: question.correctAnswer, // Show correct answer
+      correctAnswer: expectedOption, // Show correct answer index
       points,
       explanation: isCorrect ? "Correct!" : "Incorrect.",
     });

@@ -14,7 +14,12 @@
     "test": "vitest run",
     "test:auth": "tsx test/auth.test.ts",
     "test:judge0": "RUN_JUDGE0_INTEGRATION=true vitest run test/judge0.integration.test.ts",
-    "test:problems": "vitest run test/problem.fetch.test.ts"
+    "test:problems": "vitest run test/problem.fetch.test.ts",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:integration": "vitest run src/__tests__/college-admin/integration.test.ts",
+    "test:unit": "vitest run --exclude src/__tests__/college-admin/integration.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +29,7 @@
     "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^6.0.0",
     "bcrypt": "^5.1.1",
+    "better-auth": "^1.5.5",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
@@ -43,16 +49,17 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.7",
-    "@types/node": "^20.19.37",
-    "@types/nodemailer": "^6.4.17",
-    "@types/supertest": "^6.0.3",
+    "@types/node": "^25.3.0",
+    "@types/nodemailer": "^7.0.11",
+    "@types/supertest": "^7.2.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "@vitest/ui": "^4.0.18",
     "prisma": "^6.0.0",
-    "supertest": "^7.1.4",
+    "supertest": "^7.2.2",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.4.5",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

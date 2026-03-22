@@ -4,8 +4,9 @@ import express, { type Request, type Response, type NextFunction, type Applicati
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { toNodeHandler } from "better-auth/node";
 import swaggerUi from "swagger-ui-express";
 
 import { corsOptions, swaggerSpec } from "./config/index.js";
@@ -20,6 +21,7 @@ import contestRoutes from "./modules/routes/student/contest.js";
 import problemRoutes from "./modules/routes/problem.js";
 import submissionRoutes from "./modules/routes/submission.js";
 import judge0Routes from "./modules/routes/judge0.js";
+import collegeAdminRoutes from "./modules/routes/college-admin.js";
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 const app: Application = express();
@@ -75,17 +77,22 @@ app.use("/api/v1/student/contest", contestRoutes);
 app.use("/api/v1/problems", problemRoutes);
 app.use("/api/v1/submissions", submissionRoutes);
 app.use("/api/v1/judge0", judge0Routes);
+app.use("/api/college-admin", collegeAdminRoutes);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
   console.error("[unhandled error]", err);
-  const message =
-    process.env.NODE_ENV === "production"
-      ? "Internal server error"
-      : err instanceof Error
-        ? err.message
-        : String(err);
+  
+  let message: string;
+  if (process.env.NODE_ENV === "production") {
+    message = "Internal server error";
+  } else if (err instanceof Error) {
+    message = err.message;
+  } else {
+    message = String(err);
+  }
+  
   res.status(500).json({ error: message });
 });
 

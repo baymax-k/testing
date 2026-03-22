@@ -8,63 +8,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Auth Models ─────────────────────────────────────────────────────────────
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String    @unique
-  name          String
-  passwordHash  String
-  role          Role      @default(student)
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  refreshTokens  RefreshToken[]
-  submissions    Submission[]
-  participations ContestParticipation[]
-
-  @@map("user")
-}
-
-// Stores active refresh tokens (one per device/session).
-// Deleted on sign-out or when a new sign-in invalidates all previous sessions.
-model RefreshToken {
-  id        String   @id @default(cuid())
-  jti       String   @unique   // JWT ID — used to look up and revoke tokens
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("refresh_token")
-}
-
-// Stores temporary OTP codes for email verification and password reset.
-// identifier = "<email>:<type>"  e.g. "user@example.com:email-verification"
-// value      = SHA-256 hash of the 6-digit OTP
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
-}
-
-// ─── Enums ───────────────────────────────────────────────────────────────────
-
 enum Role {
   student
-  college_admin
-  product_admin
+  mentor
   instructor_staff
+  dept_admin
+  hod
+  principal
+  college_admin
+  super_admin
+  product_admin
 }
 
 enum SubmissionStatus {
@@ -78,22 +31,171 @@ enum SubmissionStatus {
   internal_error
 }
 
-enum QuestionType {
-  mcq
-  dsa
-}
-
 enum ContestType {
   contest
   practice
 }
 
-// ─── Problem Models ──────────────────────────────────────────────────────────
+enum TestStatus {
+  draft
+  scheduled
+  active
+  completed
+  archived
+}
+
+enum QuestionType {
+  // Practice/contest problem types
+  mcq
+  dsa
+  // Test management question types
+  multiple_choice
+  true_false
+  short_answer
+  long_answer
+  coding
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  username      String      @unique @default(cuid())
+  name          String
+  passwordHash  String      @default("")
+  role          Role        @default(student)
+  emailVerified Boolean     @default(false)
+  image         String?
+  phone         String?
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  batchId       String?
+  batch         Batch?      @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // JWT auth flow
+  refreshTokens RefreshToken[]
+
+  // Better Auth flow
+  sessions Session[]
+  accounts Account[]
+
+  // Practice/contest flow
+  submissions    Submission[]
+  participations ContestParticipation[]
+
+  // College-admin flow
+  mentoredBatches Batch[]      @relation("BatchMentor")
+  createdTests    Test[]       @relation("TestCreatedBy")
+  testAttempts    TestAttempt[] @relation("StudentTestAttempts")
+
+  @@index([departmentId])
+  @@index([batchId])
+  @@index([role])
+  @@map("user")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  jti       String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_token")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  hodId       String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  batches     Batch[]
+  tests       Test[]
+
+  @@map("department")
+}
+
+model Batch {
+  id           String      @id @default(cuid())
+  name         String
+  code         String
+  year         Int
+  semester     Int?
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  mentorId     String?
+  mentor       User?       @relation("BatchMentor", fields: [mentorId], references: [id], onDelete: SetNull)
+  students     User[]
+  tests        Test[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([code, departmentId])
+  @@index([departmentId])
+  @@index([mentorId])
+  @@map("batch")
+}
 
 model Tag {
   id        String     @id @default(cuid())
   name      String     @unique
-  type      String     // "topic" or "company"
+  type      String
   questions Question[]
 
   @@map("tag")
@@ -102,31 +204,44 @@ model Tag {
 model Question {
   id          String       @id @default(cuid())
   type        QuestionType
-  title       String
-  description String       // markdown for DSA, text for MCQ
-  difficulty  String       // "easy", "medium", "hard"
+
+  // Practice/contest problem fields
+  title       String?
+  description String?
+  difficulty  String?
   tags        Tag[]
   company     String?
-  createdBy   String       // admin user ID
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdBy   String?
 
-  // MCQ-specific
-  options       Json?  // ["A) Option 1", ...]
-  correctAnswer Int?   // 0-3
+  // Shared/answer fields
+  options       Json?
+  correctAnswer String?
+  correctOption Int?
+  explanation   String?
 
   // DSA-specific
-  timeLimit       Int?   // seconds
-  memoryLimit     Int?   // KB
-  sampleTestCases Json?  // [{input, output, explanation}]
-  hiddenTestCases Json?  // [{input, expectedOutput}]
+  timeLimit       Int?
+  memoryLimit     Int?
+  sampleTestCases Json?
+  hiddenTestCases Json?
 
+  // Contest relation
   contests ContestQuestion[]
 
+  // Test-management relation
+  testId     String?
+  test       Test?      @relation(fields: [testId], references: [id], onDelete: Cascade)
+  content    String?
+  marks      Int        @default(1)
+  orderIndex Int        @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([testId])
+  @@index([orderIndex])
   @@map("question")
 }
-
-// ─── Contest Models ──────────────────────────────────────────────────────────
 
 model Contest {
   id          String      @id @default(cuid())
@@ -135,8 +250,8 @@ model Contest {
   type        ContestType @default(contest)
   startTime   DateTime?
   endTime     DateTime?
-  duration    Int?        // minutes
-  createdBy   String      // admin user ID
+  duration    Int?
+  createdBy   String
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -149,8 +264,8 @@ model Contest {
 model ContestQuestion {
   contestId  String
   questionId String
-  order      Int    // display order
-  points     Int    // points awarded
+  order      Int
+  points     Int
 
   contest  Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -166,7 +281,7 @@ model ContestParticipation {
   startedAt   DateTime  @default(now())
   submittedAt DateTime?
   score       Int       @default(0)
-  mcqAnswers  Json?     // {questionId: selectedOptionIndex}
+  mcqAnswers  Json?
 
   dsaSubmissions Submission[]
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -176,21 +291,19 @@ model ContestParticipation {
   @@map("contest_participation")
 }
 
-// ─── Submission Model ─────────────────────────────────────────────────────────
-
 model Submission {
   id              String           @id @default(cuid())
   userId          String
-  problemId       String           // references JSON slug (will migrate to questionId)
+  problemId       String
   language        String?
   languageId      Int?
   sourceCode      String?
   status          SubmissionStatus @default(processing)
   testCasesPassed Int              @default(0)
   totalTestCases  Int              @default(0)
-  failedAt        Int?             // 1-indexed test case that failed
+  failedAt        Int?
   runtime         String?
-  memory          Int?             // peak memory in KB
+  memory          Int?
   errorOutput     String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -203,4 +316,60 @@ model Submission {
   @@index([problemId])
   @@index([userId, problemId])
   @@map("submission")
+}
+
+model Test {
+  id                  String       @id @default(cuid())
+  title               String
+  description         String?
+  instructions        String?
+  status              TestStatus   @default(draft)
+  durationMinutes     Int          @default(60)
+  maxAttempts         Int          @default(1)
+  totalMarks          Int          @default(0)
+  passingMarks        Int?
+  scheduledStartTime  DateTime?
+  scheduledEndTime    DateTime?
+  departmentId        String?
+  department          Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  batchId             String?
+  batch               Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdById         String
+  createdBy           User         @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  questions           Question[]
+  attempts            TestAttempt[]
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([batchId])
+  @@index([createdById])
+  @@index([scheduledStartTime])
+  @@map("test")
+}
+
+model TestAttempt {
+  id            String    @id @default(cuid())
+  testId        String
+  test          Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User      @relation("StudentTestAttempts", fields: [studentId], references: [id], onDelete: Cascade)
+  attemptNumber Int       @default(1)
+  status        String    @default("in_progress")
+  score         Float?
+  maxScore      Float
+  startedAt     DateTime  @default(now())
+  submittedAt   DateTime?
+  evaluatedAt   DateTime?
+  answers       Json?
+  feedback      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([testId, studentId, attemptNumber])
+  @@index([testId])
+  @@index([studentId])
+  @@index([status])
+  @@map("test_attempt")
 }

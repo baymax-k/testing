@@ -3,7 +3,7 @@
 // Run: npx tsx src/scripts/show-tables.ts
 
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma/client";
 const prisma = new PrismaClient();
 
 async function showTables() {
