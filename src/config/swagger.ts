@@ -1,4 +1,4 @@
-// ─── OpenAPI / Swagger Specification ────────────────────────────────────────────
+// G��G��G�� OpenAPI / Swagger Specification G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
 // Reflects the current JWT cookie-based auth, all route modules, and Prisma schema.
 
 import swaggerJsdoc from "swagger-jsdoc";
@@ -11,12 +11,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
       version: "4.0.0",
       description:
         "Backend API for the CodeEthnics institutional coding platform.\n\n" +
-        "**Authentication** — JWT cookie-based (access_token + refresh_token), email/username sign-in, OTP verification, RBAC\n" +
-        "**Problems** — Browse coding problems (JSON-defined) with sample test cases\n" +
-        "**Practice** — Filter problems by difficulty/tag/type, submit MCQ answers\n" +
-        "**Contests** — Join contests, submit DSA solutions, view leaderboards\n" +
-        "**Code Execution** — Run code in a sandbox (playground) or submit against test cases via Judge0\n" +
-        "**Submissions** — Track submission history and verdicts\n\n" +
+        "**Authentication** G�� JWT cookie-based (access_token + refresh_token), email/username sign-in, OTP verification, RBAC\n" +
+        "**Problems** G�� Browse coding problems (JSON-defined) with sample test cases\n" +
+        "**Practice** G�� Filter problems by difficulty/tag/type, submit MCQ answers\n" +
+        "**Contests** G�� Join contests, submit DSA solutions, view leaderboards\n" +
+        "**Code Execution** G�� Run code in a sandbox (playground) or submit against test cases via Judge0\n" +
+        "**Submissions** G�� Track submission history and verdicts\n\n" +
         "Rate limits: 15 submissions/min, 15 sign-in attempts/min, 100 auth requests/15min per IP.",
     },
     servers: [
@@ -25,8 +25,38 @@ const swaggerOptions: swaggerJsdoc.Options = {
         description: "Development server",
       },
     ],
+    tags: [
+      {
+        name: "College Admin - Auth",
+        description: "Authentication and session endpoints for college-admin portal access.",
+      },
+      {
+        name: "College Admin - Tests",
+        description: "Test lifecycle management, question management, and test operations.",
+      },
+      {
+        name: "College Admin - Batches",
+        description: "Batch creation, assignment, and batch-level management operations.",
+      },
+      {
+        name: "College Admin - Departments",
+        description: "Department creation and administration endpoints.",
+      },
+      {
+        name: "College Admin - Students",
+        description: "Student and user-management endpoints within the college-admin domain.",
+      },
+      {
+        name: "College Admin - Reports",
+        description: "Reporting endpoints across student, batch, test, and department views.",
+      },
+      {
+        name: "College Admin - Performance",
+        description: "Performance analytics, status, leaderboards, and skill insights.",
+      },
+    ],
 
-    // ── Reusable components ──────────────────────────────────────────────────
+    // G��G�� Reusable components G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
     components: {
       securitySchemes: {
         cookieAuth: {
@@ -252,9 +282,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
     },
 
-    // ── Paths ────────────────────────────────────────────────────────────────
+    // G��G�� Paths G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
     paths: {
-      // ── Authentication ─────────────────────────────────────────────────────
+      // G��G�� Authentication G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/sign-up": {
         post: {
           summary: "Register a new student",
@@ -327,7 +357,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Signed in — cookies set",
+              description: "Signed in G�� cookies set",
               content: {
                 "application/json": {
                   schema: {
@@ -391,7 +421,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Signed in with Google — cookies set",
+              description: "Signed in with Google G�� cookies set",
               content: {
                 "application/json": {
                   schema: {
@@ -447,7 +477,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           security: [],
           responses: {
             "200": {
-              description: "Tokens refreshed — new cookies set",
+              description: "Tokens refreshed G�� new cookies set",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
             "401": {
@@ -458,7 +488,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Email Verification ─────────────────────────────────────────────────
+      // G��G�� Email Verification G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/verify-email": {
         post: {
           summary: "Verify email with OTP",
@@ -484,7 +514,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Email verified — auto signed in, cookies set",
+              description: "Email verified G�� auto signed in, cookies set",
               content: {
                 "application/json": {
                   schema: {
@@ -543,7 +573,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Password Reset ─────────────────────────────────────────────────────
+      // G��G�� Password Reset G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/forgot-password": {
         post: {
           summary: "Request password reset OTP",
@@ -600,7 +630,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Password reset — all sessions revoked",
+              description: "Password reset G�� all sessions revoked",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
             "400": {
@@ -615,7 +645,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Change Password (authenticated) ─────────────────────────────────────
+      // G��G�� Change Password (authenticated) G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/change-password": {
         post: {
           summary: "Change password (logged-in user)",
@@ -654,7 +684,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Common ─────────────────────────────────────────────────────────────
+      // G��G�� Common G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/": {
         get: {
           summary: "Health check",
@@ -719,7 +749,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Admin ──────────────────────────────────────────────────────────────
+      // G��G�� Admin G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/admin/dashboard": {
         get: {
           summary: "Admin dashboard",
@@ -759,7 +789,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a product_admin" },
+            "403": { description: "Forbidden G�� not a product_admin" },
           },
         },
       },
@@ -799,7 +829,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
             "400": { description: "Validation error" },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — insufficient role" },
+            "403": { description: "Forbidden G�� insufficient role" },
             "409": { description: "Email or username already exists" },
           },
         },
@@ -820,12 +850,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a product_admin" },
+            "403": { description: "Forbidden G�� not a product_admin" },
           },
         },
       },
 
-      // ── Student ────────────────────────────────────────────────────────────
+      // G��G�� Student G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/student/dashboard": {
         get: {
           summary: "Student dashboard",
@@ -849,7 +879,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a student" },
+            "403": { description: "Forbidden G�� not a student" },
           },
         },
       },
@@ -865,12 +895,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
               content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a student" },
+            "403": { description: "Forbidden G�� not a student" },
           },
         },
       },
 
-      // ── Practice ───────────────────────────────────────────────────────────
+      // G��G�� Practice G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/student/practice": {
         get: {
           summary: "List practice problems",
@@ -1284,7 +1314,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Contests ───────────────────────────────────────────────────────────
+      // G��G�� Contests G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/student/contest": {
         get: {
           summary: "List contests",
@@ -1430,7 +1460,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Problems ───────────────────────────────────────────────────────────
+      // G��G�� Problems G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/problems": {
         get: {
           summary: "List all problems",
@@ -1535,7 +1565,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Code Execution ─────────────────────────────────────────────────────
+      // G��G�� Code Execution G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/submissions/run": {
         post: {
           summary: "Run code (playground)",
@@ -1758,7 +1788,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Judge0 Health ──────────────────────────────────────────────────────
+      // G��G�� Judge0 Health G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/judge0/health": {
         get: {
           summary: "Judge0 health check",
@@ -2062,7 +2092,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
     },
   },
-  apis: [],
+  apis: ["src/modules/routes/*.ts", "dist/modules/routes/*.js"],
 };
 
 // ── Supplementary Schemas ──────────────────────────────────────────────────────
