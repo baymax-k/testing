@@ -22,6 +22,7 @@ import problemRoutes from "./modules/routes/problem.js";
 import submissionRoutes from "./modules/routes/submission.js";
 import judge0Routes from "./modules/routes/judge0.js";
 import collegeAdminRoutes from "./modules/routes/college-admin.js";
+import potdRoutes from "./modules/routes/student/potd.js";
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 const app: Application = express();
@@ -78,6 +79,7 @@ app.use("/api/v1/problems", problemRoutes);
 app.use("/api/v1/submissions", submissionRoutes);
 app.use("/api/v1/judge0", judge0Routes);
 app.use("/api/college-admin", collegeAdminRoutes);
+app.use("/api/v1/student/potd", potdRoutes);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.

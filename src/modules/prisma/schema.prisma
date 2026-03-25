@@ -8,6 +8,63 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Auth Models ─────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  name          String
+  passwordHash  String
+  role          Role      @default(student)
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  refreshTokens  RefreshToken[]
+  submissions    Submission[]
+  participations ContestParticipation[]
+  mcqSessions    McqPracticeSession[]
+  dailySolves    DailyChallengeSolve[]
+  streak         UserStreak?
+  dailyPracticeActivities DailyPracticeActivity[]
+  practiceRandomSets      PracticeRandomSet[]
+
+  @@map("user")
+}
+
+// Stores active refresh tokens (one per device/session).
+// Deleted on sign-out or when a new sign-in invalidates all previous sessions.
+model RefreshToken {
+  id        String   @id @default(cuid())
+  jti       String   @unique   // JWT ID — used to look up and revoke tokens
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_token")
+}
+
+// Stores temporary OTP codes for email verification and password reset.
+// identifier = "<email>:<type>"  e.g. "user@example.com:email-verification"
+// value      = SHA-256 hash of the 6-digit OTP
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
 enum Role {
   student
   mentor
@@ -191,6 +248,12 @@ model Batch {
   @@index([mentorId])
   @@map("batch")
 }
+enum McqSessionStatus {
+  in_progress
+  submitted
+}
+
+// ─── Problem Models ──────────────────────────────────────────────────────────
 
 model Tag {
   id        String     @id @default(cuid())
@@ -227,6 +290,8 @@ model Question {
 
   // Contest relation
   contests ContestQuestion[]
+  mcqAnswers McqPracticeAnswer[]
+  dailyChallenges DailyChallenge[]
 
   // Test-management relation
   testId     String?
@@ -372,4 +437,127 @@ model TestAttempt {
   @@index([studentId])
   @@index([status])
   @@map("test_attempt")
+model McqPracticeSession {
+  id             String           @id @default(cuid())
+  userId         String
+  topics         Json
+  difficulty     String?
+  requestedCount Int
+  totalQuestions Int
+  questionIds    Json
+  status         McqSessionStatus @default(in_progress)
+  score          Int              @default(0)
+  correctCount   Int              @default(0)
+  submittedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers McqPracticeAnswer[]
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@map("mcq_practice_session")
+}
+
+model McqPracticeAnswer {
+  id             String   @id @default(cuid())
+  sessionId      String
+  questionId     String
+  selectedOption Int
+  correctAnswer  Int
+  isCorrect      Boolean
+  points         Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  session  McqPracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([questionId])
+  @@map("mcq_practice_answer")
+}
+
+// ─── Problem of the Day Models ───────────────────────────────────────────────
+
+model DailyChallenge {
+  id         String   @id @default(cuid())
+  questionId String
+  date       DateTime @unique @db.Date
+  createdBy  String   // admin user ID or "system" for auto-select
+  createdAt  DateTime @default(now())
+
+  question Question              @relation(fields: [questionId], references: [id])
+  solves   DailyChallengeSolve[]
+
+  @@index([date])
+  @@map("daily_challenge")
+}
+
+model DailyChallengeSolve {
+  id               String   @id @default(cuid())
+  userId           String
+  dailyChallengeId String
+  selectedOption   Int?
+  languageId       Int?     // for DSA code submissions
+  sourceCode       String?  // for DSA code submissions
+  isCorrect        Boolean
+  attempts         Int      @default(1)
+  solvedAt         DateTime @default(now())
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyChallenge DailyChallenge @relation(fields: [dailyChallengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dailyChallengeId])
+  @@index([userId])
+  @@map("daily_challenge_solve")
+}
+
+model UserStreak {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastSolveDate DateTime? @db.Date
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_streak")
+}
+
+// ─── Daily Practice Activity ─────────────────────────────────────────────────
+model DailyPracticeActivity {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime @db.Date
+  problemsSolved Int      @default(0)
+  mcqSolved      Int      @default(0)
+  dsaSolved      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_practice_activity")
+}
+
+// ─── Random Practice Sets (Ephemeral, persisted for auditing) ───────────────
+model PracticeRandomSet {
+  id          String   @id @default(cuid())
+  userId      String
+  seed        String?
+  filters     Json     // { topics: string[], difficulty?: string }
+  questionIds Json     // [questionId]
+  count       Int
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("practice_random_set")
 }
