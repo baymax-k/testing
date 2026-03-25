@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Practice Mode</h2>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Practice Problems</h3>
+                <form id="practice-filter-form">
+                    <label>Difficulty</label>
+                    <select id="filter-difficulty">
+                        <option value="">All</option>
+                        <option value="easy">easy</option>
+                        <option value="medium">medium</option>
+                        <option value="hard">hard</option>
+                    </select>
+                    <label>Type</label>
+                    <select id="filter-type">
+                        <option value="">All</option>
+                        <option value="mcq">mcq</option>
+                        <option value="dsa">dsa</option>
+                    </select>
+                    <label>Tag</label>
+                    <input id="filter-tag" type="text" placeholder="arrays">
+                    <button type="submit">Load Problems</button>
+                </form>
+                <div id="practice-list">Loading...</div>
+            </div>
+
+            <div class="card">
+                <h3>MCQ Topics & Stats</h3>
+                <button onclick="loadTopicsAndStats()">Refresh Topics/Stats</button>
+                <p><strong>Topics</strong></p>
+                <div id="topic-list">-</div>
+                <p><strong>Stats</strong></p>
+                <div id="stats-box">-</div>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card">
+                <h3>Create MCQ Session</h3>
+                <form id="create-session-form">
+                    <label>Topics (comma separated)</label>
+                    <input id="session-topics" type="text" placeholder="arrays,math" required>
+                    <label>Difficulty (optional)</label>
+                    <select id="session-difficulty">
+                        <option value="">Any</option>
+                        <option value="easy">easy</option>
+                        <option value="medium">medium</option>
+                        <option value="hard">hard</option>
+                    </select>
+                    <button type="submit">Create Session</button>
+                </form>
+                <div id="session-create-result"></div>
+            </div>
+
+            <div class="card">
+                <h3>Random MCQ Set</h3>
+                <form id="random-form">
+                    <label>Topics (comma separated)</label>
+                    <input id="random-topics" type="text" placeholder="arrays,math" required>
+                    <label>Count</label>
+                    <input id="random-count" type="number" min="1" max="25" value="10">
+                    <button type="submit">Generate Random Set</button>
+                </form>
+                <div id="random-result"></div>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card">
+                <h3>Practice Problem Detail</h3>
+                <label>Problem ID</label>
+                <input id="practice-problem-id" type="text" placeholder="question id">
+                <button onclick="loadPracticeProblemDetail()">Load Problem Detail</button>
+                <div id="practice-problem-detail" style="margin-top: 10px;">-</div>
+            </div>
+            <div class="card">
+                <h3>Instant MCQ Submit</h3>
+                <label>Question ID</label>
+                <input id="instant-mcq-question-id" type="text" placeholder="question id">
+                <label>Selected Option</label>
+                <input id="instant-mcq-option" type="number" min="0" placeholder="0">
+                <button onclick="submitInstantMcq()">Submit Single MCQ</button>
+                <div id="instant-mcq-result" style="margin-top: 10px;">-</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>MCQ Session Player</h3>
+            <label>Session ID</label>
+            <input id="active-session-id" type="text" placeholder="Paste session id">
+            <button onclick="loadSessionById()">Load Session</button>
+            <div id="session-player" style="margin-top: 10px;"></div>
+            <button onclick="submitLoadedSession()" style="margin-top: 10px;">Submit Loaded Session</button>
+            <div id="session-submit-result"></div>
+        </div>
+
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card">
+                <h3>MCQ History</h3>
+                <button onclick="loadHistory()">Refresh History</button>
+                <div id="history-list">-</div>
+            </div>
+            <div class="card">
+                <h3>History Detail</h3>
+                <label>Session ID</label>
+                <input id="history-detail-session-id" type="text" placeholder="session id">
+                <button onclick="loadHistoryDetail()">Load History Detail</button>
+                <div id="history-detail-box" style="margin-top: 10px;">-</div>
+            </div>
+            <div class="card">
+                <h3>Practice Activity</h3>
+                <button onclick="trackVisit()">Track Visit</button>
+                <button onclick="loadActivity()">Load Activity</button>
+                <div id="activity-box" style="margin-top: 10px;">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        let currentSession = null;
+        const selectedAnswers = {};
+
+        function parseCsv(text) {
+            return text.split(',').map(item => item.trim()).filter(Boolean);
+        }
+
+        async function loadPracticeProblems() {
+            const difficulty = document.getElementById('filter-difficulty').value;
+            const type = document.getElementById('filter-type').value;
+            const tag = document.getElementById('filter-tag').value.trim();
+
+            const params = new URLSearchParams();
+            if (difficulty) params.set('difficulty', difficulty);
+            if (type) params.set('type', type);
+            if (tag) params.set('tag', tag);
+
+            const endpoint = `/student/practice${params.toString() ? `?${params.toString()}` : ''}`;
+            const result = await fetchAPI(endpoint);
+
+            if (result && result.status === 200) {
+                const html = result.data.problems.map((p) => `
+                    <div class="item">
+                        <strong>${p.title}</strong> (${p.type}) ${getDifficultyBadge(p.difficulty)}<br>
+                        Tags: ${p.tags.join(', ')}
+                    </div>
+                `).join('');
+                document.getElementById('practice-list').innerHTML = html || 'No practice questions found.';
+            } else {
+                document.getElementById('practice-list').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load practice problems'}</div>`;
+            }
+        }
+
+        async function loadTopicsAndStats() {
+            const [topicsResult, statsResult] = await Promise.all([
+                fetchAPI('/student/practice/mcq/topics'),
+                fetchAPI('/student/practice/mcq/stats')
+            ]);
+
+            if (topicsResult && topicsResult.status === 200) {
+                document.getElementById('topic-list').innerHTML = topicsResult.data.topics.join(', ') || 'No topics';
+            } else {
+                document.getElementById('topic-list').innerHTML = 'Failed to load topics';
+            }
+
+            if (statsResult && statsResult.status === 200) {
+                const s = statsResult.data.stats;
+                document.getElementById('stats-box').innerHTML = `
+                    Sessions: ${s.totalSessions}<br>
+                    Questions: ${s.totalQuestions}<br>
+                    Correct: ${s.totalCorrect}<br>
+                    Accuracy: ${s.overallAccuracy}%
+                `;
+            } else {
+                document.getElementById('stats-box').innerHTML = 'Failed to load stats';
+            }
+        }
+
+        async function createSession(event) {
+            event.preventDefault();
+            const topics = parseCsv(document.getElementById('session-topics').value);
+            const difficulty = document.getElementById('session-difficulty').value;
+
+            const body = { topics };
+            if (difficulty) body.difficulty = difficulty;
+
+            const result = await fetchAPI('/student/practice/mcq/session', {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+
+            if (result && result.status === 200) {
+                const sessionId = result.data.session.id;
+                document.getElementById('session-create-result').innerHTML = `<div class="success">Session created: ${sessionId}. Paste it in the player to solve.</div>`;
+                document.getElementById('active-session-id').value = sessionId;
+            } else {
+                document.getElementById('session-create-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to create session'}</div>`;
+            }
+        }
+
+        async function createRandomSet(event) {
+            event.preventDefault();
+            const topics = parseCsv(document.getElementById('random-topics').value);
+            const count = parseInt(document.getElementById('random-count').value || '10', 10);
+
+            const result = await fetchAPI('/student/practice/random', {
+                method: 'POST',
+                body: JSON.stringify({ topics, count })
+            });
+
+            if (result && result.status === 200) {
+                const html = result.data.questions.map((q) => `<div class="item"><strong>${q.title}</strong> (${q.difficulty})</div>`).join('');
+                document.getElementById('random-result').innerHTML = html || 'No random questions generated';
+            } else {
+                document.getElementById('random-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to generate random set'}</div>`;
+            }
+        }
+
+        async function loadSessionById() {
+            const sessionId = document.getElementById('active-session-id').value.trim();
+            if (!sessionId) return;
+
+            const result = await fetchAPI(`/student/practice/mcq/session/${sessionId}`);
+            if (!(result && result.status === 200)) {
+                document.getElementById('session-player').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load session'}</div>`;
+                return;
+            }
+
+            currentSession = result.data.session;
+            const questions = result.data.questions;
+            const answeredQuestions = result.data.answeredQuestions || {};
+
+            for (const [key, value] of Object.entries(answeredQuestions)) {
+                selectedAnswers[key] = value;
+            }
+
+            const html = questions.map((q, index) => `
+                <div class="card" style="margin-bottom:10px;">
+                    <p><strong>Q${index + 1}. ${q.title}</strong></p>
+                    <p>${q.description || ''}</p>
+                    ${(q.options || []).map((option, optIndex) => `
+                        <label style="display:block; margin-bottom:6px;">
+                            <input
+                                type="radio"
+                                name="q-${q.id}"
+                                value="${optIndex}"
+                                ${selectedAnswers[q.id] === optIndex ? 'checked' : ''}
+                                onchange="setAnswer('${q.id}', ${optIndex})"
+                            />
+                            ${option}
+                        </label>
+                    `).join('')}
+                </div>
+            `).join('');
+
+            document.getElementById('session-player').innerHTML = html || 'No questions found in session';
+        }
+
+        function setAnswer(questionId, selectedOption) {
+            selectedAnswers[questionId] = selectedOption;
+        }
+
+        async function submitLoadedSession() {
+            if (!currentSession) {
+                document.getElementById('session-submit-result').innerHTML = '<div class="error">Load a session first</div>';
+                return;
+            }
+
+            const answers = Object.entries(selectedAnswers).map(([questionId, selectedOption]) => ({
+                questionId,
+                selectedOption
+            }));
+
+            const result = await fetchAPI('/student/practice/mcq/session/submit', {
+                method: 'POST',
+                body: JSON.stringify({
+                    sessionId: currentSession.id,
+                    answers
+                })
+            });
+
+            if (result && result.status === 200) {
+                const summary = result.data.session;
+                document.getElementById('session-submit-result').innerHTML = `<div class="success">Submitted! Score: ${summary.score}, Correct: ${summary.correctCount}/${summary.totalQuestions}</div>`;
+                loadTopicsAndStats();
+                loadHistory();
+            } else {
+                document.getElementById('session-submit-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to submit session'}</div>`;
+            }
+        }
+
+        async function loadHistory() {
+            const result = await fetchAPI('/student/practice/mcq/history');
+            if (result && result.status === 200) {
+                const html = result.data.history.map((s) => `
+                    <div class="item">
+                        Session: ${s.id}<br>
+                        Topics: ${(s.topics || []).join(', ')}<br>
+                        Score: ${s.score} | Correct: ${s.correctCount}/${s.totalQuestions} | Status: ${s.status}
+                    </div>
+                `).join('');
+                document.getElementById('history-list').innerHTML = html || 'No history yet';
+            } else {
+                document.getElementById('history-list').innerHTML = 'Failed to load history';
+            }
+        }
+
+        async function loadHistoryDetail() {
+            const sessionId = document.getElementById('history-detail-session-id').value.trim();
+            if (!sessionId) return;
+
+            const result = await fetchAPI(`/student/practice/mcq/history/${sessionId}`);
+            if (result && result.status === 200) {
+                const review = result.data.review || [];
+                const html = review.map((r) => `
+                    <div class="item">
+                        <strong>${r.title}</strong><br>
+                        Selected: ${r.selectedOptionText}<br>
+                        Correct: ${r.correctOptionText}<br>
+                        ${r.isCorrect ? '✅ Correct' : '❌ Wrong'}
+                    </div>
+                `).join('');
+                document.getElementById('history-detail-box').innerHTML = html || 'No review rows';
+            } else {
+                document.getElementById('history-detail-box').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load history detail'}</div>`;
+            }
+        }
+
+        async function loadPracticeProblemDetail() {
+            const id = document.getElementById('practice-problem-id').value.trim();
+            if (!id) return;
+
+            const result = await fetchAPI(`/student/practice/${id}`);
+            if (result && result.status === 200) {
+                const p = result.data.problem;
+                document.getElementById('practice-problem-detail').innerHTML = `
+                    <div class="item">
+                        <strong>${p.title}</strong><br>
+                        Type: ${p.type}<br>
+                        Difficulty: ${p.difficulty}<br>
+                        Tags: ${(p.tags || []).join(', ')}
+                    </div>
+                `;
+            } else {
+                document.getElementById('practice-problem-detail').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load practice problem detail'}</div>`;
+            }
+        }
+
+        async function submitInstantMcq() {
+            const questionId = document.getElementById('instant-mcq-question-id').value.trim();
+            const selectedOptionRaw = document.getElementById('instant-mcq-option').value;
+            if (!questionId || selectedOptionRaw === '') return;
+
+            const result = await fetchAPI('/student/practice/mcq', {
+                method: 'POST',
+                body: JSON.stringify({
+                    questionId,
+                    selectedOption: parseInt(selectedOptionRaw, 10)
+                })
+            });
+
+            if (result && result.status === 200) {
+                document.getElementById('instant-mcq-result').innerHTML = `
+                    <div class="success">
+                        ${result.data.isCorrect ? 'Correct' : 'Incorrect'}<br>
+                        Points: ${result.data.points}<br>
+                        Correct Option Index: ${result.data.correctAnswer}
+                    </div>
+                `;
+            } else {
+                document.getElementById('instant-mcq-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to submit MCQ'}</div>`;
+            }
+        }
+
+        async function trackVisit() {
+            await fetchAPI('/student/practice/activity', {
+                method: 'POST',
+                body: JSON.stringify({ type: 'visit' })
+            });
+            loadActivity();
+        }
+
+        async function loadActivity() {
+            const result = await fetchAPI('/student/practice/activity?days=14');
+            if (result && result.status === 200) {
+                const rows = Array.isArray(result.data.activity) ? result.data.activity : [result.data.activity];
+                document.getElementById('activity-box').innerHTML = rows.map((a) => `
+                    <div class="item">
+                        ${a.date || a.createdAt || 'date'} → visit:${a.visitCount || 0}, mcq:${a.mcqCount || 0}, dsa:${a.dsaCount || 0}, solve:${a.solveCount || 0}
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('activity-box').innerHTML = 'Failed to load activity';
+            }
+        }
+
+        document.getElementById('practice-filter-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadPracticeProblems();
+        });
+        document.getElementById('create-session-form').addEventListener('submit', createSession);
+        document.getElementById('random-form').addEventListener('submit', createRandomSet);
+
+        (async () => {
+            if (!await checkAuth()) return;
+            await Promise.all([
+                loadPracticeProblems(),
+                loadTopicsAndStats(),
+                loadHistory(),
+                loadActivity()
+            ]);
+        })();
+    </script>
+</body>
+</html>

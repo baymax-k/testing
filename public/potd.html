@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POTD - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Problem of the Day</h2>
+
+        <div class="card" id="streak-box">Loading streak...</div>
+
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card" id="potd-box">Loading today's challenge...</div>
+            <div class="card">
+                <h3>Submit Today's Challenge</h3>
+                <form id="potd-form">
+                    <input type="hidden" id="daily-challenge-id" />
+
+                    <label>MCQ Selected Option (0-based)</label>
+                    <input id="potd-selected-option" type="number" min="0" placeholder="Use for MCQ" />
+
+                    <label>Language ID (for DSA only)</label>
+                    <input id="potd-language-id" type="number" min="1" placeholder="Example: 71 for Python" />
+
+                    <label>Source Code (for DSA only)</label>
+                    <textarea id="potd-source-code" placeholder="Paste code for DSA POTD"></textarea>
+
+                    <button type="submit">Submit POTD</button>
+                </form>
+                <div id="potd-submit-result" style="margin-top: 10px;"></div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>POTD History</h3>
+            <button onclick="loadPotdHistory()">Refresh History</button>
+            <div id="potd-history" style="margin-top: 10px;">Loading...</div>
+        </div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        async function loadStreak() {
+            const result = await fetchAPI('/student/potd/streak');
+            if (result && result.status === 200) {
+                const s = result.data.streak;
+                document.getElementById('streak-box').innerHTML = `
+                    <strong>Current Streak:</strong> ${s.currentStreak}<br>
+                    <strong>Longest Streak:</strong> ${s.longestStreak}<br>
+                    <strong>Last Solve Date:</strong> ${s.lastSolveDate ? formatDate(s.lastSolveDate) : 'N/A'}
+                `;
+            } else {
+                document.getElementById('streak-box').innerHTML = '<div class="error">Failed to load streak</div>';
+            }
+        }
+
+        async function loadTodayPotd() {
+            const result = await fetchAPI('/student/potd');
+            if (!(result && result.status === 200)) {
+                document.getElementById('potd-box').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load POTD'}</div>`;
+                return;
+            }
+
+            const challenge = result.data.challenge;
+            const question = challenge.question;
+            document.getElementById('daily-challenge-id').value = challenge.id;
+
+            const optionsHtml = (question.options || []).map((opt, index) => `<li>${index}. ${opt}</li>`).join('');
+
+            document.getElementById('potd-box').innerHTML = `
+                <h3>${question.title}</h3>
+                <p><strong>Type:</strong> ${question.type}</p>
+                <p><strong>Difficulty:</strong> ${question.difficulty}</p>
+                <p>${question.description || ''}</p>
+                ${optionsHtml ? `<p><strong>Options</strong></p><ol>${optionsHtml}</ol>` : ''}
+                <p><strong>Status:</strong> ${result.data.solved ? 'Already solved today' : 'Not solved yet'}</p>
+            `;
+        }
+
+        async function submitPotd(event) {
+            event.preventDefault();
+            const dailyChallengeId = document.getElementById('daily-challenge-id').value;
+            if (!dailyChallengeId) {
+                document.getElementById('potd-submit-result').innerHTML = '<div class="error">No active daily challenge</div>';
+                return;
+            }
+
+            const selectedOptionRaw = document.getElementById('potd-selected-option').value;
+            const languageIdRaw = document.getElementById('potd-language-id').value;
+            const sourceCode = document.getElementById('potd-source-code').value;
+
+            const body = { dailyChallengeId };
+            if (selectedOptionRaw !== '') body.selectedOption = parseInt(selectedOptionRaw, 10);
+            if (languageIdRaw !== '') body.languageId = parseInt(languageIdRaw, 10);
+            if (sourceCode.trim()) body.sourceCode = sourceCode;
+
+            const result = await fetchAPI('/student/potd/solve', {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+
+            if (result && result.status === 200) {
+                document.getElementById('potd-submit-result').innerHTML = `<div class="success">Submitted successfully.<br><pre>${JSON.stringify(result.data, null, 2)}</pre></div>`;
+                await loadStreak();
+                await loadTodayPotd();
+                await loadPotdHistory();
+            } else {
+                document.getElementById('potd-submit-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to submit POTD'}</div>`;
+            }
+        }
+
+        async function loadPotdHistory() {
+            const result = await fetchAPI('/student/potd/history?limit=20&page=1');
+            if (result && result.status === 200) {
+                const html = result.data.history.map((h) => `
+                    <div class="item">
+                        ${formatDate(h.date)} - ${h.question.title} (${h.question.type})<br>
+                        Difficulty: ${h.question.difficulty}<br>
+                        Solved: ${h.solved ? 'Yes' : 'No'} ${h.solved ? `| Correct: ${h.isCorrect}` : ''}
+                    </div>
+                `).join('');
+                document.getElementById('potd-history').innerHTML = html || 'No history found';
+            } else {
+                document.getElementById('potd-history').innerHTML = '<div class="error">Failed to load history</div>';
+            }
+        }
+
+        document.getElementById('potd-form').addEventListener('submit', submitPotd);
+
+        (async () => {
+            if (!await checkAuth()) return;
+            await loadStreak();
+            await loadTodayPotd();
+            await loadPotdHistory();
+        })();
+    </script>
+</body>
+</html>

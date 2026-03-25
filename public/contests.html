@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contests - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Contests</h2>
+        <p>Join a contest first, then open details while it is active.</p>
+        <div id="contests-list">Loading...</div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        async function loadContests() {
+            if (!await checkAuth()) return;
+
+            let result = await fetchAPI('/student/contest');
+            if (result && result.status === 200) {
+                const html = result.data.contests.map(c => `
+                    <div class="card">
+                        <h3><a href="/test/contest.html?id=${c.id}">${c.title}</a></h3>
+                        <p>${c.description || 'No description'}</p>
+                        <p>Start: ${formatDate(c.startTime)}</p>
+                        <p>End: ${formatDate(c.endTime)}</p>
+                        <button onclick="joinContest('${c.id}')">Join Contest</button>
+                    </div>
+                `).join('');
+                document.getElementById('contests-list').innerHTML = html || '<div class="error">No contests yet</div>';
+            } else {
+                const message = result?.data?.error || 'Failed to load contests';
+                document.getElementById('contests-list').innerHTML = `<div class="error">${message}</div>`;
+            }
+        }
+
+        async function joinContest(contestId) {
+            const result = await fetchAPI('/student/contest/join', {
+                method: 'POST',
+                body: JSON.stringify({ contestId })
+            });
+
+            if (result && result.status === 200) {
+                alert('Joined contest successfully. You can now open contest details.');
+            } else {
+                alert(result?.data?.error || 'Failed to join contest');
+            }
+        }
+
+        loadContests();
+    </script>
+</body>
+</html>

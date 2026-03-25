@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+    <style>
+        .problem-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .code-editor textarea { height: 350px; }
+        .buttons button { margin-bottom: 10px; }
+        @media (max-width: 768px) { .problem-layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <div class="problem-layout">
+            <div class="card" id="problem-content">
+                Loading problem...
+            </div>
+            <div class="card code-editor">
+                <h3>Solution</h3>
+                <label for="language">Language</label>
+                <select id="language">
+                    <option value="javascript" selected>JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                    <option value="c">C</option>
+                </select>
+                <textarea id="code" placeholder="Write your code here..."></textarea>
+                <label for="custom-input">Custom Input (stdin)</label>
+                <textarea id="custom-input" placeholder="Optional custom input"></textarea>
+                <div id="result-message"></div>
+                <div class="buttons">
+                    <button onclick="runCode()">▶ Run Code</button>
+                    <button onclick="testAgainstSamples()">⚙ Test Samples</button>
+                    <button onclick="submitCode()">✓ Submit</button>
+                </div>
+                <div id="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        const problemSlug = getURLParam('slug');
+        let currentProblem = null;
+
+        async function loadProblem() {
+            if (!await checkAuth()) return;
+            if (!problemSlug) {
+                document.getElementById('problem-content').innerHTML = '<div class="error">No problem specified</div>';
+                return;
+            }
+
+            const result = await fetchAPI(`/problems/${problemSlug}`);
+            if (result && result.status === 200) {
+                const p = result.data.problem;
+                currentProblem = p;
+                const sampleCases = (p.sampleTestCases || []).map(tc => `
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+                        <strong>Input:</strong>
+                        <pre>${tc.input}</pre>
+                        <strong>Output:</strong>
+                        <pre>${tc.output}</pre>
+                        ${tc.explanation ? `<em>${tc.explanation}</em>` : ''}
+                    </div>
+                `).join('') || '<p>No sample test cases yet.</p>';
+
+                document.getElementById('problem-content').innerHTML = `
+                    <h2>${p.title}</h2>
+                    <p>${getDifficultyBadge(p.difficulty)}</p>
+                    <p>${p.description}</p>
+                    <p><strong>Constraints:</strong> ${p.constraints}</p>
+                    <p><strong>Time Limits:</strong> ${Object.entries(p.timeLimits).map(([lang, limit]) => `${lang}: ${limit}s`).join(' | ')}</p>
+                    <p><strong>Memory Limit:</strong> ${p.memoryLimit} MB</p>
+                    <h3>Sample Test Cases</h3>
+                    ${sampleCases}
+                    <p><strong>Tags:</strong> ${p.tags.join(', ')}</p>
+                `;
+            } else {
+                document.getElementById('problem-content').innerHTML = '<div class="error">Failed to load problem</div>';
+            }
+        }
+
+        async function runCode() {
+            if (!currentProblem) return;
+            const code = document.getElementById('code').value;
+            const language = document.getElementById('language').value;
+            const stdin = document.getElementById('custom-input').value.trim();
+            if (!code) {
+                showMessage('result', 'Please write some code first', 'error');
+                return;
+            }
+
+            showMessage('result', 'Running...', 'success');
+            const result = await fetchAPI('/submissions/run', {
+                method: 'POST',
+                body: JSON.stringify({
+                    language,
+                    sourceCode: code,
+                    stdin: stdin || undefined
+                })
+            });
+
+            if (result && result.status === 200) {
+                const output = result.data.stdout?.trim() || 'No output';
+                const stderr = result.data.stderr?.trim();
+                const compileOutput = result.data.compileOutput?.trim();
+                const status = result.data.status || 'Executed';
+                const meta = `Time: ${result.data.time || '—'}s | Memory: ${result.data.memory ? `${result.data.memory} KB` : '—'}`;
+                showMessage('result', `✓ ${status}<br><pre>${output}</pre>${stderr ? `<p>stderr:<pre>${stderr}</pre></p>` : ''}${compileOutput ? `<p>compiler:<pre>${compileOutput}</pre></p>` : ''}<p>${meta}</p>`, 'success');
+            } else {
+                showMessage('result', 'Execution failed', 'error');
+            }
+        }
+
+        async function testAgainstSamples() {
+            if (!currentProblem) {
+                showMessage('result', 'Problem not loaded yet', 'error');
+                return;
+            }
+
+            const code = document.getElementById('code').value;
+            const language = document.getElementById('language').value;
+            if (!code) {
+                showMessage('result', 'Please write some code first', 'error');
+                return;
+            }
+
+            showMessage('result', 'Testing against sample cases...', 'success');
+            const result = await fetchAPI('/submissions/test', {
+                method: 'POST',
+                body: JSON.stringify({
+                    problemId: currentProblem.id,
+                    language,
+                    sourceCode: code
+                })
+            });
+
+            if (result && result.status === 200) {
+                const summary = `${result.data.testCasesPassed}/${result.data.totalTestCases} sample tests passed (${result.data.status})`;
+                const cases = result.data.testCaseResults.map(tc => `#${tc.index}: ${tc.passed ? '✅' : '❌'} - ${tc.status}`).join('<br>');
+                showMessage('result', `${summary}<br>${cases}`, result.data.status === 'accepted' ? 'success' : 'error');
+            } else {
+                showMessage('result', result?.data?.error || 'Sample tests failed', 'error');
+            }
+        }
+
+        async function submitCode() {
+            if (!currentProblem) {
+                showMessage('result', 'Problem not loaded yet', 'error');
+                return;
+            }
+            const code = document.getElementById('code').value;
+            const language = document.getElementById('language').value;
+            if (!code) {
+                showMessage('result', 'Please write some code first', 'error');
+                return;
+            }
+
+            showMessage('result', 'Submitting...', 'success');
+            const result = await fetchAPI('/submissions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    problemId: currentProblem.id,
+                    language,
+                    sourceCode: code
+                })
+            });
+
+            if (result && result.status === 200) {
+                const summary = `${result.data.status} — ${result.data.testCasesPassed}/${result.data.totalTestCases} tests`;
+                showMessage('result', `✓ ${summary}. Submission ID: ${result.data.submissionId}`, 'success');
+            } else {
+                const message = result?.data?.error || result?.data?.message || 'Submission failed';
+                showMessage('result', message, 'error');
+            }
+        }
+
+        loadProblem();
+    </script>
+</body>
+</html>

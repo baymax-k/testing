@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Submissions</h2>
+        <div id="submissions-list">Loading...</div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        async function loadSubmissions() {
+            if (!await checkAuth()) return;
+
+            let result = await fetchAPI('/submissions');
+            if (result && result.status === 200) {
+                const html = result.data.submissions.map(s => `
+                    <div class="card">
+                        <h3>Problem: ${s.problemId}</h3>
+                        <p>${getStatusBadge(s.status)} | Language: ${s.language}</p>
+                        <p><small>Submitted: ${formatDate(s.createdAt)}</small></p>
+                    </div>
+                `).join('');
+                document.getElementById('submissions-list').innerHTML = html || '<div class="error">No submissions yet</div>';
+            } else {
+                document.getElementById('submissions-list').innerHTML = '<div class="error">Failed to load submissions</div>';
+            }
+        }
+
+        loadSubmissions();
+    </script>
+</body>
+</html>

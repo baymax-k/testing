@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <div class="card" style="max-width: 600px; margin-bottom: 20px;">
+            <h2>My Profile</h2>
+            <div id="profile-summary">Loading...</div>
+        </div>
+        <div class="card" style="max-width: 600px;">
+            <h2>Change Password</h2>
+            <div id="message"></div>
+            <form id="change-password">
+                <label for="current-password">Current Password:</label>
+                <input type="password" id="current-password" required>
+                <label for="new-password">New Password:</label>
+                <input type="password" id="new-password" required>
+                <button type="submit">Update Password</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        (async () => {
+            if (!await checkAuth()) return;
+
+            const profileResult = await fetchAPI('/student/profile');
+            if (profileResult && profileResult.status === 200) {
+                const p = profileResult.data;
+                document.getElementById('profile-summary').innerHTML = `
+                    Name: ${p.name}<br>
+                    Email: ${p.email}<br>
+                    Role: ${p.role}<br>
+                    Email Verified: ${p.emailVerified ? 'Yes' : 'No'}
+                `;
+            } else {
+                document.getElementById('profile-summary').innerHTML = 'Failed to load profile summary';
+            }
+
+            document.getElementById('change-password').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const currentPassword = document.getElementById('current-password').value;
+                const newPassword = document.getElementById('new-password').value;
+
+                let result = await fetchAPI('/auth/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ currentPassword, newPassword })
+                });
+
+                if (result && result.status === 200) {
+                    showMessage('message', '✓ Password updated successfully!', 'success');
+                    document.getElementById('change-password').reset();
+                } else {
+                    showMessage('message', result?.data?.message || result?.data?.error || 'Password change failed', 'error');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

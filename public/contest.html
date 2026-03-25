@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contest - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <div class="card" id="contest-info">
+            Loading contest...
+        </div>
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card">
+                <h3>Contest MCQ</h3>
+                <button onclick="loadContestMcq()">Load MCQ Questions</button>
+                <label style="margin-top: 10px; display:block;">Answers JSON (questionId -> optionIndex)</label>
+                <textarea id="contest-mcq-answers" placeholder='{"question-id": 0}'></textarea>
+                <button onclick="submitContestMcq()">Submit Contest MCQ</button>
+                <div id="contest-mcq-result"></div>
+            </div>
+            <div class="card">
+                <h3>Contest DSA Submit</h3>
+                <label>Problem ID</label>
+                <input id="contest-dsa-problem-id" type="text" placeholder="question id in contest">
+                <label>Language</label>
+                <input id="contest-dsa-language" type="text" placeholder="javascript">
+                <label>Code</label>
+                <textarea id="contest-dsa-code" placeholder="Paste your code"></textarea>
+                <button onclick="submitContestDsa()">Submit DSA</button>
+                <div id="contest-dsa-result"></div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>Leaderboard</h3>
+            <button onclick="loadLeaderboard()">Refresh Leaderboard</button>
+            <div id="leaderboard-list" style="margin-top: 10px;">-</div>
+        </div>
+
+        <h2>Contest Questions</h2>
+        <div id="problems-list"></div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        const contestId = getURLParam('id');
+
+        async function loadContest() {
+            if (!await checkAuth()) return;
+            if (!contestId) {
+                document.getElementById('contest-info').innerHTML = '<div class="error">No contest ID</div>';
+                return;
+            }
+
+            let result = await fetchAPI(`/student/contest/${contestId}`);
+            if (result && result.status === 200) {
+                const c = result.data;
+                document.getElementById('contest-info').innerHTML = `
+                    <h2>${c.title}</h2>
+                    <p>${c.description || 'No description'}</p>
+                    <p><strong>Start:</strong> ${formatDate(c.startTime)}</p>
+                    <p><strong>End:</strong> ${formatDate(c.endTime)}</p>
+                `;
+
+                const html = (c.questions || []).map(row => `
+                    <div class="card">
+                        <h3>${row.question.title}</h3>
+                        <p>Question ID: ${row.question.id}</p>
+                        <p>Type: ${row.question.type}</p>
+                        <p>${row.question.difficulty ? getDifficultyBadge(row.question.difficulty) : ''}</p>
+                    </div>
+                `).join('');
+                document.getElementById('problems-list').innerHTML = html || '<div class="error">No questions in this contest</div>';
+            } else {
+                const message = result?.data?.error || 'Failed to load contest';
+                document.getElementById('contest-info').innerHTML = `<div class="error">${message}</div>`;
+                if (result?.status === 403) {
+                    document.getElementById('problems-list').innerHTML = '<div class="error">Join the contest first and open it during active time.</div>';
+                }
+            }
+        }
+
+        async function loadContestMcq() {
+            const result = await fetchAPI(`/student/contest/${contestId}/mcq`);
+            if (result && result.status === 200) {
+                const questions = result.data.questions || [];
+                const preview = questions.map((q) => `
+                    <div class="item">
+                        <strong>${q.title}</strong><br>
+                        ${q.options.map((opt, idx) => `${idx}. ${opt}`).join('<br>')}
+                    </div>
+                `).join('');
+                document.getElementById('contest-mcq-result').innerHTML = preview || '<div class="error">No MCQ questions in this contest.</div>';
+            } else {
+                document.getElementById('contest-mcq-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load contest MCQ questions'}</div>`;
+            }
+        }
+
+        async function submitContestMcq() {
+            let answers = {};
+            const raw = document.getElementById('contest-mcq-answers').value.trim();
+            if (raw) {
+                try {
+                    answers = JSON.parse(raw);
+                } catch {
+                    document.getElementById('contest-mcq-result').innerHTML = '<div class="error">Answers JSON is invalid</div>';
+                    return;
+                }
+            }
+
+            const result = await fetchAPI('/student/contest/submit-mcq', {
+                method: 'POST',
+                body: JSON.stringify({ contestId, answers })
+            });
+
+            if (result && result.status === 200) {
+                document.getElementById('contest-mcq-result').innerHTML = `<div class="success">${result.data.message}<br><pre>${JSON.stringify(result.data.result, null, 2)}</pre></div>`;
+                loadLeaderboard();
+            } else {
+                document.getElementById('contest-mcq-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to submit contest MCQ'}</div>`;
+            }
+        }
+
+        async function submitContestDsa() {
+            const problemId = document.getElementById('contest-dsa-problem-id').value.trim();
+            const language = document.getElementById('contest-dsa-language').value.trim();
+            const code = document.getElementById('contest-dsa-code').value;
+
+            if (!problemId || !language || !code.trim()) {
+                document.getElementById('contest-dsa-result').innerHTML = '<div class="error">Problem ID, language and code are required.</div>';
+                return;
+            }
+
+            const result = await fetchAPI('/student/contest/submit-dsa', {
+                method: 'POST',
+                body: JSON.stringify({ contestId, problemId, language, code })
+            });
+
+            if (result && result.status === 200) {
+                document.getElementById('contest-dsa-result').innerHTML = `<div class="success">${result.data.message}</div>`;
+            } else {
+                document.getElementById('contest-dsa-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to submit contest DSA'}</div>`;
+            }
+        }
+
+        async function loadLeaderboard() {
+            const result = await fetchAPI(`/student/contest/${contestId}/leaderboard`);
+            if (result && result.status === 200) {
+                const html = result.data.leaderboard.map((row) => `
+                    <div class="item">
+                        #${row.rank} - ${row.user.name} (${row.user.email})<br>
+                        Score: ${row.score}
+                    </div>
+                `).join('');
+                document.getElementById('leaderboard-list').innerHTML = html || 'No leaderboard entries yet';
+            } else {
+                document.getElementById('leaderboard-list').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load leaderboard'}</div>`;
+            }
+        }
+
+        loadContest();
+    </script>
+</body>
+</html>
