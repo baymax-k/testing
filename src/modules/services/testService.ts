@@ -100,7 +100,7 @@ async function checkTestManagementPermission(
     throw new Error("User not found");
   }
 
-  // Super admins and college admins can manage all tests
+  // College super admins and college admins can manage all tests
   if (allowedRoles.includes(user.role) || user.role === "super_admin" || user.role === "college_admin") {
     return true;
   }

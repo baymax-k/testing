@@ -1,8 +1,18 @@
--- CreateEnum
-CREATE TYPE "TestStatus" AS ENUM ('draft', 'scheduled', 'active', 'completed', 'archived');
+-- CreateEnum (idempotent)
+DO $$
+BEGIN
+    CREATE TYPE "TestStatus" AS ENUM ('draft', 'scheduled', 'active', 'completed', 'archived');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
--- CreateEnum
-CREATE TYPE "QuestionType" AS ENUM ('multiple_choice', 'true_false', 'short_answer', 'long_answer', 'coding');
+-- CreateEnum (idempotent)
+DO $$
+BEGIN
+    CREATE TYPE "QuestionType" AS ENUM ('multiple_choice', 'true_false', 'short_answer', 'long_answer', 'coding');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
 CREATE TABLE "test" (

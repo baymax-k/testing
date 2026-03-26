@@ -437,6 +437,9 @@ model TestAttempt {
   @@index([studentId])
   @@index([status])
   @@map("test_attempt")
+
+}
+
 model McqPracticeSession {
   id             String           @id @default(cuid())
   userId         String

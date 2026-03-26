@@ -419,6 +419,21 @@ async function createSingleStudentAccount(
  *     tags: [College Admin - Auth]
  *     summary: College admin login
  *     description: Authenticates a college-admin portal user through Better Auth.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: collegesuperadmin@codeethnics.com
+ *               password:
+ *                 type: string
+ *                 example: CollegeAdmin@123
  *     responses:
  *       "200":
  *         description: Login successful
@@ -457,6 +472,18 @@ async function createSingleStudentAccount(
  *   post:
  *     tags: [College Admin - Auth]
  *     summary: Request college-admin password reset OTP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@codeethnics.com
  *     responses:
  *       "200":
  *         description: Password reset request accepted
@@ -467,6 +494,25 @@ async function createSingleStudentAccount(
  *   post:
  *     tags: [College Admin - Auth]
  *     summary: Reset college-admin password using OTP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code, newPassword]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@codeethnics.com
+ *               code:
+ *                 type: string
+ *                 description: OTP sent to email
+ *                 example: "123456"
+ *               newPassword:
+ *                 type: string
+ *                 example: NewPass@123
  *     responses:
  *       "200":
  *         description: Password reset successful
@@ -489,6 +535,21 @@ async function createSingleStudentAccount(
  *     summary: Update authenticated college-admin profile
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: College Super Admin
+ *               image:
+ *                 type: string
+ *                 format: uri
+ *                 example: https://cdn.example.com/avatar.png
+ *             additionalProperties: false
  *     responses:
  *       "200":
  *         description: Profile updated
@@ -519,6 +580,33 @@ async function createSingleStudentAccount(
  *     summary: List users with filters
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [student, mentor, instructor_staff, dept_admin, hod, principal, college_admin]
+ *         description: Filter by role
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *         description: Filter by department
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name or email
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number (1-based)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Page size
  *     responses:
  *       "200":
  *         description: Users list returned
@@ -527,6 +615,35 @@ async function createSingleStudentAccount(
  *     summary: Create a user
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, name, role]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: principal1@college.edu
+ *               password:
+ *                 type: string
+ *                 example: StrongPass@123
+ *               name:
+ *                 type: string
+ *                 example: Principal User
+ *               role:
+ *                 type: string
+ *                 enum: [student, mentor, instructor_staff, dept_admin, hod, principal, college_admin]
+ *                 example: principal
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-123-4567"
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: User created
@@ -539,6 +656,44 @@ async function createSingleStudentAccount(
  *     summary: Create users in bulk
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [users]
+ *             properties:
+ *               users:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 100
+ *                 items:
+ *                   type: object
+ *                   required: [email, password, name, role]
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: mentor1@college.edu
+ *                     password:
+ *                       type: string
+ *                       example: StrongPass@123
+ *                     name:
+ *                       type: string
+ *                       example: Mentor User
+ *                     role:
+ *                       type: string
+ *                       enum: [student, mentor, instructor_staff, dept_admin, hod, principal, college_admin]
+ *                       example: mentor
+ *                     phone:
+ *                       type: string
+ *                       example: "+1-555-987-6543"
+ *                     departmentId:
+ *                       type: string
+ *                       example: dept_123
+ *                   additionalProperties: false
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: Bulk create processed
@@ -571,6 +726,32 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Name
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-000-1111"
+ *               image:
+ *                 type: string
+ *                 format: uri
+ *                 example: https://cdn.example.com/avatar.png
+ *               role:
+ *                 type: string
+ *                 enum: [student, mentor, instructor_staff, dept_admin, hod, principal]
+ *                 example: mentor
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: dept_456
+ *             additionalProperties: false
  *     responses:
  *       "200":
  *         description: User updated
@@ -589,6 +770,68 @@ async function createSingleStudentAccount(
  *       "200":
  *         description: User deleted
  *
+ * /api/college-admin/users/{userId}/assign-role:
+ *   put:
+ *     tags: [College Admin - Students]
+ *     summary: Assign role to user
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [role]
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [student, mentor, instructor_staff, dept_admin, hod, principal]
+ *                 example: mentor
+ *             additionalProperties: false
+ *     responses:
+ *       "200":
+ *         description: Role assigned
+ *       "400":
+ *         description: Validation failed
+ *
+ * /api/college-admin/users/{userId}/assign-department:
+ *   put:
+ *     tags: [College Admin - Students]
+ *     summary: Assign department to user
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [departmentId]
+ *             properties:
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: dept_123
+ *             additionalProperties: false
+ *     responses:
+ *       "200":
+ *         description: Department assigned
+ *       "400":
+ *         description: Validation failed
+ *
  * /api/college-admin/departments:
  *   get:
  *     tags: [College Admin - Departments]
@@ -603,6 +846,27 @@ async function createSingleStudentAccount(
  *     summary: Create department
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, code]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Computer Science
+ *               code:
+ *                 type: string
+ *                 example: CSE
+ *               description:
+ *                 type: string
+ *                 example: CS department description
+ *               hodId:
+ *                 type: string
+ *                 example: user_hod_123
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: Department created
@@ -635,6 +899,27 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Department Name
+ *               code:
+ *                 type: string
+ *                 example: CSE-NEW
+ *               description:
+ *                 type: string
+ *                 example: Updated description
+ *               hodId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: user_hod_123
+ *             additionalProperties: false
  *     responses:
  *       "200":
  *         description: Department updated
@@ -659,6 +944,33 @@ async function createSingleStudentAccount(
  *     summary: Create batch
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, code, year, departmentId]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Batch 2024
+ *               code:
+ *                 type: string
+ *                 example: B24
+ *               year:
+ *                 type: integer
+ *                 example: 2
+ *               semester:
+ *                 type: integer
+ *                 example: 3
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               mentorId:
+ *                 type: string
+ *                 example: user_mentor_123
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: Batch created
@@ -667,6 +979,31 @@ async function createSingleStudentAccount(
  *     summary: List batches
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: semester
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: mentorId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
  *     responses:
  *       "200":
  *         description: Batches returned
@@ -697,6 +1034,29 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Batch Name
+ *               code:
+ *                 type: string
+ *                 example: B24-NEW
+ *               year:
+ *                 type: integer
+ *                 example: 3
+ *               semester:
+ *                 type: integer
+ *                 example: 5
+ *               mentorId:
+ *                 type: string
+ *                 example: user_mentor_123
+ *             additionalProperties: false
  *   delete:
  *     tags: [College Admin - Batches]
  *     summary: Delete batch by id
@@ -715,11 +1075,60 @@ async function createSingleStudentAccount(
  *     summary: Create a student
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, name]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: student1@college.edu
+ *               password:
+ *                 type: string
+ *                 example: StrongPass@123
+ *               name:
+ *                 type: string
+ *                 example: Student User
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-222-3333"
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               batchId:
+ *                 type: string
+ *                 example: batch_123
+ *             additionalProperties: false
  *   get:
  *     tags: [College Admin - Students]
  *     summary: List students
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: batchId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
  *
  * /api/college-admin/students/bulk:
  *   post:
@@ -727,6 +1136,43 @@ async function createSingleStudentAccount(
  *     summary: Bulk create students
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [students]
+ *             properties:
+ *               students:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 100
+ *                 items:
+ *                   type: object
+ *                   required: [email, password, name]
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: student1@college.edu
+ *                     password:
+ *                       type: string
+ *                       example: StrongPass@123
+ *                     name:
+ *                       type: string
+ *                       example: Student User
+ *                     phone:
+ *                       type: string
+ *                       example: "+1-555-222-3333"
+ *                     departmentId:
+ *                       type: string
+ *                       example: dept_123
+ *                     batchId:
+ *                       type: string
+ *                       example: batch_123
+ *                   additionalProperties: false
+ *             additionalProperties: false
  *
  * /api/college-admin/students/{studentId}:
  *   get:
@@ -751,6 +1197,28 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Student Name
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-999-8888"
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: dept_456
+ *               batchId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: batch_456
+ *             additionalProperties: false
  *   delete:
  *     tags: [College Admin - Students]
  *     summary: Delete student by id
@@ -769,11 +1237,93 @@ async function createSingleStudentAccount(
  *     summary: Create a test
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title]
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Midterm Assessment
+ *               description:
+ *                 type: string
+ *                 example: Covers first 5 chapters
+ *               instructions:
+ *                 type: string
+ *                 example: Read all questions carefully
+ *               durationMinutes:
+ *                 type: integer
+ *                 example: 90
+ *               maxAttempts:
+ *                 type: integer
+ *                 example: 1
+ *               passingMarks:
+ *                 type: integer
+ *                 example: 40
+ *               scheduledStartTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T10:00:00Z
+ *               scheduledEndTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T12:00:00Z
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               batchId:
+ *                 type: string
+ *                 example: batch_123
+ *             additionalProperties: false
  *   get:
  *     tags: [College Admin - Tests]
  *     summary: List tests
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, scheduledStartTime, title]
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, scheduled, active, completed, archived]
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: batchId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: timeFilter
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, active, past, all]
  *
  * /api/college-admin/tests/{testId}:
  *   get:
@@ -798,6 +1348,52 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Updated Test Title
+ *               description:
+ *                 type: string
+ *                 example: Updated description
+ *               instructions:
+ *                 type: string
+ *                 example: Updated instructions
+ *               status:
+ *                 type: string
+ *                 enum: [draft, scheduled, active, completed, archived]
+ *               durationMinutes:
+ *                 type: integer
+ *                 example: 120
+ *               maxAttempts:
+ *                 type: integer
+ *                 example: 2
+ *               totalMarks:
+ *                 type: integer
+ *                 example: 100
+ *               passingMarks:
+ *                 type: integer
+ *                 example: 50
+ *               scheduledStartTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T10:00:00Z
+ *               scheduledEndTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T12:00:00Z
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               batchId:
+ *                 type: string
+ *                 example: batch_123
+ *             additionalProperties: false
  *   delete:
  *     tags: [College Admin - Tests]
  *     summary: Delete test by id
@@ -822,6 +1418,38 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, content, marks]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [multiple_choice, true_false, short_answer, long_answer, coding]
+ *               content:
+ *                 type: string
+ *                 example: What is 2 + 2?
+ *               marks:
+ *                 type: integer
+ *                 example: 5
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["1", "2", "3", "4"]
+ *               correctAnswer:
+ *                 type: string
+ *                 example: 4
+ *               explanation:
+ *                 type: string
+ *                 example: Basic addition
+ *               orderIndex:
+ *                 type: integer
+ *                 example: 1
+ *             additionalProperties: false
  *   get:
  *     tags: [College Admin - Tests]
  *     summary: List test questions
@@ -840,6 +1468,12 @@ async function createSingleStudentAccount(
  *     summary: Get real-time test status
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/student/{studentId}:
  *   get:
@@ -847,6 +1481,12 @@ async function createSingleStudentAccount(
  *     summary: Get student performance report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/student/{studentId}/skillset:
  *   get:
@@ -854,6 +1494,12 @@ async function createSingleStudentAccount(
  *     summary: Get student skillset summary
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/batch/{batchId}:
  *   get:
@@ -861,6 +1507,12 @@ async function createSingleStudentAccount(
  *     summary: Get batch performance report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/batch/{batchId}/leaderboard:
  *   get:
@@ -868,6 +1520,12 @@ async function createSingleStudentAccount(
  *     summary: Get batch leaderboard
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/test/{testId}/analysis:
  *   get:
@@ -875,6 +1533,12 @@ async function createSingleStudentAccount(
  *     summary: Get test analysis report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/department/{departmentId}:
  *   get:
@@ -882,6 +1546,12 @@ async function createSingleStudentAccount(
  *     summary: Get department performance report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: departmentId
+ *         required: true
+ *         schema:
+ *           type: string
  */
 
 /**
@@ -911,7 +1581,7 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
     if (result?.user && !allowedRoles.includes(result.user.role)) {
       res.status(403).json({
         error: "Access denied",
-        message: "This portal is only accessible to super admins, college administrators, principals, HODs, and mentors",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
       });
       return;
     }
@@ -1048,7 +1718,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
     if (!allowedRoles.includes(user.role)) {
       res.status(403).json({
         error: "Access denied",
-        message: "This portal is only accessible to super admins, college administrators, principals, HODs, and mentors",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
       });
       return;
     }
@@ -1383,7 +2053,7 @@ router.get(
     // Get role-specific greeting and statistics
     const getRoleTitle = (role: string) => {
       const roleTitles: Record<string, string> = {
-        super_admin: "Super Administrator",
+        super_admin: "College Super Administrator",
         college_admin: "College Administrator",
         principal: "Principal",
         hod: "Head of Department",
