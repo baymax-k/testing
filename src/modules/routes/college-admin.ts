@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { auth, prisma } from "../../config/auth.js";
+import { prisma as appPrisma } from "../../config/prisma.js";
+import { generateAndStoreOTP, sendOTPEmail, hashPassword, validateOTP } from "../auth/auth.service.js";
 import { UserService } from "../services/userService.js";
 import { DepartmentService } from "../services/departmentService.js";
 import { BatchService } from "../services/batchService.js";
@@ -12,6 +14,7 @@ import type { Role, TestStatus } from "../../generated/prisma/client.js";
 
 const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;
+const isProd = process.env.NODE_ENV === "production";
 
 // ─── Validation Schemas ─────────────────────────────────────────────────────────
 
@@ -26,8 +29,12 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
   email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address"),
-  otp: z.string().length(6, "OTP must be 6 digits"),
   password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long"),
+});
+
+const verifyOtpSchema = z.object({
+  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address"),
+  otp: z.string().length(6, "OTP must be 6 digits"),
 });
 
 const updateProfileSchema = z.object({
@@ -490,34 +497,58 @@ async function createSingleStudentAccount(
  *       "403":
  *         description: User role not allowed for this portal
  *
- * /api/college-admin/auth/reset-password:
+ * /api/college-admin/auth/verify-otp:
  *   post:
  *     tags: [College Admin - Auth]
- *     summary: Reset college-admin password using OTP
+ *     summary: Verify password reset OTP for college-admin
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, code, newPassword]
+ *             required: [email, otp]
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
  *                 example: superadmin@codeethnics.com
- *               code:
+ *               otp:
  *                 type: string
  *                 description: OTP sent to email
  *                 example: "123456"
- *               newPassword:
+ *     responses:
+ *       "200":
+ *         description: OTP is valid
+ *       "400":
+ *         description: Invalid or expired OTP
+ *       "403":
+ *         description: User role not allowed for this portal
+ *
+ * /api/college-admin/auth/reset-password:
+ *   put:
+ *     tags: [College Admin - Auth]
+ *     summary: Reset college-admin password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@codeethnics.com
+ *               password:
  *                 type: string
  *                 example: NewPass@123
  *     responses:
  *       "200":
  *         description: Password reset successful
  *       "400":
- *         description: Validation failed or invalid OTP
+ *         description: Validation failed or user not allowed
  *
  * /api/college-admin/profile:
  *   get:
@@ -1587,6 +1618,17 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
     }
 
     if (result?.user) {
+      // Set Better Auth session cookie so subsequent requests are authenticated
+      if (result.token) {
+        res.cookie("better-auth.session_token", result.token, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: "lax",
+          path: "/",
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+      }
+
       res.json({
         success: true,
         message: "Login successful",
@@ -1701,7 +1743,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
     const { email } = validation.data;
 
     // Check if user exists and is college_admin
-    const user = await prisma.user.findUnique({
+    const user = await appPrisma.user.findUnique({
       where: { email },
     });
 
@@ -1723,13 +1765,9 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
       return;
     }
 
-    // Send password reset OTP via Better Auth email-otp plugin
-    const baseUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
-    await fetch(`${baseUrl}/api/v1/auth/email-otp/request-password-reset`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
+    // Generate OTP and send via Mailtrap credentials
+    const otp = await generateAndStoreOTP(email, "forget-password");
+    await sendOTPEmail(email, otp, "forget-password");
 
     res.json({
       success: true,
@@ -1745,10 +1783,67 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
 });
 
 /**
- * POST /api/college-admin/auth/reset-password
- * Reset password using OTP
+ * POST /api/college-admin/auth/verify-otp
+ * Verify password reset OTP (does not consume the OTP)
  */
-router.post("/auth/reset-password", async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/auth/verify-otp", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const validation = verifyOtpSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.issues,
+      });
+      return;
+    }
+
+    const { email, otp } = validation.data;
+
+    const user = await appPrisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.status(400).json({
+        error: "Invalid or expired OTP",
+        message: "Please request a new password reset code",
+      });
+      return;
+    }
+
+    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    if (!allowedRoles.includes(user.role)) {
+      res.status(403).json({
+        error: "Access denied",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    const verification = await validateOTP(email, "forget-password", otp);
+    if (!verification.valid) {
+      res.status(400).json({
+        error: verification.reason || "Invalid or expired OTP",
+        message: "Please request a new password reset code",
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "OTP is valid",
+    });
+  } catch (error) {
+    console.error("[college-admin/auth/verify-otp] Error:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "An error occurred while verifying OTP",
+    });
+  }
+});
+
+/**
+ * PUT /api/college-admin/auth/reset-password
+ * Reset password
+ */
+router.put("/auth/reset-password", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const validation = resetPasswordSchema.safeParse(req.body);
     if (!validation.success) {
@@ -1759,28 +1854,39 @@ router.post("/auth/reset-password", async (req: AuthRequest, res: Response): Pro
       return;
     }
 
-    const { otp, password, email } = validation.data;
+    const { password, email } = validation.data;
 
-    // Reset password via Better Auth email-otp plugin
-    const baseUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
-    const response = await fetch(`${baseUrl}/api/v1/auth/email-otp/reset-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp, password }),
-    });
-
-    if (response.ok) {
-      res.json({
-        success: true,
-        message: "Password has been reset successfully",
-      });
-    } else {
-      const errorData = await response.json();
+    const user = await appPrisma.user.findUnique({ where: { email } });
+    if (!user) {
       res.status(400).json({
-        error: errorData.message || "Invalid or expired OTP",
+        error: "Invalid or expired OTP",
         message: "Please request a new password reset code",
       });
+      return;
     }
+
+    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    if (!allowedRoles.includes(user.role)) {
+      res.status(403).json({
+        error: "Access denied",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    const passwordHash = await hashPassword(password);
+    await appPrisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+    if (appPrisma.refreshToken?.deleteMany) {
+      await appPrisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    }
+
+    res.json({
+      success: true,
+      message: "Password has been reset successfully",
+    });
   } catch (error) {
     console.error("[college-admin/auth/reset-password] Error:", error);
     res.status(500).json({
