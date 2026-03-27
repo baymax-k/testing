@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>College Admin Profile Auth Test</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --ink: #1f2328;
+      --muted: #5f6b7a;
+      --accent: #0f766e;
+      --accent-2: #0ea5e9;
+      --border: #d8dee6;
+      --ok: #166534;
+      --err: #b91c1c;
+      --mono: Consolas, "Cascadia Code", "Courier New", monospace;
+      --sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.12), transparent 35%),
+        radial-gradient(circle at 90% 80%, rgba(15, 118, 110, 0.12), transparent 30%),
+        var(--bg);
+      min-height: 100vh;
+      padding: 28px 16px;
+    }
+
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+
+    .card-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(120deg, rgba(15, 118, 110, 0.08), rgba(14, 165, 233, 0.08));
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .card-body {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 720px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s ease;
+      background: #fff;
+    }
+
+    input:focus {
+      border-color: var(--accent-2);
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: var(--accent);
+    }
+
+    button.secondary {
+      background: var(--accent-2);
+    }
+
+    button.ghost {
+      background: #4b5563;
+    }
+
+    .status {
+      font-size: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .status.ok {
+      border-color: #bbf7d0;
+      color: var(--ok);
+      background: #f0fdf4;
+    }
+
+    .status.err {
+      border-color: #fecaca;
+      color: var(--err);
+      background: #fef2f2;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #d1d5db;
+      background: #111827;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      padding: 12px;
+      font-family: var(--mono);
+      min-height: 120px;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    code {
+      font-family: var(--mono);
+      background: #eef2f7;
+      border: 1px solid #d8dee6;
+      padding: 1px 5px;
+      border-radius: 6px;
+      color: #334155;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="card-head">College Admin Auth + Profile Test</div>
+      <div class="card-body">
+        <div class="grid">
+          <div>
+            <label for="baseUrl">Base URL</label>
+            <input id="baseUrl" value="http://localhost:5000" />
+          </div>
+          <div>
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="collegesuperadmin@codeethnics.com" />
+          </div>
+        </div>
+        <div>
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Enter password" />
+        </div>
+        <div class="row">
+          <button id="btnLogin">1) Login</button>
+          <button id="btnProfile" class="secondary">2) Get Profile</button>
+          <button id="btnFlow" class="ghost">Run Login -> Profile</button>
+          <button id="btnLogout" class="ghost">Logout</button>
+        </div>
+        <div id="status" class="status">Ready.</div>
+        <p class="hint">
+          This page uses <code>credentials: "include"</code>, so the browser sends/receives cookies.
+          Open via <code>/test/college-admin-profile-test.html</code> on the same backend origin.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Last Response</div>
+      <div class="card-body">
+        <pre id="output">No requests yet.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      baseUrl: $("baseUrl"),
+      email: $("email"),
+      password: $("password"),
+      btnLogin: $("btnLogin"),
+      btnProfile: $("btnProfile"),
+      btnFlow: $("btnFlow"),
+      btnLogout: $("btnLogout"),
+      status: $("status"),
+      output: $("output"),
+    };
+
+    function setStatus(message, ok) {
+      els.status.textContent = message;
+      els.status.className = `status ${ok === true ? "ok" : ok === false ? "err" : ""}`;
+    }
+
+    function pretty(obj) {
+      try {
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return String(obj);
+      }
+    }
+
+    async function requestJson(url, options) {
+      const response = await fetch(url, {
+        ...options,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(options && options.headers ? options.headers : {}),
+        },
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        data = { message: "No JSON body" };
+      }
+
+      return { response, data };
+    }
+
+    async function login() {
+      const base = els.baseUrl.value.trim().replace(/\/$/, "");
+      const email = els.email.value.trim();
+      const password = els.password.value;
+
+      if (!email || !password) {
+        setStatus("Email and password are required.", false);
+        return false;
+      }
+
+      setStatus("Logging in...", undefined);
+      const { response, data } = await requestJson(`${base}/api/college-admin/auth/login`, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      els.output.textContent = pretty({
+        request: { method: "POST", url: `${base}/api/college-admin/auth/login` },
+        status: response.status,
+        body: data,
+      });
+
+      if (response.ok) {
+        setStatus("Login successful. Session cookie should now be set.", true);
+        return true;
+      }
+
+      setStatus(`Login failed (${response.status}).`, false);
+      return false;
+    }
+
+    async function getProfile() {
+      const base = els.baseUrl.value.trim().replace(/\/$/, "");
+
+      setStatus("Fetching profile...", undefined);
+      const { response, data } = await requestJson(`${base}/api/college-admin/profile`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+
+      els.output.textContent = pretty({
+        request: { method: "GET", url: `${base}/api/college-admin/profile` },
+        status: response.status,
+        body: data,
+      });
+
+      if (response.ok) {
+        setStatus("Profile fetched successfully.", true);
+      } else {
+        setStatus(`Profile request failed (${response.status}).`, false);
+      }
+    }
+
+    async function logout() {
+      const base = els.baseUrl.value.trim().replace(/\/$/, "");
+
+      setStatus("Logging out...", undefined);
+      const { response, data } = await requestJson(`${base}/api/college-admin/auth/logout`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+
+      els.output.textContent = pretty({
+        request: { method: "POST", url: `${base}/api/college-admin/auth/logout` },
+        status: response.status,
+        body: data,
+      });
+
+      if (response.ok) {
+        setStatus("Logged out.", true);
+      } else {
+        setStatus(`Logout failed (${response.status}).`, false);
+      }
+    }
+
+    els.btnLogin.addEventListener("click", async () => {
+      try {
+        await login();
+      } catch (error) {
+        setStatus("Login request failed.", false);
+        els.output.textContent = pretty({ error: String(error) });
+      }
+    });
+
+    els.btnProfile.addEventListener("click", async () => {
+      try {
+        await getProfile();
+      } catch (error) {
+        setStatus("Profile request failed.", false);
+        els.output.textContent = pretty({ error: String(error) });
+      }
+    });
+
+    els.btnFlow.addEventListener("click", async () => {
+      try {
+        const loggedIn = await login();
+        if (loggedIn) {
+          await getProfile();
+        }
+      } catch (error) {
+        setStatus("Flow failed.", false);
+        els.output.textContent = pretty({ error: String(error) });
+      }
+    });
+
+    els.btnLogout.addEventListener("click", async () => {
+      try {
+        await logout();
+      } catch (error) {
+        setStatus("Logout request failed.", false);
+        els.output.textContent = pretty({ error: String(error) });
+      }
+    });
+  </script>
+</body>
+
+</html>
