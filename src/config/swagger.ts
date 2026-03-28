@@ -2090,6 +2090,162 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
         },
       },
+
+      "/api/college-admin/mentors/{mentorId}/students": {
+        get: {
+          summary: "List students assigned to a mentor",
+          description:
+            "Returns students whose batch is assigned to the specified mentor. Supports pagination and role-based scoping.",
+          tags: ["College Admin - Students"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "mentorId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Mentor user ID",
+            },
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1 },
+              description: "Page number (default 1)",
+            },
+            {
+              name: "limit",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+              description: "Page size (default 20, max 100)",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Students assigned to mentor",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      mentor: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          role: { type: "string", example: "mentor" },
+                          departmentId: { type: "string", nullable: true },
+                        },
+                      },
+                      students: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string", nullable: true },
+                            batch: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                code: { type: "string" },
+                                year: { type: "integer" },
+                              },
+                            },
+                            department: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                code: { type: "string" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          total: { type: "integer", example: 42 },
+                          page: { type: "integer", example: 1 },
+                          limit: { type: "integer", example: 20 },
+                          totalPages: { type: "integer", example: 3 },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation error or mentor missing department" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden" },
+            "404": { description: "Mentor not found" },
+          },
+        },
+      },
+
+      "/api/college-admin/tests": {
+        post: {
+          summary: "Create a test (college admin portal)",
+          description:
+            "Creates a test with scheduling, attempt limits, and optional maximum marks. Role restrictions mirror the portal (super_admin, college_admin, principal, hod, dept_admin, mentor).",
+          tags: ["College Admin - Tests"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string", maxLength: 200 },
+                    description: { type: "string", maxLength: 1000 },
+                    instructions: { type: "string", maxLength: 2000 },
+                    durationMinutes: { type: "integer", minimum: 1, maximum: 600, default: 60 },
+                    maxAttempts: { type: "integer", minimum: 1, maximum: 10, default: 1 },
+                    maximumMarks: { type: "integer", minimum: 0, description: "Cap/total marks for the test" },
+                    passingMarks: { type: "integer", minimum: 0 },
+                    scheduledStartTime: { type: "string", format: "date-time" },
+                    scheduledEndTime: { type: "string", format: "date-time" },
+                    departmentId: { type: "string" },
+                    batchId: { type: "string" },
+                  },
+                  required: ["title"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Test created",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Test created successfully" },
+                      test: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation or scheduling error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden" },
+          },
+        },
+      },
     },
   },
   apis: ["src/modules/routes/*.ts", "dist/modules/routes/*.js"],

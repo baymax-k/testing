@@ -146,6 +146,13 @@ const updateStudentSchema = z.object({
   batchId: z.string().nullable().optional(),
 });
 
+const mentorStudentsQuerySchema = z.object({
+  page: z
+    .preprocess((val) => (val === undefined ? undefined : Number(val)), z.number().int().min(1).optional()),
+  limit: z
+    .preprocess((val) => (val === undefined ? undefined : Number(val)), z.number().int().min(1).max(100).optional()),
+});
+
 // ─── Helper Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -2174,19 +2181,42 @@ router.get(
       const stats: any = {};
 
       try {
+        const now = new Date();
+
+        const [totalDepartmentsCollege, totalBatchesCollege, totalStudentsCollege, totalTestsCollege, totalActiveTestsCollege] = await Promise.all([
+          prisma.department.count(),
+          prisma.batch.count(),
+          prisma.user.count({ where: { role: "student" } }),
+          prisma.test.count(),
+          prisma.test.count({
+            where: {
+              scheduledStartTime: { lte: now },
+              scheduledEndTime: { gte: now },
+              status: { notIn: ["archived"] },
+            },
+          }),
+        ]);
+
+        stats.totalDepartments = totalDepartmentsCollege;
+        stats.totalBatches = totalBatchesCollege;
+        stats.totalStudents = totalStudentsCollege;
+        stats.totalTests = totalTestsCollege;
+        stats.activeTests = totalActiveTestsCollege;
+        stats.collegeTotals = {
+          totalDepartments: totalDepartmentsCollege,
+          totalBatches: totalBatchesCollege,
+          totalStudents: totalStudentsCollege,
+          totalTests: totalTestsCollege,
+          activeTests: totalActiveTestsCollege,
+        };
+        stats.totalDepartmentsCollege = totalDepartmentsCollege;
+        stats.totalBatchesCollege = totalBatchesCollege;
+        stats.totalStudentsCollege = totalStudentsCollege;
+        stats.totalTestsCollege = totalTestsCollege;
+        stats.activeTestsCollege = totalActiveTestsCollege;
+
         if (role === "super_admin" || role === "college_admin" || role === "principal") {
           // Global statistics
-          const [totalDepartments, totalBatches, totalStudents, totalTests] = await Promise.all([
-            prisma.department.count(),
-            prisma.batch.count(),
-            prisma.user.count({ where: { role: "student" } }),
-            prisma.test.count(),
-          ]);
-
-          stats.totalDepartments = totalDepartments;
-          stats.totalBatches = totalBatches;
-          stats.totalStudents = totalStudents;
-          stats.totalTests = totalTests;
           stats.scope = "institution";
         } else if ((role === "hod" || role === "dept_admin") && user.departmentId) {
           // Department-specific statistics
@@ -2221,20 +2251,6 @@ router.get(
           stats.scope = "mentor";
           stats.departmentId = user.departmentId;
         }
-
-        // Active tests (common for all roles)
-        const now = new Date();
-        const activeTestsCount = await prisma.test.count({
-          where: {
-            scheduledStartTime: { lte: now },
-            scheduledEndTime: { gte: now },
-            status: { notIn: ["archived"] },
-            ...(role !== "super_admin" && role !== "college_admin" && role !== "principal" && user.departmentId
-              ? { departmentId: user.departmentId }
-              : {}),
-          },
-        });
-        stats.activeTests = activeTestsCount;
 
       } catch (error) {
         console.error("[dashboard] Error fetching statistics:", error);
@@ -3447,6 +3463,78 @@ router.get(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * GET /api/college-admin/mentors/:mentorId/students
+ * Get all students assigned to a mentor (via batch mentor assignment)
+ * Access: college_admin, principal, hod (own department), dept_admin (own department), mentor (self only)
+ */
+router.get(
+  "/mentors/:mentorId/students",
+  requireAuth,
+  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const currentUser = req.user!;
+      const { mentorId } = req.params;
+
+      const queryValidation = mentorStudentsQuerySchema.safeParse(req.query);
+      if (!queryValidation.success) {
+        res.status(400).json({
+          error: "Validation failed",
+          details: queryValidation.error.issues,
+        });
+        return;
+      }
+
+      // Mentors can only view their own mentees
+      if (currentUser.role === "mentor" && currentUser.id !== mentorId) {
+        res.status(403).json({
+          error: "Mentors can only view their own students",
+        });
+        return;
+      }
+
+      const result = await BatchService.getStudentsByMentor(mentorId, queryValidation.data);
+
+      // HOD and Dept Admin can only view mentors in their department
+      if (["hod", "dept_admin"].includes(currentUser.role)) {
+        if (!currentUser.departmentId) {
+          res.status(403).json({
+            error: "User must have a department assigned",
+          });
+          return;
+        }
+
+        if (!result.mentor.departmentId) {
+          res.status(400).json({
+            error: "Mentor must belong to a department",
+          });
+          return;
+        }
+
+        if (result.mentor.departmentId !== currentUser.departmentId) {
+          res.status(403).json({
+            error: "You can only view mentors in your own department",
+          });
+          return;
+        }
+      }
+
+      res.json({
+        success: true,
+        mentor: result.mentor,
+        students: result.students,
+        pagination: result.pagination,
+      });
+    } catch (error: any) {
+      console.error("[college-admin/mentors/students] Error:", error);
+      res.status(error.message.includes("not found") ? 404 : 400).json({
+        error: error.message || "Failed to fetch students for mentor",
+      });
+    }
+  }
+);
+
+/**
  * POST /api/college-admin/students
  * Create a new student
  * Access: college_admin, principal, hod (only their department), dept_admin (only their department)
@@ -3897,6 +3985,7 @@ const createTestSchema = z.object({
   instructions: z.string().max(2000).optional(),
   durationMinutes: z.number().int().min(1).max(600).optional(),
   maxAttempts: z.number().int().min(1).max(10).optional(),
+  maximumMarks: z.number().int().min(0).optional(),
   passingMarks: z.number().int().min(0).optional(),
   scheduledStartTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
   scheduledEndTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),

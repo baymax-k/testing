@@ -148,8 +148,44 @@ export class DepartmentService {
       prisma.department.count({ where }),
     ]);
 
+    const departmentIds = departments.map((dept) => dept.id);
+
+    const [studentCounts, batchCounts] = await Promise.all([
+      prisma.user.groupBy({
+        by: ["departmentId"],
+        where: {
+          departmentId: { in: departmentIds },
+          role: "student",
+        },
+        _count: { _all: true },
+      }),
+      prisma.batch.groupBy({
+        by: ["departmentId"],
+        where: {
+          departmentId: { in: departmentIds },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const studentCountMap = studentCounts.reduce<Record<string, number>>((acc, curr) => {
+      if (curr.departmentId) acc[curr.departmentId] = curr._count._all;
+      return acc;
+    }, {});
+
+    const batchCountMap = batchCounts.reduce<Record<string, number>>((acc, curr) => {
+      if (curr.departmentId) acc[curr.departmentId] = curr._count._all;
+      return acc;
+    }, {});
+
+    const departmentsWithCounts = departments.map((dept) => ({
+      ...dept,
+      totalStudents: studentCountMap[dept.id] || 0,
+      totalBatches: batchCountMap[dept.id] || 0,
+    }));
+
     return {
-      departments,
+      departments: departmentsWithCounts,
       pagination: {
         page,
         limit,
@@ -163,7 +199,7 @@ export class DepartmentService {
    * Get department by ID
    */
   static async getDepartmentById(deptId: string) {
-    return prisma.department.findUnique({
+    const department = await prisma.department.findUnique({
       where: { id: deptId },
       include: {
         users: {
@@ -178,6 +214,19 @@ export class DepartmentService {
         },
       },
     });
+
+    if (!department) return null;
+
+    const [totalStudents, totalBatches] = await Promise.all([
+      prisma.user.count({ where: { departmentId: deptId, role: "student" } }),
+      prisma.batch.count({ where: { departmentId: deptId } }),
+    ]);
+
+    return {
+      ...department,
+      totalStudents,
+      totalBatches,
+    };
   }
 
   /**
