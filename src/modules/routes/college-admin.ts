@@ -2492,9 +2492,43 @@ router.get(
         limit: limit ? Number.parseInt(limit as string) : undefined,
       });
 
+      let departmentStats: { totalStudents: number; totalMentors: number } | undefined;
+      let mentorStats: { totalStudents: number } | undefined;
+      if (currentUser.role === "hod") {
+        if (!currentUser.departmentId) {
+          res.status(403).json({
+            error: "User must have a department assigned",
+          });
+          return;
+        }
+
+        const [totalStudentsDept, totalMentorsDept] = await Promise.all([
+          prisma.user.count({ where: { role: "student", departmentId: currentUser.departmentId } }),
+          prisma.user.count({ where: { role: "mentor", departmentId: currentUser.departmentId } }),
+        ]);
+
+        departmentStats = {
+          totalStudents: totalStudentsDept,
+          totalMentors: totalMentorsDept,
+        };
+      } else if (currentUser.role === "mentor") {
+        const totalStudentsForMentor = await prisma.user.count({
+          where: {
+            role: "student",
+            batch: { mentorId: currentUser.id },
+          },
+        });
+
+        mentorStats = {
+          totalStudents: totalStudentsForMentor,
+        };
+      }
+
       res.json({
         success: true,
         ...result,
+        ...(departmentStats ? { departmentStats } : {}),
+        ...(mentorStats ? { mentorStats } : {}),
       });
     } catch (error: any) {
       console.error("[college-admin/users/list] Error:", error);
@@ -3752,10 +3786,26 @@ router.get(
 
       const result = await UserService.getAllUsers(filters);
 
+      let departmentStats: { totalStudents: number; totalMentors: number } | undefined;
+
+      // For HOD, include department-level student/mentor counts
+      if (currentUser.role === "hod" && currentUser.departmentId) {
+        const [totalStudentsDept, totalMentorsDept] = await Promise.all([
+          prisma.user.count({ where: { role: "student", departmentId: currentUser.departmentId } }),
+          prisma.user.count({ where: { role: "mentor", departmentId: currentUser.departmentId } }),
+        ]);
+
+        departmentStats = {
+          totalStudents: totalStudentsDept,
+          totalMentors: totalMentorsDept,
+        };
+      }
+
       res.json({
         success: true,
         students: result.users,
         pagination: result.pagination,
+        ...(departmentStats ? { departmentStats } : {}),
       });
     } catch (error: any) {
       console.error("[college-admin/students/list] Error:", error);
