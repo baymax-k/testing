@@ -8,61 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Auth Models ─────────────────────────────────────────────────────────────
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String    @unique
-  name          String
-  passwordHash  String
-  role          Role      @default(student)
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  refreshTokens  RefreshToken[]
-  submissions    Submission[]
-  participations ContestParticipation[]
-  mcqSessions    McqPracticeSession[]
-  dailySolves    DailyChallengeSolve[]
-  streak         UserStreak?
-  dailyPracticeActivities DailyPracticeActivity[]
-  practiceRandomSets      PracticeRandomSet[]
-
-  @@map("user")
-}
-
-// Stores active refresh tokens (one per device/session).
-// Deleted on sign-out or when a new sign-in invalidates all previous sessions.
-model RefreshToken {
-  id        String   @id @default(cuid())
-  jti       String   @unique   // JWT ID — used to look up and revoke tokens
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("refresh_token")
-}
-
-// Stores temporary OTP codes for email verification and password reset.
-// identifier = "<email>:<type>"  e.g. "user@example.com:email-verification"
-// value      = SHA-256 hash of the 6-digit OTP
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
-}
-
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum Role {
@@ -140,6 +85,11 @@ model User {
   // Practice/contest flow
   submissions    Submission[]
   participations ContestParticipation[]
+  mcqSessions    McqPracticeSession[]
+  dailySolves    DailyChallengeSolve[]
+  streak         UserStreak?
+  dailyPracticeActivities DailyPracticeActivity[]
+  practiceRandomSets      PracticeRandomSet[]
 
   // College-admin flow
   mentoredBatches Batch[]      @relation("BatchMentor")

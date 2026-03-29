@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Endpoints Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .session-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .session-info.active {
+            display: block;
+            background: #f0f8ff;
+            border-left: 4px solid #0066cc;
+        }
+
+        .session-info h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .session-info p {
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .session-info .label {
+            font-weight: bold;
+            color: #0066cc;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #ddd;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result.success {
+            border-left-color: #28a745;
+            background: #f0f8f4;
+        }
+
+        .result.error {
+            border-left-color: #dc3545;
+            background: #fef5f5;
+        }
+
+        .result pre {
+            margin: 0;
+            overflow: auto;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.active {
+            display: block;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab-btn {
+            background: white;
+            color: #666;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-btn:hover {
+            color: #333;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e9ecef;
+            color: #495057;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #856404;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 User Endpoints Tester</h1>
+            <p>Comprehensive testing interface for user authentication and account management endpoints</p>
+        </header>
+
+        <div class="session-info" id="sessionInfo">
+            <h3>Current Session 📋</h3>
+            <p><span class="label">User ID:</span> <span id="userId">-</span></p>
+            <p><span class="label">Email:</span> <span id="userEmail">-</span></p>
+            <p><span class="label">Name:</span> <span id="userName">-</span></p>
+            <p><span class="label">Role:</span> <span id="userRole">-</span></p>
+            <p><span class="label">Email Verified:</span> <span id="userEmailVerified">-</span></p>
+            <p><span class="label">Tokens:</span> <span id="tokenStatus">None</span></p>
+        </div>
+
+        <div class="alert" id="globalAlert"></div>
+
+        <div class="grid">
+            <!-- Authentication -->
+            <div class="card">
+                <h2>🚀 Authentication</h2>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="auth-login">Sign In</button>
+                    <button class="tab-btn" data-tab="auth-signup">Sign Up</button>
+                </div>
+
+                <!-- Sign In Form -->
+                <div id="auth-login" class="tab-content active">
+                    <form id="form-signin" class="form">
+                        <div class="form-group">
+                            <label>Email or Username</label>
+                            <input type="text" id="signin-identifier" placeholder="user@example.com or username"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="signin-password" placeholder="Enter your password" required>
+                        </div>
+                        <button type="submit">Sign In</button>
+                    </form>
+                    <div class="result" id="signin-result"></div>
+                </div>
+
+                <!-- Sign Up Form -->
+                <div id="auth-signup" class="tab-content">
+                    <form id="form-signup" class="form">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="signup-name" placeholder="John Doe" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="signup-email" placeholder="user@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="signup-username"
+                                placeholder="john_doe (lowercase, numbers, underscores)" required pattern="^[a-z0-9_]+$"
+                                minlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label>Password (min 8 chars)</label>
+                            <input type="password" id="signup-password" placeholder="••••••••" required minlength="8">
+                        </div>
+                        <div class="note">Default role: <strong>student</strong></div>
+                        <button type="submit">Create Account</button>
+                    </form>
+                    <div class="result" id="signup-result"></div>
+                </div>
+            </div>
+
+            <!-- Email Verification -->
+            <div class="card">
+                <h2>✉️ Email Verification</h2>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="email-send">Send OTP</button>
+                    <button class="tab-btn" data-tab="email-verify">Verify Email</button>
+                </div>
+
+                <!-- Send OTP -->
+                <div id="email-send" class="tab-content active">
+                    <form id="form-send-otp" class="form">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" id="sendotp-email" placeholder="user@example.com" required>
+                        </div>
+                        <div class="note">Sends OTP to email for verification</div>
+                        <button type="submit">Send OTP</button>
+                    </form>
+                    <div class="result" id="sendotp-result"></div>
+                </div>
+
+                <!-- Verify Email -->
+                <div id="email-verify" class="tab-content">
+                    <form id="form-verify-email" class="form">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" id="verify-email" placeholder="user@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>OTP Code</label>
+                            <input type="text" id="verify-otp" placeholder="123456" required maxlength="6">
+                        </div>
+                        <button type="submit">Verify Email</button>
+                    </form>
+                    <div class="result" id="verify-email-result"></div>
+                </div>
+            </div>
+
+            <!-- Password Management -->
+            <div class="card">
+                <h2>🔑 Password Management</h2>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="pwd-change">Change Password</button>
+                    <button class="tab-btn" data-tab="pwd-forgot">Forgot Password</button>
+                    <button class="tab-btn" data-tab="pwd-reset">Reset Password</button>
+                </div>
+
+                <!-- Change Password -->
+                <div id="pwd-change" class="tab-content active">
+                    <div class="note">Requires authentication</div>
+                    <form id="form-change-password" class="form">
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="changepwd-current" placeholder="••••••••" required>
+                        </div>
+                        <div class="form-group">
+                            <label>New Password (min 8 chars)</label>
+                            <input type="password" id="changepwd-new" placeholder="••••••••" required minlength="8">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="changepwd-confirm" placeholder="••••••••" required minlength="8">
+                        </div>
+                        <button type="submit">Update Password</button>
+                    </form>
+                    <div class="result" id="changepwd-result"></div>
+                </div>
+
+                <!-- Forgot Password -->
+                <div id="pwd-forgot" class="tab-content">
+                    <form id="form-forgot-password" class="form">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" id="forgot-email" placeholder="user@example.com" required>
+                        </div>
+                        <button type="submit">Send Reset OTP</button>
+                    </form>
+                    <div class="result" id="forgot-result"></div>
+                </div>
+
+                <!-- Reset Password -->
+                <div id="pwd-reset" class="tab-content">
+                    <form id="form-reset-password" class="form">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" id="reset-email" placeholder="user@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>OTP Code (from email)</label>
+                            <input type="text" id="reset-otp" placeholder="123456" required maxlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password (min 8 chars)</label>
+                            <input type="password" id="reset-password" placeholder="••••••••" required minlength="8">
+                        </div>
+                        <button type="submit">Reset Password</button>
+                    </form>
+                    <div class="result" id="reset-result"></div>
+                </div>
+            </div>
+
+            <!-- User Account -->
+            <div class="card">
+                <h2>👤 User Account</h2>
+
+                <div class="form-group">
+                    <div class="badges">
+                        <div class="badge">Requires Auth</div>
+                    </div>
+                    <button id="btn-get-me" class="btn-secondary">Get Current User (/me)</button>
+                </div>
+
+                <div class="result" id="getme-result"></div>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+
+                <h3 style="margin-top: 20px; margin-bottom: 15px; color: #333;">Logout</h3>
+                <button id="btn-logout" class="btn-danger">Sign Out</button>
+                <div class="result" id="logout-result"></div>
+            </div>
+
+            <!-- Token Management -->
+            <div class="card">
+                <h2>🎫 Token Management</h2>
+
+                <div class="form-group">
+                    <div class="badges">
+                        <div class="badge">Optional Auth</div>
+                    </div>
+                    <label>Refresh Token (optional, from localStorage)</label>
+                    <input type="text" id="refresh-token-input" placeholder="Leave empty to use stored token"
+                        style="margin-bottom: 10px;">
+                    <button id="btn-refresh" class="btn-secondary">Refresh Token</button>
+                </div>
+
+                <div class="result" id="refresh-result"></div>
+            </div>
+
+            <!-- API Base URL Configuration -->
+            <div class="card">
+                <h2>⚙️ Configuration</h2>
+
+                <div class="form-group">
+                    <label>API Base URL</label>
+                    <input type="text" id="api-base-url" placeholder="http://localhost:5000/api">
+                </div>
+
+                <div class="form-group">
+                    <label for="auto-save">
+                        <input type="checkbox" id="auto-save" checked> Auto-save configuration
+                    </label>
+                </div>
+
+                <button id="btn-clear-storage" class="btn-danger">Clear Local Storage</button>
+                <div class="result" id="config-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ──────────────────────────────────────────────────────────────────────────
+        // Configuration & State
+        // ──────────────────────────────────────────────────────────────────────────
+
+        const API_BASE_URL = () => document.getElementById('api-base-url').value || 'http://localhost:5000/api';
+        let currentUser = null;
+        let tokens = {
+            access: null,
+            refresh: null
+        };
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Utility Functions
+        // ──────────────────────────────────────────────────────────────────────────
+
+        function showResult(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            element.classList.add('active');
+            element.classList.toggle('success', isSuccess);
+            element.classList.toggle('error', !isSuccess);
+
+            const formattedData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            element.innerHTML = `<pre>${escapeHtml(formattedData)}</pre>`;
+        }
+
+        function clearResult(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.classList.remove('active', 'success', 'error');
+                element.innerHTML = '';
+            }
+        }
+
+        function showAlert(message, isSuccess = true) {
+            const alert = document.getElementById('globalAlert');
+            alert.textContent = message;
+            alert.classList.add('active');
+            alert.classList.toggle('success', isSuccess);
+            alert.classList.toggle('error', !isSuccess);
+
+            setTimeout(() => {
+                alert.classList.remove('active');
+            }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function saveToStorage() {
+            if (!document.getElementById('auto-save').checked) return;
+
+            localStorage.setItem('api-base-url', API_BASE_URL());
+            if (tokens.access) localStorage.setItem('access-token', tokens.access);
+            if (tokens.refresh) localStorage.setItem('refresh-token', tokens.refresh);
+            if (currentUser) localStorage.setItem('current-user', JSON.stringify(currentUser));
+        }
+
+        function loadFromStorage() {
+            const savedUrl = localStorage.getItem('api-base-url');
+            if (savedUrl) document.getElementById('api-base-url').value = savedUrl;
+
+            const accessToken = localStorage.getItem('access-token');
+            const refreshToken = localStorage.getItem('refresh-token');
+            const savedUser = localStorage.getItem('current-user');
+
+            if (accessToken) tokens.access = accessToken;
+            if (refreshToken) tokens.refresh = refreshToken;
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateSessionInfo();
+            }
+        }
+
+        function updateSessionInfo() {
+            const sessionInfo = document.getElementById('sessionInfo');
+            if (!currentUser) {
+                sessionInfo.classList.remove('active');
+                return;
+            }
+
+            sessionInfo.classList.add('active');
+            document.getElementById('userId').textContent = currentUser.id || '-';
+            document.getElementById('userEmail').textContent = currentUser.email || '-';
+            document.getElementById('userName').textContent = currentUser.name || '-';
+            document.getElementById('userRole').textContent = currentUser.role || '-';
+            document.getElementById('userEmailVerified').textContent = currentUser.emailVerified ? 'Yes' : 'No';
+
+            const tokenStatus = [];
+            if (tokens.access) tokenStatus.push('Access');
+            if (tokens.refresh) tokenStatus.push('Refresh');
+            document.getElementById('tokenStatus').textContent = tokenStatus.length > 0 ? tokenStatus.join(', ') :
+                'None';
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // API Requests
+        // ──────────────────────────────────────────────────────────────────────────
+
+        async function apiCall(endpoint, method = 'GET', body = null, resultElementId = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                };
+
+                if (tokens.access) {
+                    options.headers['Authorization'] = `Bearer ${tokens.access}`;
+                }
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_BASE_URL()}${endpoint}`, options);
+                const data = await response.json();
+
+                const isSuccess = response.ok;
+
+                if (resultElementId) {
+                    showResult(resultElementId, data, isSuccess);
+                }
+
+                if (!isSuccess) {
+                    showAlert(`Error: ${data.error || 'Unknown error'}`, false);
+                    return { success: false, data };
+                }
+
+                return { success: true, data };
+            } catch (error) {
+                const errorMsg = error.message;
+                showAlert(`Network Error: ${errorMsg}`, false);
+                if (resultElementId) {
+                    showResult(resultElementId, errorMsg, false);
+                }
+                return { success: false, data: { error: errorMsg } };
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - Authentication
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('form-signin').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('signin-result');
+
+            const result = await apiCall('/auth/sign-in', 'POST', {
+                identifier: document.getElementById('signin-identifier').value,
+                password: document.getElementById('signin-password').value,
+            }, 'signin-result');
+
+            if (result.success) {
+                tokens.access = result.data.token || result.data.accessToken;
+                tokens.refresh = result.data.refreshToken;
+                if (result.data.user) {
+                    currentUser = result.data.user;
+                } else {
+                    // Try to get user info
+                    const meResult = await apiCall('/me');
+                    if (meResult.success) {
+                        currentUser = meResult.data.user;
+                    }
+                }
+                updateSessionInfo();
+                saveToStorage();
+                showAlert('Successfully signed in!');
+                document.getElementById('form-signin').reset();
+            }
+        });
+
+        document.getElementById('form-signup').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('signup-result');
+
+            const result = await apiCall('/auth/sign-up', 'POST', {
+                name: document.getElementById('signup-name').value,
+                email: document.getElementById('signup-email').value,
+                username: document.getElementById('signup-username').value,
+                password: document.getElementById('signup-password').value,
+            }, 'signup-result');
+
+            if (result.success) {
+                showAlert('Account created! Please verify your email.', true);
+                document.getElementById('form-signup').reset();
+            }
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - Email Verification
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('form-send-otp').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('sendotp-result');
+
+            await apiCall('/auth/send-otp', 'POST', {
+                email: document.getElementById('sendotp-email').value,
+            }, 'sendotp-result');
+        });
+
+        document.getElementById('form-verify-email').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('verify-email-result');
+
+            await apiCall('/auth/verify-email', 'POST', {
+                email: document.getElementById('verify-email').value,
+                code: document.getElementById('verify-otp').value,
+            }, 'verify-email-result');
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - Password Management
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('form-change-password').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('changepwd-result');
+
+            const newPwd = document.getElementById('changepwd-new').value;
+            const confirmPwd = document.getElementById('changepwd-confirm').value;
+
+            if (newPwd !== confirmPwd) {
+                showAlert('Passwords do not match', false);
+                return;
+            }
+
+            await apiCall('/auth/change-password', 'POST', {
+                currentPassword: document.getElementById('changepwd-current').value,
+                newPassword: newPwd,
+            }, 'changepwd-result');
+        });
+
+        document.getElementById('form-forgot-password').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('forgot-result');
+
+            await apiCall('/auth/forgot-password', 'POST', {
+                email: document.getElementById('forgot-email').value,
+            }, 'forgot-result');
+        });
+
+        document.getElementById('form-reset-password').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('reset-result');
+
+            await apiCall('/auth/reset-password', 'POST', {
+                email: document.getElementById('reset-email').value,
+                code: document.getElementById('reset-otp').value,
+                newPassword: document.getElementById('reset-password').value,
+            }, 'reset-result');
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - User Account
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('btn-get-me').addEventListener('click', async () => {
+            clearResult('getme-result');
+            const result = await apiCall('/me', 'GET', null, 'getme-result');
+
+            if (result.success && result.data.user) {
+                currentUser = result.data.user;
+                updateSessionInfo();
+                saveToStorage();
+            }
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            clearResult('logout-result');
+
+            await apiCall('/auth/sign-out', 'POST', {
+                refreshToken: tokens.refresh
+            }, 'logout-result');
+
+            currentUser = null;
+            tokens = { access: null, refresh: null };
+            updateSessionInfo();
+            saveToStorage();
+            showAlert('Signed out successfully');
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - Token Management
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('btn-refresh').addEventListener('click', async () => {
+            clearResult('refresh-result');
+
+            const refreshToken = document.getElementById('refresh-token-input').value || tokens.refresh;
+
+            if (!refreshToken) {
+                showAlert('No refresh token available', false);
+                return;
+            }
+
+            const result = await apiCall('/auth/refresh', 'POST', {
+                refreshToken: refreshToken
+            }, 'refresh-result');
+
+            if (result.success) {
+                tokens.access = result.data.accessToken;
+                if (result.data.refreshToken) {
+                    tokens.refresh = result.data.refreshToken;
+                }
+                updateSessionInfo();
+                saveToStorage();
+                showAlert('Token refreshed successfully');
+            }
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - Configuration
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('btn-clear-storage').addEventListener('click', () => {
+            localStorage.clear();
+            currentUser = null;
+            tokens = { access: null, refresh: null };
+            updateSessionInfo();
+            location.reload();
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Tab Navigation
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tabName = btn.getAttribute('data-tab');
+                const card = btn.closest('.card');
+
+                // Deactivate all tabs & contents in this card
+                card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                card.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                // Activate clicked tab & content
+                btn.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
+            });
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Initialization
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            console.log('🔐 User Endpoints Tester Initialized');
+            console.log(`API Base URL: ${API_BASE_URL()}`);
+        });
+
+        document.getElementById('auto-save').addEventListener('change', () => {
+            saveToStorage();
+        });
+    </script>
+</body>
+
+</html>

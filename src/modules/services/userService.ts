@@ -59,6 +59,7 @@ export class UserService {
         take: limit,
         include: {
           department: true,
+          batch: true,
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -84,6 +85,7 @@ export class UserService {
       where: { id: userId },
       include: {
         department: true,
+        batch: true,
       },
     });
   }
@@ -97,6 +99,7 @@ export class UserService {
       data,
       include: {
         department: true,
+        batch: true,
       },
     });
   }
@@ -133,6 +136,7 @@ export class UserService {
       data: { role },
       include: {
         department: true,
+        batch: true,
       },
     });
   }
@@ -156,6 +160,7 @@ export class UserService {
       data: { departmentId },
       include: {
         department: true,
+        batch: true,
       },
     });
   }

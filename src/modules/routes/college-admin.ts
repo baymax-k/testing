@@ -124,6 +124,11 @@ const assignMentorToBatchSchema = z.object({
   mentorId: z.string().min(1, "Mentor ID is required"),
 });
 
+const assignMentorToStudentsSchema = z.object({
+  mentorId: z.string().min(1, "Mentor ID is required"),
+  studentIds: z.array(z.string().min(1, "Student ID is required")).min(1, "At least one student ID is required"),
+});
+
 // ─── Student Management Validation Schemas ──────────────────────────────────────
 
 const createStudentSchema = z.object({
@@ -2181,19 +2186,29 @@ router.get(
       const stats: any = {};
 
       try {
+        const safeTestCount = async (where?: any) => {
+          try {
+            return await prisma.test.count({ where });
+          } catch (err: any) {
+            if (err?.code === "P2021") {
+              console.warn("[dashboard] Test table missing, returning 0 count");
+              return 0;
+            }
+            throw err;
+          }
+        };
+
         const now = new Date();
 
         const [totalDepartmentsCollege, totalBatchesCollege, totalStudentsCollege, totalTestsCollege, totalActiveTestsCollege] = await Promise.all([
           prisma.department.count(),
           prisma.batch.count(),
           prisma.user.count({ where: { role: "student" } }),
-          prisma.test.count(),
-          prisma.test.count({
-            where: {
-              scheduledStartTime: { lte: now },
-              scheduledEndTime: { gte: now },
-              status: { notIn: ["archived"] },
-            },
+          safeTestCount(),
+          safeTestCount({
+            scheduledStartTime: { lte: now },
+            scheduledEndTime: { gte: now },
+            status: { notIn: ["archived"] },
           }),
         ]);
 
@@ -2223,7 +2238,7 @@ router.get(
           const [totalBatches, totalStudents, totalTests, totalMentors] = await Promise.all([
             prisma.batch.count({ where: { departmentId: user.departmentId } }),
             prisma.user.count({ where: { role: "student", departmentId: user.departmentId } }),
-            prisma.test.count({ where: { departmentId: user.departmentId } }),
+            safeTestCount({ where: { departmentId: user.departmentId } }),
             prisma.user.count({ where: { role: "mentor", departmentId: user.departmentId } }),
           ]);
 
@@ -2243,7 +2258,7 @@ router.get(
                 // In future: add mentorId filter when batch-mentor relation is established
               } 
             }),
-            prisma.test.count({ where: { departmentId: user.departmentId } }),
+            safeTestCount({ where: { departmentId: user.departmentId } }),
           ]);
 
           stats.myStudents = myStudents;
@@ -2582,7 +2597,7 @@ router.get(
 router.put(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principalcor", "hod", "dept_admin"),
+  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3569,6 +3584,105 @@ router.get(
 );
 
 /**
+ * PUT /api/college-admin/students/assign-mentor
+ * Assign a mentor to students (all students must belong to the same batch)
+ * Access: college_admin, principal, hod (own department), dept_admin (own department)
+ */
+router.put(
+  "/students/assign-mentor",
+  requireAuth,
+  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const currentUser = req.user!;
+
+      const validation = assignMentorToStudentsSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          error: "Validation failed",
+          details: validation.error.issues,
+        });
+        return;
+      }
+
+      const { mentorId, studentIds } = validation.data;
+
+      // Fetch students to verify existence and batch consistency
+      const students = await prisma.user.findMany({
+        where: {
+          id: { in: studentIds },
+          role: "student",
+        },
+        select: { id: true, batchId: true, departmentId: true },
+      });
+
+      if (students.length !== studentIds.length) {
+        res.status(404).json({
+          error: "One or more students not found",
+        });
+        return;
+      }
+
+      // All students must belong to a batch to inherit mentor
+      if (students.some((s) => !s.batchId)) {
+        res.status(400).json({
+          error: "All students must belong to a batch before assigning a mentor",
+        });
+        return;
+      }
+
+      const batchIds = [...new Set(students.map((s) => s.batchId))];
+      if (batchIds.length !== 1) {
+        res.status(400).json({
+          error: "All students must be in the same batch to assign a mentor",
+        });
+        return;
+      }
+
+      const batchId = batchIds[0]!;
+
+      // HOD/Dept Admin scope restriction
+      if (["hod", "dept_admin"].includes(currentUser.role)) {
+        if (!currentUser.departmentId) {
+          res.status(403).json({ error: "User must have a department assigned" });
+          return;
+        }
+
+        const batch = await prisma.batch.findUnique({
+          where: { id: batchId },
+          select: { departmentId: true },
+        });
+
+        if (!batch) {
+          res.status(404).json({ error: "Batch not found" });
+          return;
+        }
+
+        if (batch.departmentId !== currentUser.departmentId) {
+          res.status(403).json({
+            error: "You can only assign mentors to students in your own department",
+          });
+          return;
+        }
+      }
+
+      const updatedBatch = await BatchService.assignMentorToBatch(batchId, mentorId);
+
+      res.json({
+        success: true,
+        message: "Mentor assigned to students successfully",
+        batch: updatedBatch,
+      });
+    } catch (error: any) {
+      console.error("[college-admin/students/assign-mentor] Error:", error);
+      res.status(error.message?.includes("not found") ? 404 : 400).json({
+        error: error.message || "Failed to assign mentor to students",
+      });
+    }
+  }
+);
+
+/**
  * POST /api/college-admin/students
  * Create a new student
  * Access: college_admin, principal, hod (only their department), dept_admin (only their department)
@@ -4029,6 +4143,18 @@ router.delete(
 
 // ─── Test Validation Schemas ────────────────────────────────────────────────────
 
+// Accepts ISO datetime strings, but gracefully treats null/empty as undefined so drafts can omit scheduling.
+const optionalDateString = z.preprocess(
+  (val) => (val === null || val === "" ? undefined : val),
+  z.string().refine((parsed) => !isNaN(Date.parse(parsed)), { message: "Invalid datetime" }).optional()
+);
+
+// Converts null/empty strings to undefined so optional string IDs don't reject null from frontend.
+const optionalStringId = z.preprocess(
+  (val) => (val === null || val === "" ? undefined : val),
+  z.string().optional()
+);
+
 const createTestSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title too long"),
   description: z.string().max(1000).optional(),
@@ -4037,10 +4163,10 @@ const createTestSchema = z.object({
   maxAttempts: z.number().int().min(1).max(10).optional(),
   maximumMarks: z.number().int().min(0).optional(),
   passingMarks: z.number().int().min(0).optional(),
-  scheduledStartTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  scheduledEndTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  departmentId: z.string().optional(),
-  batchId: z.string().optional(),
+  scheduledStartTime: optionalDateString,
+  scheduledEndTime: optionalDateString,
+  departmentId: optionalStringId,
+  batchId: optionalStringId,
 });
 
 const updateTestSchema = z.object({
@@ -4052,10 +4178,10 @@ const updateTestSchema = z.object({
   maxAttempts: z.number().int().min(1).max(10).optional(),
   totalMarks: z.number().int().min(0).optional(),
   passingMarks: z.number().int().min(0).optional(),
-  scheduledStartTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  scheduledEndTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  departmentId: z.string().optional(),
-  batchId: z.string().optional(),
+  scheduledStartTime: optionalDateString,
+  scheduledEndTime: optionalDateString,
+  departmentId: optionalStringId,
+  batchId: optionalStringId,
 });
 
 const createQuestionSchema = z.object({

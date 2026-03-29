@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Admin - User Management Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .breadcrumb {
+            color: #999;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .session-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .session-info.active {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            background: #f0f8ff;
+            border-left: 4px solid #667eea;
+        }
+
+        .session-item {
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .session-item .label {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .session-item .value {
+            color: #333;
+            margin-top: 5px;
+            word-break: break-all;
+            font-size: 0.95rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .card h3 {
+            color: #555;
+            font-size: 1rem;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="checkbox"],
+        input[type="radio"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .checkbox-group,
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .checkbox-label,
+        .radio-label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            margin-bottom: 0;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-small {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            margin-left: 5px;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #ddd;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result.success {
+            border-left-color: #28a745;
+            background: #f0f8f4;
+        }
+
+        .result.error {
+            border-left-color: #dc3545;
+            background: #fef5f5;
+        }
+
+        .result pre {
+            margin: 0;
+            overflow: auto;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .alert.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(450px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #856404;
+            margin-bottom: 15px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e9ecef;
+            color: #495057;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-right: 5px;
+        }
+
+        .badge.auth {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.roles {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .section-divider {
+            margin: 25px 0;
+            border: none;
+            border-top: 2px solid #ddd;
+        }
+
+        .bulk-config {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .bulk-config label {
+            margin-bottom: 8px;
+        }
+
+        .user-list {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .user-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+            font-size: 0.9rem;
+        }
+
+        .user-item strong {
+            display: block;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .user-item small {
+            color: #666;
+        }
+
+        .config-section {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: white;
+            color: #666;
+            border: none;
+            padding: 12px 16px;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-btn:hover {
+            color: #333;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>👥 College Admin - User Management</h1>
+            <p>Comprehensive testing interface for college-admin user management endpoints</p>
+            <div class="breadcrumb">API Base: /api/college-admin</div>
+        </header>
+
+        <div class="session-info" id="sessionInfo">
+            <div class="session-item">
+                <div class="label">User ID</div>
+                <div class="value" id="userId">-</div>
+            </div>
+            <div class="session-item">
+                <div class="label">Email</div>
+                <div class="value" id="userEmail">-</div>
+            </div>
+            <div class="session-item">
+                <div class="label">Role</div>
+                <div class="value" id="userRole">-</div>
+            </div>
+            <div class="session-item">
+                <div class="label">Department</div>
+                <div class="value" id="userDept">-</div>
+            </div>
+            <div class="session-item">
+                <div class="label">Token</div>
+                <div class="value" id="tokenStatus">No token</div>
+            </div>
+        </div>
+
+        <div class="alert" id="globalAlert"></div>
+
+        <div class="grid">
+            <!-- Create User -->
+            <div class="card">
+                <h2>➕ Create Single User</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal, HOD, Dept Admin</span>
+
+                <div class="note"><strong>Note:</strong> HOD/Dept Admin can only create users within their department and cannot assign privileged roles</div>
+
+                <form id="form-create-user" class="form">
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="cu-email" placeholder="user@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Name *</label>
+                        <input type="text" id="cu-name" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password (min 8 chars) *</label>
+                        <input type="password" id="cu-password" placeholder="••••••••" required minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="cu-role" required>
+                            <option value="">Select role...</option>
+                            <option value="student">Student</option>
+                            <option value="mentor">Mentor</option>
+                            <option value="instructor_staff">Instructor Staff</option>
+                            <option value="dept_admin">Dept Admin</option>
+                            <option value="hod">HOD</option>
+                            <option value="principal">Principal</option>
+                            <option value="college_admin">College Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone (optional)</label>
+                        <input type="tel" id="cu-phone" placeholder="+91-9876543210">
+                    </div>
+                    <div class="form-group">
+                        <label>Department ID (optional)</label>
+                        <input type="text" id="cu-deptId" placeholder="Department CUID">
+                    </div>
+                    <button type="submit">Create User</button>
+                </form>
+                <div class="result" id="create-user-result"></div>
+            </div>
+
+            <!-- List Users -->
+            <div class="card">
+                <h2>📋 List Users</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: Most roles</span>
+
+                <form id="form-list-users" class="form">
+                    <div class="form-group">
+                        <label>Search (name/email)</label>
+                        <input type="text" id="lu-search" placeholder="Search by name or email">
+                    </div>
+                    <div class="form-group">
+                        <label>Filter by Role</label>
+                        <select id="lu-role">
+                            <option value="">All roles</option>
+                            <option value="student">Student</option>
+                            <option value="mentor">Mentor</option>
+                            <option value="instructor_staff">Instructor Staff</option>
+                            <option value="dept_admin">Dept Admin</option>
+                            <option value="hod">HOD</option>
+                            <option value="principal">Principal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Department ID (optional)</label>
+                        <input type="text" id="lu-deptId" placeholder="Filter by department">
+                    </div>
+                    <div class="form-group">
+                        <label>Page</label>
+                        <input type="number" id="lu-page" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Limit per page</label>
+                        <input type="number" id="lu-limit" value="10" min="1" max="100">
+                    </div>
+                    <button type="submit">Fetch Users</button>
+                </form>
+                <div class="result" id="list-users-result"></div>
+            </div>
+
+            <!-- Get User by ID -->
+            <div class="card">
+                <h2>👤 Get User by ID</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal, HOD, Dept Admin</span>
+
+                <form id="form-get-user" class="form">
+                    <div class="form-group">
+                        <label>User ID *</label>
+                        <input type="text" id="gu-userId" placeholder="User CUID" required>
+                    </div>
+                    <button type="submit">Get User</button>
+                </form>
+                <div class="result" id="get-user-result"></div>
+            </div>
+
+            <!-- Update User -->
+            <div class="card">
+                <h2>✏️ Update User</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal, HOD, Dept Admin</span>
+
+                <form id="form-update-user" class="form">
+                    <div class="form-group">
+                        <label>User ID *</label>
+                        <input type="text" id="uu-userId" placeholder="User CUID" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Name (optional)</label>
+                        <input type="text" id="uu-name" placeholder="New name">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone (optional)</label>
+                        <input type="tel" id="uu-phone" placeholder="Phone number">
+                    </div>
+                    <div class="form-group">
+                        <label>Image URL (optional)</label>
+                        <input type="url" id="uu-image" placeholder="https://example.com/image.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label>Role (optional)</label>
+                        <select id="uu-role">
+                            <option value="">Keep existing</option>
+                            <option value="student">Student</option>
+                            <option value="mentor">Mentor</option>
+                            <option value="instructor_staff">Instructor Staff</option>
+                            <option value="dept_admin">Dept Admin</option>
+                            <option value="hod">HOD</option>
+                            <option value="principal">Principal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Department ID (optional, null to remove)</label>
+                        <input type="text" id="uu-deptId" placeholder="Department CUID or null">
+                    </div>
+                    <button type="submit">Update User</button>
+                </form>
+                <div class="result" id="update-user-result"></div>
+            </div>
+
+            <!-- Delete User -->
+            <div class="card">
+                <h2>🗑️ Delete User</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal, HOD, Dept Admin</span>
+
+                <div class="note"><strong>Warning:</strong> This action cannot be undone</div>
+
+                <form id="form-delete-user" class="form">
+                    <div class="form-group">
+                        <label>User ID *</label>
+                        <input type="text" id="du-userId" placeholder="User CUID" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="du-confirm">
+                            <input type="checkbox" id="du-confirm" required> I confirm I want to delete this user
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-danger">Delete User</button>
+                </form>
+                <div class="result" id="delete-user-result"></div>
+            </div>
+
+            <!-- Assign Role -->
+            <div class="card">
+                <h2>🔐 Assign Role to User</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal</span>
+
+                <form id="form-assign-role" class="form">
+                    <div class="form-group">
+                        <label>User ID *</label>
+                        <input type="text" id="ar-userId" placeholder="User CUID" required>
+                    </div>
+                    <div class="form-group">
+                        <label>New Role *</label>
+                        <select id="ar-role" required>
+                            <option value="">Select role...</option>
+                            <option value="student">Student</option>
+                            <option value="mentor">Mentor</option>
+                            <option value="instructor_staff">Instructor Staff</option>
+                            <option value="dept_admin">Dept Admin</option>
+                            <option value="hod">HOD</option>
+                            <option value="principal">Principal</option>
+                        </select>
+                    </div>
+                    <button type="submit">Assign Role</button>
+                </form>
+                <div class="result" id="assign-role-result"></div>
+            </div>
+
+            <!-- Assign Department -->
+            <div class="card">
+                <h2>🏢 Assign Department to User</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal, HOD</span>
+
+                <form id="form-assign-dept" class="form">
+                    <div class="form-group">
+                        <label>User ID *</label>
+                        <input type="text" id="ad-userId" placeholder="User CUID" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Department ID (or null to remove) *</label>
+                        <input type="text" id="ad-deptId" placeholder="Department CUID or null" required>
+                    </div>
+                    <button type="submit">Assign Department</button>
+                </form>
+                <div class="result" id="assign-dept-result"></div>
+            </div>
+
+            <!-- Bulk Create Users -->
+            <div class="card">
+                <h2>📦 Bulk Create Users</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal</span>
+
+                <div class="note">Create up to 100 users at once from CSV or JSON data</div>
+
+                <div class="bulk-config">
+                    <label>Input Format</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="bulk-format" value="json" checked> JSON Array
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="bulk-format" value="csv"> CSV (name,email,password,role,phone,departmentId)
+                        </label>
+                    </div>
+                </div>
+
+                <form id="form-bulk-users" class="form">
+                    <div class="form-group">
+                        <label>User Data *</label>
+                        <textarea id="bu-data" placeholder='[{"name":"John","email":"john@example.com","password":"password123","role":"student","phone":"9876543210","departmentId":"dept-id"}]'
+                            rows="8" required></textarea>
+                    </div>
+                    <button type="submit">Create Users in Bulk</button>
+                </form>
+                <div class="result" id="bulk-users-result"></div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="card">
+                <h2>⚙️ Configuration</h2>
+
+                <div class="form-group">
+                    <label>API Base URL</label>
+                    <input type="text" id="api-base-url" value="http://localhost:5000/api" placeholder="http://localhost:5000/api">
+                </div>
+
+                <div class="form-group">
+                    <label>Bearer Token</label>
+                    <input type="password" id="auth-token" placeholder="Paste your JWT token here">
+                </div>
+
+                <div class="form-group">
+                    <label for="auto-save">
+                        <input type="checkbox" id="auto-save" checked> Auto-save configuration
+                    </label>
+                </div>
+
+                <button id="btn-clear-storage" class="btn-danger">Clear All Data</button>
+                <div class="result" id="config-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ──────────────────────────────────────────────────────────────────────────
+        // Configuration & State
+        // ──────────────────────────────────────────────────────────────────────────
+
+        const API_BASE_URL = () => document.getElementById('api-base-url').value || 'http://localhost:5000/api';
+        const getAuthToken = () => document.getElementById('auth-token').value;
+
+        let currentUser = null;
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Utility Functions
+        // ──────────────────────────────────────────────────────────────────────────
+
+        function showResult(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            element.classList.add('active');
+            element.classList.toggle('success', isSuccess);
+            element.classList.toggle('error', !isSuccess);
+
+            const formattedData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            element.innerHTML = `<pre>${escapeHtml(formattedData)}</pre>`;
+        }
+
+        function clearResult(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.classList.remove('active', 'success', 'error');
+                element.innerHTML = '';
+            }
+        }
+
+        function showAlert(message, isSuccess = true) {
+            const alert = document.getElementById('globalAlert');
+            alert.textContent = message;
+            alert.classList.add('active');
+            alert.classList.toggle('success', isSuccess);
+            alert.classList.toggle('error', !isSuccess);
+
+            setTimeout(() => {
+                alert.classList.remove('active');
+            }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function saveToStorage() {
+            if (!document.getElementById('auto-save').checked) return;
+
+            localStorage.setItem('ca-api-base-url', API_BASE_URL());
+            localStorage.setItem('ca-auth-token', getAuthToken());
+            if (currentUser) localStorage.setItem('ca-current-user', JSON.stringify(currentUser));
+        }
+
+        function loadFromStorage() {
+            const savedUrl = localStorage.getItem('ca-api-base-url');
+            const savedToken = localStorage.getItem('ca-auth-token');
+            const savedUser = localStorage.getItem('ca-current-user');
+
+            if (savedUrl) document.getElementById('api-base-url').value = savedUrl;
+            if (savedToken) document.getElementById('auth-token').value = savedToken;
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateSessionInfo();
+            }
+        }
+
+        function updateSessionInfo() {
+            const sessionInfo = document.getElementById('sessionInfo');
+            if (!currentUser || !getAuthToken()) {
+                sessionInfo.classList.remove('active');
+                return;
+            }
+
+            sessionInfo.classList.add('active');
+            document.getElementById('userId').textContent = currentUser.id || '-';
+            document.getElementById('userEmail').textContent = currentUser.email || '-';
+            document.getElementById('userRole').textContent = currentUser.role || '-';
+            document.getElementById('userDept').textContent = currentUser.departmentId || 'Not assigned';
+            document.getElementById('tokenStatus').textContent = `${getAuthToken().substring(0, 20)}...`;
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // API Requests
+        // ──────────────────────────────────────────────────────────────────────────
+
+        async function apiCall(endpoint, method = 'GET', body = null, resultElementId = null) {
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    showAlert('No authentication token provided', false);
+                    return { success: false };
+                }
+
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                };
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_BASE_URL()}/college-admin${endpoint}`, options);
+                const data = await response.json();
+
+                const isSuccess = response.ok;
+
+                if (resultElementId) {
+                    showResult(resultElementId, data, isSuccess);
+                }
+
+                if (!isSuccess) {
+                    showAlert(`Error: ${data.error || 'Unknown error'}`, false);
+                    return { success: false, data };
+                }
+
+                showAlert('Request successful!', true);
+                return { success: true, data };
+            } catch (error) {
+                const errorMsg = error.message;
+                showAlert(`Network Error: ${errorMsg}`, false);
+                if (resultElementId) {
+                    showResult(resultElementId, errorMsg, false);
+                }
+                return { success: false, data: { error: errorMsg } };
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - User Management
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('form-create-user').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('create-user-result');
+
+            const body = {
+                email: document.getElementById('cu-email').value,
+                name: document.getElementById('cu-name').value,
+                password: document.getElementById('cu-password').value,
+                role: document.getElementById('cu-role').value,
+            };
+
+            const phone = document.getElementById('cu-phone').value;
+            if (phone) body.phone = phone;
+
+            const deptId = document.getElementById('cu-deptId').value;
+            if (deptId) body.departmentId = deptId;
+
+            await apiCall('/users', 'POST', body, 'create-user-result');
+        });
+
+        document.getElementById('form-list-users').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('list-users-result');
+
+            const params = new URLSearchParams();
+            const search = document.getElementById('lu-search').value;
+            const role = document.getElementById('lu-role').value;
+            const deptId = document.getElementById('lu-deptId').value;
+            const page = document.getElementById('lu-page').value;
+            const limit = document.getElementById('lu-limit').value;
+
+            if (search) params.append('search', search);
+            if (role) params.append('role', role);
+            if (deptId) params.append('departmentId', deptId);
+            if (page) params.append('page', page);
+            if (limit) params.append('limit', limit);
+
+            const endpoint = `/users${params.toString() ? '?' + params.toString() : ''}`;
+            await apiCall(endpoint, 'GET', null, 'list-users-result');
+        });
+
+        document.getElementById('form-get-user').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('get-user-result');
+
+            const userId = document.getElementById('gu-userId').value;
+            await apiCall(`/users/${userId}`, 'GET', null, 'get-user-result');
+        });
+
+        document.getElementById('form-update-user').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('update-user-result');
+
+            const userId = document.getElementById('uu-userId').value;
+            const body = {};
+
+            const name = document.getElementById('uu-name').value;
+            if (name) body.name = name;
+
+            const phone = document.getElementById('uu-phone').value;
+            if (phone) body.phone = phone;
+
+            const image = document.getElementById('uu-image').value;
+            if (image) body.image = image;
+
+            const role = document.getElementById('uu-role').value;
+            if (role) body.role = role;
+
+            const deptId = document.getElementById('uu-deptId').value;
+            if (deptId) body.departmentId = deptId === 'null' ? null : deptId;
+
+            await apiCall(`/users/${userId}`, 'PUT', body, 'update-user-result');
+        });
+
+        document.getElementById('form-delete-user').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('delete-user-result');
+
+            const userId = document.getElementById('du-userId').value;
+            await apiCall(`/users/${userId}`, 'DELETE', {}, 'delete-user-result');
+        });
+
+        document.getElementById('form-assign-role').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('assign-role-result');
+
+            const userId = document.getElementById('ar-userId').value;
+            const role = document.getElementById('ar-role').value;
+
+            await apiCall(`/users/${userId}/assign-role`, 'PUT', { role }, 'assign-role-result');
+        });
+
+        document.getElementById('form-assign-dept').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('assign-dept-result');
+
+            const userId = document.getElementById('ad-userId').value;
+            const deptId = document.getElementById('ad-deptId').value;
+
+            await apiCall(`/users/${userId}/assign-department`, 'PUT', 
+                { departmentId: deptId === 'null' ? null : deptId }, 
+                'assign-dept-result');
+        });
+
+        document.getElementById('form-bulk-users').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('bulk-users-result');
+
+            const format = document.querySelector('input[name="bulk-format"]:checked').value;
+            const dataInput = document.getElementById('bu-data').value;
+
+            let users;
+            try {
+                if (format === 'json') {
+                    users = JSON.parse(dataInput);
+                } else {
+                    // Parse CSV
+                    const lines = dataInput.trim().split('\n');
+                    users = lines.map(line => {
+                        const [name, email, password, role, phone, departmentId] = line.split(',').map(s => s.trim());
+                        return { name, email, password, role, phone, departmentId };
+                    });
+                }
+
+                await apiCall('/users/bulk', 'POST', { users }, 'bulk-users-result');
+            } catch (error) {
+                showAlert(`Invalid ${format.toUpperCase()}: ${error.message}`, false);
+            }
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Configuration
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('btn-clear-storage').addEventListener('click', () => {
+            localStorage.clear();
+            location.reload();
+        });
+
+        document.getElementById('auto-save').addEventListener('change', () => {
+            saveToStorage();
+        });
+
+        document.getElementById('api-base-url').addEventListener('change', saveToStorage);
+        document.getElementById('auth-token').addEventListener('change', () => {
+            saveToStorage();
+            updateSessionInfo();
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Initialization
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            console.log('👥 College Admin - User Management Tester Initialized');
+            console.log(`API Base URL: ${API_BASE_URL()}`);
+        });
+    </script>
+</body>
+
+</html>
