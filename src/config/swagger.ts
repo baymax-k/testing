@@ -218,6 +218,68 @@ const swaggerOptions: swaggerJsdoc.Options = {
             runtime: { type: "string", nullable: true },
             memory: { type: "number", nullable: true },
             createdAt: { type: "string", format: "date-time" },
+            problem: {
+              type: "object",
+              nullable: true,
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+                slug: { type: "string" },
+                difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                tags: { type: "array", items: { type: "string" } },
+              },
+            },
+          },
+        },
+        StudentProfileResponse: {
+          type: "object",
+          properties: {
+            profile: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                name: { type: "string" },
+                username: { type: "string" },
+                email: { type: "string" },
+                image: { type: "string", nullable: true },
+                phone: { type: "string", nullable: true },
+                role: { type: "string" },
+                emailVerified: { type: "boolean" },
+                createdAt: { type: "string", format: "date-time" },
+                updatedAt: { type: "string", format: "date-time" },
+              },
+            },
+            stats: {
+              type: "object",
+              properties: {
+                problemsSolvedCount: { type: "integer" },
+                difficultyBreakdown: {
+                  type: "object",
+                  properties: {
+                    easy: { type: "integer" },
+                    medium: { type: "integer" },
+                    hard: { type: "integer" },
+                  },
+                },
+                topicMastery: {
+                  type: "object",
+                  additionalProperties: { type: "integer" },
+                  description: "Count of solved problems grouped by tag/topic",
+                },
+                mcqSessionsSolvedCount: { type: "integer" },
+                totalSubmissions: { type: "integer" },
+                acceptedSubmissions: { type: "integer" },
+              },
+            },
+            streak: {
+              type: "object",
+              nullable: true,
+              properties: {
+                currentStreak: { type: "integer" },
+                longestStreak: { type: "integer" },
+                lastSolveDate: { type: "string", format: "date", nullable: true },
+              },
+            },
           },
         },
         Question: {
@@ -891,8 +953,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
           security: [{ cookieAuth: [] }],
           responses: {
             "200": {
-              description: "Student profile",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } },
+              description: "Student profile with stats and streak",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/StudentProfileResponse" } } },
             },
             "401": { description: "Not authenticated" },
             "403": { description: "Forbidden G�� not a student" },
@@ -1696,7 +1758,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
         get: {
           summary: "List user's submissions",
-          description: "Returns the authenticated user's submission history, optionally filtered by problem.",
+          description:
+            "Returns the authenticated user's submission history with filtering and pagination. " +
+            "Submissions include basic problem metadata when available.",
           tags: ["Submissions"],
           security: [{ cookieAuth: [] }],
           parameters: [
@@ -1708,16 +1772,58 @@ const swaggerOptions: swaggerJsdoc.Options = {
               description: "Filter by problem slug",
             },
             {
+              name: "status",
+              in: "query",
+              required: false,
+              schema: {
+                type: "string",
+                enum: [
+                  "processing",
+                  "accepted",
+                  "wrong_answer",
+                  "time_limit_exceeded",
+                  "memory_limit_exceeded",
+                  "runtime_error",
+                  "compilation_error",
+                  "internal_error",
+                ],
+              },
+              description: "Filter by submission status",
+            },
+            {
+              name: "language",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Filter by language",
+            },
+            {
+              name: "from",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "Filter submissions created on/after this date (YYYY-MM-DD)",
+            },
+            {
+              name: "to",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "Filter submissions created on/before this date (YYYY-MM-DD)",
+            },
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              schema: { type: "integer", default: 1, minimum: 1 },
+              description: "Page number (1-indexed)",
+            },
+            {
               name: "limit",
               in: "query",
               required: false,
               schema: { type: "integer", default: 20, minimum: 1, maximum: 100 },
-            },
-            {
-              name: "offset",
-              in: "query",
-              required: false,
-              schema: { type: "integer", default: 0, minimum: 0 },
+              description: "Items per page",
             },
           ],
           responses: {
@@ -1732,7 +1838,15 @@ const swaggerOptions: swaggerJsdoc.Options = {
                         type: "array",
                         items: { $ref: "#/components/schemas/SubmissionSummary" },
                       },
-                      total: { type: "integer" },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
                     },
                   },
                 },

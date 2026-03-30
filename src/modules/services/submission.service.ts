@@ -3,6 +3,7 @@
 
 import { prisma } from "../../config/prisma.js";
 import type { SubmissionStatus } from "@prisma/client";
+import { getProblems } from "../../data/problems/index.js";
 import { getProblemWithTestCases } from "../../data/problems/index.js";
 import type { TestCaseVisibility } from "../../data/problems/types.js";
 import {
@@ -291,11 +292,44 @@ export async function submitCode(
  */
 export async function getSubmissions(
   userId: string,
-  options: { problemId?: string; limit: number; offset: number }
+  options: {
+    problemId?: string;
+    status?: SubmissionStatus;
+    language?: string;
+    from?: Date;
+    to?: Date;
+    limit: number;
+    offset: number;
+  }
 ) {
-  const where: { userId: string; problemId?: string } = { userId };
+  const where: {
+    userId: string;
+    problemId?: string;
+    status?: SubmissionStatus;
+    language?: string;
+    createdAt?: { gte?: Date; lte?: Date };
+  } = { userId };
+
   if (options.problemId) {
     where.problemId = options.problemId;
+  }
+
+  if (options.status) {
+    where.status = options.status;
+  }
+
+  if (options.language) {
+    where.language = options.language;
+  }
+
+  if (options.from || options.to) {
+    where.createdAt = {};
+    if (options.from) {
+      where.createdAt.gte = options.from;
+    }
+    if (options.to) {
+      where.createdAt.lte = options.to;
+    }
   }
 
   const [submissions, total] = await Promise.all([
@@ -319,7 +353,24 @@ export async function getSubmissions(
     prisma.submission.count({ where }),
   ]);
 
-  return { submissions, total };
+  const problemMap = new Map(getProblems().map((problem) => [problem.slug, problem]));
+  const enriched = submissions.map((submission) => {
+    const problem = problemMap.get(submission.problemId) || null;
+    return {
+      ...submission,
+      problem: problem
+        ? {
+            id: problem.id,
+            title: problem.title,
+            slug: problem.slug,
+            difficulty: problem.difficulty,
+            tags: problem.tags,
+          }
+        : null,
+    };
+  });
+
+  return { submissions: enriched, total };
 }
 
 /**

@@ -63,10 +63,26 @@ export type SubmitCodeInput = z.infer<typeof submitCodeSchema>;
 /**
  * GET /api/v1/submissions query params
  */
+const submissionStatusValues = [
+  "processing",
+  "accepted",
+  "wrong_answer",
+  "time_limit_exceeded",
+  "memory_limit_exceeded",
+  "runtime_error",
+  "compilation_error",
+  "internal_error",
+] as const;
+
 export const submissionQuerySchema = z.object({
   problemId: z.string().optional(),
-  limit: z.coerce.number().min(1).max(100).default(20),
-  offset: z.coerce.number().min(0).default(0),
+  status: z.enum(submissionStatusValues).optional(),
+  language: z.string().optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).optional(),
 });
 
 export type SubmissionQueryInput = z.infer<typeof submissionQuerySchema>;

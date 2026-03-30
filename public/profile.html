@@ -21,9 +21,55 @@
         </div>
     </div>
     <div class="container">
-        <div class="card" style="max-width: 600px; margin-bottom: 20px;">
+        <div class="card" style="max-width: 900px; margin-bottom: 20px;">
             <h2>My Profile</h2>
             <div id="profile-summary">Loading...</div>
+        </div>
+        <div class="card" style="max-width: 900px; margin-bottom: 20px;">
+            <h2>Stats</h2>
+            <div id="stats-grid" class="grid-4" style="margin-bottom: 20px;">
+                <div class="stat">
+                    <div class="stat-label">Problems Solved</div>
+                    <div class="stat-value" id="problems-solved">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">MCQ Sessions</div>
+                    <div class="stat-value" id="mcq-solved">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Total Submissions</div>
+                    <div class="stat-value" id="total-submissions">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Accepted</div>
+                    <div class="stat-value" id="accepted-submissions">-</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 20px;">Difficulty Breakdown</h3>
+            <div id="difficulties-grid" class="grid-4" style="margin-bottom: 20px;">
+                <div class="stat">
+                    <div class="stat-label">Easy</div>
+                    <div class="stat-value" style="color: #4CAF50;" id="diff-easy">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Medium</div>
+                    <div class="stat-value" style="color: #FF9800;" id="diff-medium">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Hard</div>
+                    <div class="stat-value" style="color: #F44336;" id="diff-hard">-</div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Topic Mastery</h3>
+            <div id="topics-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <!-- Topics will be injected here -->
+            </div>
+        </div>
+        <div class="card" style="max-width: 900px; margin-bottom: 20px;">
+            <h2>Streak</h2>
+            <div id="streak-summary">Loading...</div>
         </div>
         <div class="card" style="max-width: 600px;">
             <h2>Change Password</h2>
@@ -44,16 +90,58 @@
             if (!await checkAuth()) return;
 
             const profileResult = await fetchAPI('/student/profile');
+            const summaryEl = document.getElementById('profile-summary');
+            const streakEl = document.getElementById('streak-summary');
+
             if (profileResult && profileResult.status === 200) {
-                const p = profileResult.data;
-                document.getElementById('profile-summary').innerHTML = `
-                    Name: ${p.name}<br>
-                    Email: ${p.email}<br>
-                    Role: ${p.role}<br>
-                    Email Verified: ${p.emailVerified ? 'Yes' : 'No'}
+                const { profile, stats, streak } = profileResult.data;
+
+                summaryEl.innerHTML = `
+                    <div><strong>Name:</strong> ${profile?.name || '-'} (${profile?.username || '-'})</div>
+                    <div><strong>Email:</strong> ${profile?.email || '-'} ${profile?.emailVerified ? '✅' : '❌'}</div>
+                    <div><strong>Role:</strong> ${profile?.role || '-'}</div>
+                    <div><strong>Phone:</strong> ${profile?.phone || 'Not set'}</div>
+                    <div><strong>Joined:</strong> ${profile?.createdAt ? formatDate(profile.createdAt) : '-'}</div>
                 `;
+
+                document.getElementById('problems-solved').textContent = stats?.problemsSolvedCount ?? '-';
+                document.getElementById('mcq-solved').textContent = stats?.mcqSessionsSolvedCount ?? '-';
+                document.getElementById('total-submissions').textContent = stats?.totalSubmissions ?? '-';
+                document.getElementById('accepted-submissions').textContent = stats?.acceptedSubmissions ?? '-';
+                
+                // Difficulty Breakdown
+                if (stats?.difficultyBreakdown) {
+                    document.getElementById('diff-easy').textContent = stats.difficultyBreakdown.easy || 0;
+                    document.getElementById('diff-medium').textContent = stats.difficultyBreakdown.medium || 0;
+                    document.getElementById('diff-hard').textContent = stats.difficultyBreakdown.hard || 0;
+                }
+
+                // Topic Mastery
+                const topicsList = document.getElementById('topics-list');
+                if (stats?.topicMastery && Object.keys(stats.topicMastery).length > 0) {
+                    topicsList.innerHTML = Object.entries(stats.topicMastery)
+                        .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                        .map(([topic, count]) => `
+                            <div style="background: #f0f0f0; padding: 4px 12px; border-radius: 16px; font-size: 14px;">
+                                <strong>${topic}</strong>: ${count}
+                            </div>
+                        `).join('');
+                } else {
+                    topicsList.innerHTML = '<div style="color: #666;">No topics mastered yet.</div>';
+                }
+
+                if (streak) {
+                    streakEl.innerHTML = `
+                        <div><strong>Current Streak:</strong> ${streak.currentStreak} days</div>
+                        <div><strong>Longest Streak:</strong> ${streak.longestStreak} days</div>
+                        <div><strong>Last Solve:</strong> ${streak.lastSolveDate || 'Not recorded'}</div>
+                    `;
+                } else {
+                    streakEl.textContent = 'No streak data yet.';
+                }
             } else {
-                document.getElementById('profile-summary').innerHTML = 'Failed to load profile summary';
+                summaryEl.innerHTML = 'Failed to load profile summary';
+                streakEl.innerHTML = 'Failed to load streak';
             }
 
             document.getElementById('change-password').addEventListener('submit', async (e) => {

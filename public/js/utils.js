@@ -83,5 +83,18 @@ function getDifficultyBadge(difficulty) {
 
 // Format status badge
 function getStatusBadge(status) {
-    return `<span class="status ${status.toLowerCase()}">${status}</span>`;
+    const key = (status || '').toLowerCase();
+    const labels = {
+        accepted: 'Accepted',
+        wrong_answer: 'Wrong Answer',
+        time_limit_exceeded: 'Time Limit',
+        memory_limit_exceeded: 'Memory Limit',
+        runtime_error: 'Runtime Error',
+        compilation_error: 'Compilation Error',
+        processing: 'Processing',
+        internal_error: 'Internal Error'
+    };
+    const label = labels[key] || status || 'Unknown';
+    const cls = key || 'unknown';
+    return `<span class="status ${cls}">${label}</span>`;
 }

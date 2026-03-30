@@ -117,18 +117,26 @@ export async function listSubmissionsHandler(req: Request, res: Response): Promi
 
   try {
     const query = submissionQuerySchema.parse(req.query);
+    const offset = query.offset ?? (query.page - 1) * query.limit;
 
     const { submissions, total } = await getSubmissions(user.userId, {
       problemId: query.problemId,
+      status: query.status,
+      language: query.language,
+      from: query.from,
+      to: query.to,
       limit: query.limit,
-      offset: query.offset,
+      offset,
     });
 
     res.json({
       submissions,
-      total,
-      limit: query.limit,
-      offset: query.offset,
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        pages: Math.ceil(total / query.limit),
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -409,7 +409,7 @@ async function autoSelectChallenge(today: Date) {
 /**
  * Update streak after a successful solve.
  */
-async function updateStreak(userId: string, challengeDate: Date) {
+export async function updateStreak(userId: string, challengeDate: Date) {
   const today = getDateOnly(challengeDate);
   const yesterday = getDateOnly(new Date(today.getTime() - 86400000));
 

@@ -81,8 +81,28 @@ vi.mock("../../middleware/auth.js", () => ({
   },
 }));
 
+type PrismaModelMock = {
+  findMany: ReturnType<typeof vi.fn>;
+  findUnique: ReturnType<typeof vi.fn>;
+  findFirst: ReturnType<typeof vi.fn>;
+  create: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+  updateMany?: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  count: ReturnType<typeof vi.fn>;
+};
+
+type PrismaMock = {
+  user: PrismaModelMock;
+  department: PrismaModelMock;
+  batch: PrismaModelMock;
+  test: PrismaModelMock;
+  $disconnect: ReturnType<typeof vi.fn>;
+};
+
 // Import after mocks
-const { prisma, auth } = await import("../../config/auth.js");
+const { prisma: prismaClient, auth } = await import("../../config/auth.js");
+const prisma = prismaClient as unknown as PrismaMock;
 const app = (await import("../../app.js")).default;
 
 describe("College Admin - Student Endpoints", () => {
