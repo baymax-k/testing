@@ -46,6 +46,14 @@ enum TestStatus {
   archived
 }
 
+enum HackathonStatus {
+  draft
+  registration_open
+  in_progress
+  completed
+  cancelled
+}
+
 enum QuestionType {
   // Practice/contest problem types
   mcq
@@ -109,6 +117,11 @@ model User {
   createdTests    Test[]       @relation("TestCreatedBy")
   testAttempts    TestAttempt[] @relation("StudentTestAttempts")
   productAdminSettings ProductAdminSettings?
+
+  // Hackathon management
+  hackathonsCreated HackathonTeam[] @relation("HackathonTeamLead")
+  hackathonsCreatedByUser Hackathon[] @relation("HackathonCreator")
+  hackathonParticipations HackathonParticipant[] @relation("HackathonParticipants")
 
   @@index([collegeId])
   @@index([departmentId])
@@ -195,6 +208,7 @@ model College {
   updatedAt      DateTime     @updatedAt
   departments    Department[]
   users          User[]       @relation("CollegeUsers")
+  hackathons     Hackathon[]
 
   @@index([adminId])
   @@index([createdById])
@@ -416,16 +430,24 @@ model Test {
   batch               Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
   createdById         String
   createdBy           User         @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  
+  // Public availability
+  isPublic            Boolean      @default(false)
+  difficulty          String?      @default("medium") // easy, medium, hard
+  tags                String[]     @default([])        // ["DSA", "DP", "Arrays"] etc
+  
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   questions           Question[]
   attempts            TestAttempt[]
 
   @@index([status])
+  @@index([isPublic])
   @@index([departmentId])
   @@index([batchId])
   @@index([createdById])
   @@index([scheduledStartTime])
+  @@index([difficulty])
   @@map("test")
 }
 
@@ -577,4 +599,106 @@ model PracticeRandomSet {
 
   @@index([userId])
   @@map("practice_random_set")
+}
+
+// ─── Hackathon Management ────────────────────────────────────────────────────
+model Hackathon {
+  id              String            @id @default(cuid())
+  title           String            @db.VarChar(255)
+  description     String?           @db.Text
+  shortDescription String?          @db.VarChar(500)
+  collegeId       String
+  createdByUserId String            // Super admin who created it
+  
+  // Timing
+  startDate       DateTime
+  endDate         DateTime
+  registrationDeadline DateTime?
+  
+  // Settings
+  status          HackathonStatus   @default(draft)
+  maxTeams        Int?              // null = unlimited
+  maxTeamSize     Int               @default(5)
+  minTeamSize     Int               @default(1)
+  theme           String?           // e.g., "AI/ML", "Web Development"
+  problemStatementUrl String?       @db.VarChar(500)
+  
+  // Visibility & Rules
+  isPublic        Boolean           @default(true)
+  allowRemoteParticipation Boolean @default(true)
+  prizesInfo      String?           @db.Text     // JSON or description
+  rulesUrl        String?           @db.VarChar(500)
+  
+  // Tracking
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  college         College           @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  createdBy       User              @relation("HackathonCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  teams           HackathonTeam[]
+  participants    HackathonParticipant[]
+  
+  @@index([collegeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([createdByUserId])
+  @@map("hackathon")
+}
+
+model HackathonTeam {
+  id              String   @id @default(cuid())
+  hackathonId     String
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  leaderUserId    String   // Team lead
+  
+  // Submission details (after hackathon)
+  projectTitle    String?  @db.VarChar(255)
+  projectDescription String? @db.Text
+  repositoryUrl   String?  @db.VarChar(500)
+  demoUrl         String?  @db.VarChar(500)
+  
+  // Scoring (if applicable)
+  score           Float?
+  ranking         Int?     // null until results announced
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  hackathon       Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  leader          User      @relation("HackathonTeamLead", fields: [leaderUserId], references: [id], onDelete: Restrict)
+  members         HackathonParticipant[]
+  
+  @@index([hackathonId])
+  @@index([leaderUserId])
+  @@index([ranking])
+  @@map("hackathon_team")
+}
+
+model HackathonParticipant {
+  id              String   @id @default(cuid())
+  hackathonId     String
+  teamId          String?  // null if not in a team (waiting/solo)
+  userId          String
+  
+  // Participation status
+  joinedAt        DateTime @default(now())
+  status          String   @default("active") // active, withdrew, disqualified
+  
+  // Roles (track what each person did)
+  contributions   String?  @db.Text // JSON: { code: num_commits, docs: bool, presentation: bool, etc. }
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  hackathon       Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  team            HackathonTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  user            User      @relation("HackathonParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([hackathonId, userId]) // One user per hackathon
+  @@index([hackathonId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([status])
+  @@map("hackathon_participant")
 }

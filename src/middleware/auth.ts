@@ -18,6 +18,7 @@ export interface AuthRequest extends Request {
     image?: string | null;
     phone?: string | null;
     departmentId?: string | null;
+    collegeId?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
   };

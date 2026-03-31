@@ -24,6 +24,7 @@ import judge0Routes from "./modules/routes/judge0.js";
 import collegeAdminRoutes from "./modules/routes/college-admin.js";
 import potdRoutes from "./modules/routes/student/potd.js";
 import productAdminRoutes from "./modules/routes/product-admin.js";
+import publicRoutes from "./modules/routes/public.js";
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 const app: Application = express();
@@ -82,6 +83,7 @@ app.use("/api/v1/judge0", judge0Routes);
 app.use("/api/college-admin", collegeAdminRoutes);
 app.use("/api/v1/student/potd", potdRoutes);
 app.use("/api/product-admin", productAdminRoutes);
+app.use("/api/public/tests", publicRoutes);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.

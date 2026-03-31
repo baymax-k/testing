@@ -66,6 +66,14 @@ const swaggerOptions: swaggerJsdoc.Options = {
         name: "Product Admin - RBAC",
         description: "Role-based access control management for superadmin and admin roles.",
       },
+      {
+        name: "Product Admin - Hackathons",
+        description: "Hackathon creation, management, team operations, and leaderboard tracking.",
+      },
+      {
+        name: "Public APIs - Tests",
+        description: "Publicly available tests, filters, and statistics (no authentication required).",
+      },
     ],
 
     // G��G�� Reusable components G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
@@ -2791,6 +2799,571 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      // ────────────────────────────────────────────────────────────────────────────
+      // Product Admin - Hackathons
+      // ────────────────────────────────────────────────────────────────────────────
+
+      "/api/product-admin/hackathons": {
+        post: {
+          summary: "Create a new hackathon",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string", example: "AI/ML Hackathon 2024" },
+                    description: { type: "string", example: "48-hour hackathon focused on AI and ML" },
+                    shortDescription: { type: "string", example: "AI/ML Challenge" },
+                    collegeId: { type: "string", description: "Target college ID" },
+                    startDate: { type: "string", format: "date-time" },
+                    endDate: { type: "string", format: "date-time" },
+                    registrationDeadline: { type: "string", format: "date-time" },
+                    maxTeams: { type: "integer", nullable: true },
+                    maxTeamSize: { type: "integer", default: 5 },
+                    minTeamSize: { type: "integer", default: 1 },
+                    theme: { type: "string" },
+                    problemStatementUrl: { type: "string", format: "uri" },
+                    isPublic: { type: "boolean", default: true },
+                    allowRemoteParticipation: { type: "boolean", default: true },
+                    prizesInfo: { type: "string" },
+                    rulesUrl: { type: "string", format: "uri" },
+                  },
+                  required: ["title", "collegeId", "startDate", "endDate"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Hackathon created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      hackathon: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation error" },
+            "403": { description: "Only super_admin can create hackathons" },
+          },
+        },
+        get: {
+          summary: "List all hackathons with optional filtering",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "collegeId",
+              in: "query",
+              schema: { type: "string" },
+              description: "Filter by college ID",
+            },
+            {
+              name: "status",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: ["draft", "registration_open", "in_progress", "completed", "cancelled"],
+              },
+              description: "Filter by hackathon status",
+            },
+            { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+            { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          ],
+          responses: {
+            "200": {
+              description: "List of hackathons",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      count: { type: "integer" },
+                      pagination: { type: "object" },
+                      hackathons: {
+                        type: "array",
+                        items: { type: "object" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/hackathons/{hackathonId}": {
+        get: {
+          summary: "Get hackathon details with teams and participants",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "hackathonId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Hackathon details with stats",
+              content: {
+                "application/json": {
+                  schema: { type: "object" },
+                },
+              },
+            },
+            "404": { description: "Hackathon not found" },
+          },
+        },
+        patch: {
+          summary: "Update hackathon details",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "hackathonId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string" },
+                    description: { type: "string" },
+                    startDate: { type: "string", format: "date-time" },
+                    endDate: { type: "string", format: "date-time" },
+                    maxTeamSize: { type: "integer" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Hackathon updated" },
+            "403": { description: "Only super_admin can update" },
+            "404": { description: "Not found" },
+          },
+        },
+        delete: {
+          summary: "Delete a hackathon",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "hackathonId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "Hackathon deleted" },
+            "403": { description: "Only super_admin can delete" },
+          },
+        },
+      },
+
+      "/api/product-admin/hackathons/{hackathonId}/status": {
+        patch: {
+          summary: "Update hackathon status",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "hackathonId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: {
+                      type: "string",
+                      enum: ["draft", "registration_open", "in_progress", "completed", "cancelled"],
+                    },
+                  },
+                  required: ["status"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Status updated" },
+            "403": { description: "Only super_admin can update status" },
+          },
+        },
+      },
+
+      "/api/product-admin/hackathons/{hackathonId}/teams/{teamId}": {
+        patch: {
+          summary: "Update team details (submissions, scores, rankings)",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "hackathonId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+            {
+              name: "teamId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    projectTitle: { type: "string" },
+                    projectDescription: { type: "string" },
+                    repositoryUrl: { type: "string", format: "uri" },
+                    demoUrl: { type: "string", format: "uri" },
+                    score: { type: "number" },
+                    ranking: { type: "integer" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Team updated" },
+            "403": { description: "Insufficient permissions" },
+            "404": { description: "Team not found" },
+          },
+        },
+      },
+
+      "/api/product-admin/hackathons/{hackathonId}/stats": {
+        get: {
+          summary: "Get hackathon statistics and participation metrics",
+          tags: ["Product Admin - Hackathons"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "hackathonId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Hackathon statistics",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      stats: {
+                        type: "object",
+                        properties: {
+                          totalTeams: { type: "integer" },
+                          totalParticipants: { type: "integer" },
+                          teamsWithScores: { type: "integer" },
+                          teamsWithRankings: { type: "integer" },
+                          participantsByStatus: { type: "object" },
+                          avgTeamSize: { type: "number" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "404": { description: "Hackathon not found" },
+          },
+        },
+      },
+
+      // ────────────────────────────────────────────────────────────────────────────
+      // Public APIs - Tests (No Authentication Required)
+      // ────────────────────────────────────────────────────────────────────────────
+
+      "/api/public/tests": {
+        get: {
+          summary: "Get all publicly available tests with filtering",
+          tags: ["Public APIs - Tests"],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", default: 1 },
+              description: "Page number for pagination",
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", default: 20, maximum: 100 },
+              description: "Items per page",
+            },
+            {
+              name: "difficulty",
+              in: "query",
+              schema: { type: "string", enum: ["easy", "medium", "hard"] },
+              description: "Filter by difficulty level",
+            },
+            {
+              name: "tag",
+              in: "query",
+              schema: { type: "string" },
+              description: "Filter by tag/topic",
+            },
+            {
+              name: "search",
+              in: "query",
+              schema: { type: "string" },
+              description: "Search in title and description",
+            },
+            {
+              name: "sortBy",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: ["createdAt", "title", "durationMinutes"],
+                default: "createdAt",
+              },
+            },
+            {
+              name: "sortOrder",
+              in: "query",
+              schema: { type: "string", enum: ["asc", "desc"], default: "desc" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "List of public tests",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      count: { type: "integer" },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          totalPages: { type: "integer" },
+                          totalCount: { type: "integer" },
+                        },
+                      },
+                      filters: { type: "object" },
+                      tests: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            title: { type: "string" },
+                            description: { type: "string" },
+                            durationMinutes: { type: "integer" },
+                            difficulty: { type: "string" },
+                            tags: { type: "array", items: { type: "string" } },
+                            totalMarks: { type: "integer" },
+                            questionCount: { type: "integer" },
+                            status: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid query parameters" },
+          },
+        },
+      },
+
+      "/api/public/tests/{testId}": {
+        get: {
+          summary: "Get a specific public test with all questions",
+          tags: ["Public APIs - Tests"],
+          parameters: [
+            {
+              name: "testId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Test ID",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Test details with questions",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      test: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          title: { type: "string" },
+                          description: { type: "string" },
+                          instructions: { type: "string" },
+                          durationMinutes: { type: "integer" },
+                          totalMarks: { type: "integer" },
+                          difficulty: { type: "string" },
+                          tags: { type: "array", items: { type: "string" } },
+                          questionCount: { type: "integer" },
+                          questions: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                type: { type: "string", enum: ["mcq", "dsa", "objective"] },
+                                content: { type: "string" },
+                                marks: { type: "integer" },
+                                options: { type: "array", items: { type: "string" } },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "403": { description: "Test not publicly available or not within time window" },
+            "404": { description: "Test not found" },
+          },
+        },
+      },
+
+      "/api/public/tests/stats": {
+        get: {
+          summary: "Get aggregate statistics about public tests",
+          tags: ["Public APIs - Tests"],
+          responses: {
+            "200": {
+              description: "Test statistics",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      stats: {
+                        type: "object",
+                        properties: {
+                          totalTests: { type: "integer" },
+                          totalQuestions: { type: "integer" },
+                          averageDurationMinutes: { type: "string" },
+                          averageMarks: { type: "string" },
+                          difficultyBreakdown: {
+                            type: "object",
+                            additionalProperties: { type: "integer" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/public/tests/filters/difficulties": {
+        get: {
+          summary: "Get available difficulty levels across public tests",
+          tags: ["Public APIs - Tests"],
+          responses: {
+            "200": {
+              description: "Available difficulties with counts",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      difficulties: {
+                        type: "object",
+                        additionalProperties: { type: "integer" },
+                        example: { easy: 5, medium: 10, hard: 3 },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/public/tests/filters/tags": {
+        get: {
+          summary: "Get available tags across public tests",
+          tags: ["Public APIs - Tests"],
+          responses: {
+            "200": {
+              description: "Available tags sorted by popularity",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      tags: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            count: { type: "integer" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
