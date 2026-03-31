@@ -2094,29 +2094,31 @@ router.put(
 router.get(
   "/dashboard",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("college_admin", "principal", "hod", "mentor", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const user = req.user!;
     const { role: queryRole } = req.query;
+    const normalizedQueryRole =
+      typeof queryRole === "string" ? queryRole.replace(/-/g, "_") : undefined;
     
     // Determine which role to use for dashboard data
     // If ?role= is provided and valid, use it; otherwise use user's actual role
     let effectiveRole = user.role;
     
-    if (queryRole && typeof queryRole === "string") {
-      const validRoles = ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"];
+    if (normalizedQueryRole) {
+      const validRoles = ["college_admin", "principal", "hod", "dept_admin", "mentor"];
       
       // Verify the query role is valid
-      if (validRoles.includes(queryRole)) {
-        // Security check: Only super_admin/college_admin/principal can view other role dashboards
-        if (user.role === "super_admin" || user.role === "college_admin" || user.role === "principal") {
-          effectiveRole = queryRole;
-        } else if (queryRole === user.role) {
+      if (validRoles.includes(normalizedQueryRole)) {
+        // Security check: Only college_admin/principal can view other role dashboards
+        if (user.role === "college_admin" || user.role === "principal") {
+          effectiveRole = normalizedQueryRole;
+        } else if (normalizedQueryRole === user.role) {
           // Users can always view their own role dashboard
-          effectiveRole = queryRole;
+          effectiveRole = normalizedQueryRole;
         } else {
           res.status(403).json({
-            error: "You do not have permission to view dashboard for role: " + queryRole,
+            error: "You do not have permission to view dashboard for role: " + normalizedQueryRole,
           });
           return;
         }
@@ -2135,35 +2137,35 @@ router.get(
           name: "Department Management", 
           status: "active", 
           endpoint: "/api/college-admin/departments",
-          roles: ["super_admin", "college_admin", "principal"],
+          roles: ["college_admin", "principal"],
           description: "Manage departments, assign HODs"
         },
         { 
           name: "Batch Management", 
           status: "active", 
           endpoint: "/api/college-admin/batches",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin"],
+          roles: ["college_admin", "principal", "hod", "dept_admin"],
           description: "Create and manage student batches"
         },
         { 
           name: "User Management", 
           status: "active", 
           endpoint: "/api/college-admin/users",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin"],
+          roles: ["college_admin", "principal", "hod", "dept_admin"],
           description: "Create and manage users (Principal, HOD, Mentors, Students)"
         },
         { 
           name: "Student Management", 
           status: "active", 
           endpoint: "/api/college-admin/students",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Manage student records, bulk operations"
         },
         { 
           name: "Test Management", 
           status: "active", 
           endpoint: "/api/college-admin/tests",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Create, schedule and manage tests"
         },
         { 
@@ -2194,14 +2196,14 @@ router.get(
           name: "Active Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=active",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "View currently active tests"
         },
         { 
           name: "Upcoming Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=upcoming",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "View scheduled upcoming tests"
         },
         { 
@@ -2215,14 +2217,14 @@ router.get(
           name: "Performance Analytics", 
           status: "coming soon", 
           endpoint: "/api/college-admin/analytics",
-          roles: ["super_admin", "college_admin", "principal", "hod"],
+          roles: ["college_admin", "principal", "hod"],
           description: "View performance metrics and analytics"
         },
         { 
           name: "Reports", 
           status: "coming soon", 
           endpoint: "/api/college-admin/reports",
-          roles: ["super_admin", "college_admin", "principal", "hod"],
+          roles: ["college_admin", "principal", "hod"],
           description: "Generate and view reports"
         },
       ];
@@ -2238,7 +2240,6 @@ router.get(
     // Get role-specific greeting and statistics
     const getRoleTitle = (role: string) => {
       const roleTitles: Record<string, string> = {
-        super_admin: "College Super Administrator",
         college_admin: "College Administrator",
         principal: "Principal",
         hod: "Head of Department",
@@ -2297,7 +2298,7 @@ router.get(
         stats.totalTestsCollege = totalTestsCollege;
         stats.activeTestsCollege = totalActiveTestsCollege;
 
-        if (role === "super_admin" || role === "college_admin" || role === "principal") {
+        if (role === "college_admin" || role === "principal") {
           // Global statistics
           stats.scope = "institution";
         } else if ((role === "hod" || role === "dept_admin") && user.departmentId) {
