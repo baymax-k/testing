@@ -14,6 +14,9 @@ import {
   resetPassword,
   changePassword,
   getCurrentUser,
+  updateProfile,
+  getSettings,
+  updateSettings,
 } from "./auth.controller.js";
 
 const router: Router = Router();
@@ -43,5 +46,11 @@ router.post("/reset-password", resetPassword);
 
 router.post("/change-password", requireAuth, changePassword);
 router.get("/me", requireAuth, getCurrentUser);
+
+// ─── Profile & Settings ───────────────────────────────────────────────────────
+
+router.patch("/profile", requireAuth, updateProfile);
+router.get("/settings", requireAuth, getSettings);
+router.patch("/settings", requireAuth, updateSettings);
 
 export default router;

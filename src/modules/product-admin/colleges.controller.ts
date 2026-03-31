@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/prisma.js";
 import { auth } from "../../config/auth.js";
+import { canAccessCollege } from "../../middleware/rbac.js";
 import {
   hashPassword,
   verifyPassword,
@@ -47,6 +48,12 @@ const updateCollegeSchema = z.object({
   adminId: z.string().optional().nullable(),
 });
 
+const editAdminSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100).optional(),
+  phone: z.string().max(20).optional().nullable(),
+  email: z.string().email("Invalid email").optional(),
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function safeCollege(college: any) {
@@ -74,13 +81,19 @@ function safeCollege(college: any) {
 // ─── Create College ───────────────────────────────────────────────────────────
 
 /**
- * POST /api/v1/product-admin/colleges
- * Creates a new college/institution
+ * POST /api/product-admin/colleges
+ * Creates a new college/institution (superadmin only)
  */
 export async function createCollege(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user?.userId) {
       res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    // Only superadmin can create colleges
+    if (req.user.role !== "super_admin") {
+      res.status(403).json({ error: "Only super_admin can create colleges" });
       return;
     }
 
@@ -143,12 +156,24 @@ export async function createCollege(req: AuthRequest, res: Response): Promise<vo
 // ─── Get All Colleges ─────────────────────────────────────────────────────────
 
 /**
- * GET /api/v1/product-admin/colleges
- * Retrieves all colleges
+ * GET /api/product-admin/colleges
+ * Retrieves colleges - superadmin sees all, admin sees only their own
  */
-export async function getColleges(_req: AuthRequest, res: Response): Promise<void> {
+export async function getColleges(req: AuthRequest, res: Response): Promise<void> {
   try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    // Determine which colleges to fetch based on role
+    const whereClause =
+      req.user.role === "super_admin"
+        ? {}
+        : { id: req.user.collegeId }; // college_admin can only see their own college
+
     const colleges = await prisma.college.findMany({
+      where: whereClause,
       include: {
         admin: {
           select: {
@@ -187,11 +212,16 @@ export async function getColleges(_req: AuthRequest, res: Response): Promise<voi
 // ─── Get Single College ────────────────────────────────────────────────────────
 
 /**
- * GET /api/v1/product-admin/colleges/:collegeId
+ * GET /api/product-admin/colleges/:collegeId
  * Retrieves a single college with details
  */
 export async function getCollege(req: AuthRequest, res: Response): Promise<void> {
   try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
     const { collegeId } = req.params;
 
     const college = await prisma.college.findUnique({
@@ -227,6 +257,12 @@ export async function getCollege(req: AuthRequest, res: Response): Promise<void>
 
     if (!college) {
       res.status(404).json({ error: "College not found" });
+      return;
+    }
+
+    // Check access - superadmin can access all, admin can only access their own
+    if (!canAccessCollege(req.user.role, req.user.collegeId || null, collegeId)) {
+      res.status(403).json({ error: "You don't have access to this college" });
       return;
     }
 
@@ -553,14 +589,102 @@ export async function removeAdminFromCollege(req: AuthRequest, res: Response): P
   }
 }
 
+// ─── Edit College Admin ───────────────────────────────────────────────────────
+
+/**
+ * PATCH /api/product-admin/colleges/admin/:adminId
+ * Updates college admin details
+ */
+export async function editAdmin(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { adminId } = req.params;
+
+    const validation = editAdminSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.issues,
+      });
+      return;
+    }
+
+    const data = validation.data;
+
+    // Check if admin exists
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      res.status(404).json({ error: "Admin not found" });
+      return;
+    }
+
+    // Verify admin has college_admin or principal role
+    if (admin.role !== "college_admin" && admin.role !== "principal") {
+      res.status(400).json({
+        error: "User is not a college admin",
+      });
+      return;
+    }
+
+    // Check for email conflict
+    if (data.email && data.email !== admin.email) {
+      const existingEmail = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+      if (existingEmail) {
+        res.status(400).json({ error: "Email already exists" });
+        return;
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: adminId },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.phone !== undefined && { phone: data.phone }),
+        ...(data.email && { email: data.email }),
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Admin updated successfully",
+      admin: {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        phone: updated.phone,
+        role: updated.role,
+        collegeId: updated.collegeId,
+      },
+    });
+  } catch (err: any) {
+    console.error("[product-admin/colleges/admin/edit] Error:", err);
+    res.status(500).json({ error: err.message || "Failed to update admin" });
+  }
+}
+
 // ─── Delete College ───────────────────────────────────────────────────────────
 
 /**
- * DELETE /api/v1/product-admin/colleges/:collegeId
- * Deletes a college (admin only)
+ * DELETE /api/product-admin/colleges/:collegeId
+ * Deletes a college (superadmin only)
  */
 export async function deleteCollege(req: AuthRequest, res: Response): Promise<void> {
   try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    // Only superadmin can delete colleges
+    if (req.user.role !== "super_admin") {
+      res.status(403).json({ error: "Only super_admin can delete colleges" });
+      return;
+    }
+
     const { collegeId } = req.params;
 
     // Check if college exists

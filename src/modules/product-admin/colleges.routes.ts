@@ -9,6 +9,7 @@ import {
   updateCollege,
   createCollegeAdmin,
   assignAdminToCollege,
+  editAdmin,
   removeAdminFromCollege,
   deleteCollege,
 } from "./colleges.controller.js";
@@ -42,6 +43,9 @@ router.post("/admins/create", createCollegeAdmin);
 
 // Assign existing user as college admin
 router.post("/assign-admin", assignAdminToCollege);
+
+// Edit college admin details
+router.patch("/admin/:adminId", editAdmin);
 
 // Remove admin from college
 router.delete("/:collegeId/admin", removeAdminFromCollege);

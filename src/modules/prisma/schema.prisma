@@ -108,6 +108,7 @@ model User {
   mentoredBatches Batch[]      @relation("BatchMentor")
   createdTests    Test[]       @relation("TestCreatedBy")
   testAttempts    TestAttempt[] @relation("StudentTestAttempts")
+  productAdminSettings ProductAdminSettings?
 
   @@index([collegeId])
   @@index([departmentId])
@@ -198,6 +199,32 @@ model College {
   @@index([adminId])
   @@index([createdById])
   @@map("college")
+}
+
+model ProductAdminSettings {
+  id                           String   @id @default(cuid())
+  userId                       String   @unique
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification settings
+  emailNotifications           Boolean  @default(true)
+  notifyOnCollegeCreation      Boolean  @default(true)
+  notifyOnAdminAssignment      Boolean  @default(true)
+  notifyOnUserRegistration     Boolean  @default(false)
+  
+  // Display preferences
+  theme                        String   @default("light")
+  language                     String   @default("en")
+  itemsPerPage                 Int      @default(10)
+  
+  // Other settings
+  twoFactorEnabled             Boolean  @default(false)
+  sessionTimeout               Int      @default(3600) // seconds
+  
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  @@map("product_admin_settings")
 }
 
 model Department {

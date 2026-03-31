@@ -81,7 +81,7 @@ app.use("/api/v1/submissions", submissionRoutes);
 app.use("/api/v1/judge0", judge0Routes);
 app.use("/api/college-admin", collegeAdminRoutes);
 app.use("/api/v1/student/potd", potdRoutes);
-app.use("/api/v1/product-admin", productAdminRoutes);
+app.use("/api/product-admin", productAdminRoutes);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.

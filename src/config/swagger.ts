@@ -54,6 +54,18 @@ const swaggerOptions: swaggerJsdoc.Options = {
         name: "College Admin - Performance",
         description: "Performance analytics, status, leaderboards, and skill insights.",
       },
+      {
+        name: "Product Admin - Auth",
+        description: "Authentication and session endpoints for product-admin portal access.",
+      },
+      {
+        name: "Product Admin - Colleges",
+        description: "College/institution creation, management, and admin assignment endpoints.",
+      },
+      {
+        name: "Product Admin - RBAC",
+        description: "Role-based access control management for superadmin and admin roles.",
+      },
     ],
 
     // G��G�� Reusable components G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
@@ -2087,6 +2099,698 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
             "401": { description: "Not authenticated" },
             "404": { description: "Session not found" },
+          },
+        },
+      },
+
+      // ──── Product Admin Authentication ────────────────────────────────────────────────
+      "/api/product-admin/auth/sign-up": {
+        post: {
+          summary: "Register a new product admin",
+          description: "Creates a new product admin account. A 6-digit OTP verification email is sent automatically.",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    name: { type: "string" },
+                    password: { type: "string", minLength: 8 },
+                    companyName: { type: "string" },
+                  },
+                  required: ["email", "password", "name", "companyName"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "Product admin account created. Check email for verification code." },
+            "400": { description: "Validation failed or email already exists" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/sign-in": {
+        post: {
+          summary: "Sign in as product admin",
+          description: "Authenticates a product admin with email and password. Returns access and refresh tokens.",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    identifier: { type: "string", description: "Email or username" },
+                    password: { type: "string" },
+                  },
+                  required: ["identifier", "password"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Signed in successfully. Access token set in httpOnly cookie." },
+            "401": { description: "Invalid credentials" },
+            "403": { description: "Email not verified" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/verify-email": {
+        post: {
+          summary: "Verify email with OTP",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    otp: { type: "string", length: 6 },
+                  },
+                  required: ["email", "otp"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Email verified successfully" },
+            "400": { description: "Invalid or expired OTP" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/change-password": {
+        post: {
+          summary: "Change password",
+          tags: ["Product Admin - Auth"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    currentPassword: { type: "string" },
+                    newPassword: { type: "string", minLength: 8 },
+                  },
+                  required: ["currentPassword", "newPassword"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Password changed successfully" },
+            "401": { description: "Unauthorized or incorrect current password" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/me": {
+        get: {
+          summary: "Get current authenticated product admin",
+          tags: ["Product Admin - Auth"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Current product admin profile",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      user: { $ref: "#/components/schemas/User" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/profile": {
+        patch: {
+          summary: "Update product admin profile",
+          description: "Updates admin profile information like name and phone",
+          tags: ["Product Admin - Auth"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", maxLength: 100 },
+                    phone: { type: "string", maxLength: 20 },
+                    companyName: { type: "string", maxLength: 200 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Profile updated successfully" },
+            "400": { description: "Validation failed" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "User not found" },
+          },
+        },
+      },
+
+      "/api/product-admin/settings": {
+        get: {
+          summary: "Get product admin settings",
+          description:
+            "Retrieves current admin's preferences (notifications, theme, session timeout, etc.)",
+          tags: ["Product Admin - Auth"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Settings retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      settings: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          emailNotifications: { type: "boolean" },
+                          notifyOnCollegeCreation: { type: "boolean" },
+                          notifyOnAdminAssignment: { type: "boolean" },
+                          notifyOnUserRegistration: { type: "boolean" },
+                          theme: { type: "string", enum: ["light", "dark"] },
+                          language: { type: "string" },
+                          itemsPerPage: { type: "integer" },
+                          twoFactorEnabled: { type: "boolean" },
+                          sessionTimeout: { type: "integer" },
+                          updatedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "404": { description: "User not found" },
+          },
+        },
+        patch: {
+          summary: "Update product admin settings",
+          description: "Updates admin's preferences and settings",
+          tags: ["Product Admin - Auth"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    emailNotifications: { type: "boolean" },
+                    notifyOnCollegeCreation: { type: "boolean" },
+                    notifyOnAdminAssignment: { type: "boolean" },
+                    notifyOnUserRegistration: { type: "boolean" },
+                    theme: { type: "string", enum: ["light", "dark"] },
+                    language: { type: "string", maxLength: 10 },
+                    itemsPerPage: { type: "integer", minimum: 5, maximum: 100 },
+                    twoFactorEnabled: { type: "boolean" },
+                    sessionTimeout: { type: "integer", minimum: 300, maximum: 86400 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Settings updated successfully" },
+            "400": { description: "Validation failed" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "User not found" },
+          },
+        },
+      },
+
+      // ──── Product Admin Colleges ────────────────────────────────────────────────────────
+      "/api/product-admin/colleges": {
+        post: {
+          summary: "Create a new college",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", maxLength: 200 },
+                    code: { type: "string", maxLength: 50 },
+                    description: { type: "string", maxLength: 500 },
+                    website: { type: "string", format: "uri" },
+                    location: { type: "string", maxLength: 200 },
+                  },
+                  required: ["name", "code"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "College created successfully" },
+            "400": { description: "College code or name already exists" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+        get: {
+          summary: "Get all colleges",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "List of all colleges with statistics",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        name: { type: "string" },
+                        code: { type: "string" },
+                        admin: { type: "object" },
+                        stats: {
+                          type: "object",
+                          properties: {
+                            totalDepartments: { type: "integer" },
+                            totalUsers: { type: "integer" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/colleges/{collegeId}": {
+        get: {
+          summary: "Get college details",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "collegeId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "College details with departments" },
+            "404": { description: "College not found" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+        patch: {
+          summary: "Update college",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "collegeId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", maxLength: 200 },
+                    code: { type: "string", maxLength: 50 },
+                    description: { type: "string", maxLength: 500 },
+                    website: { type: "string", format: "uri" },
+                    location: { type: "string", maxLength: 200 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "College updated successfully" },
+            "404": { description: "College not found" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+        delete: {
+          summary: "Delete college",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "collegeId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "College deleted successfully" },
+            "400": { description: "Cannot delete college with existing departments or users" },
+            "404": { description: "College not found" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/colleges/admins/create": {
+        post: {
+          summary: "Create and assign college admin",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    name: { type: "string" },
+                    password: { type: "string", minLength: 8 },
+                    phone: { type: "string", maxLength: 20 },
+                    collegeId: { type: "string" },
+                  },
+                  required: ["email", "name", "password", "collegeId"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "College admin created and assigned successfully" },
+            "400": { description: "College not found or validation failed" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/colleges/assign-admin": {
+        post: {
+          summary: "Assign existing user as college admin",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    collegeId: { type: "string" },
+                    adminId: { type: "string" },
+                  },
+                  required: ["collegeId", "adminId"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Admin assigned to college successfully" },
+            "400": { description: "User must have college_admin or principal role" },
+            "404": { description: "College or user not found" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/colleges/{collegeId}/admin": {
+        delete: {
+          summary: "Remove admin from college",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "collegeId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "Admin removed from college successfully" },
+            "400": { description: "College has no admin assigned" },
+            "404": { description: "College not found" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/colleges/admin/{adminId}": {
+        patch: {
+          summary: "Edit college admin details",
+          description: "Updates a college admin's name, email, or phone",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "adminId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", maxLength: 100 },
+                    email: { type: "string", format: "email" },
+                    phone: { type: "string", maxLength: 20 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Admin updated successfully" },
+            "400": { description: "User is not a college admin or validation failed" },
+            "404": { description: "Admin not found" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      // ──── Product Admin RBAC (Role-Based Access Control) ────────────────────────
+      "/api/product-admin/rbac/admins": {
+        get: {
+          summary: "List all product admins",
+          description: "Returns all superadmins and admins in the system (superadmin only)",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "List of all admins",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      count: { type: "integer" },
+                      admins: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            email: { type: "string" },
+                            name: { type: "string" },
+                            phone: { type: "string" },
+                            role: { type: "string", enum: ["super_admin", "college_admin"] },
+                            college: { type: "object" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires superadmin role" },
+          },
+        },
+      },
+
+      "/api/product-admin/rbac/admins/{adminId}": {
+        get: {
+          summary: "Get admin details",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "adminId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "Admin details with permissions" },
+            "400": { description: "User is not a product admin" },
+            "404": { description: "Admin not found" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/rbac/promote": {
+        post: {
+          summary: "Promote admin to superadmin",
+          description: "Promote an admin to superadmin role (superadmin only)",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    adminId: { type: "string" },
+                    newRole: { type: "string", enum: ["super_admin", "college_admin"] },
+                  },
+                  required: ["adminId"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Admin promoted successfully" },
+            "400": { description: "Admin already has this role or validation failed" },
+            "404": { description: "Admin not found" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires superadmin role" },
+          },
+        },
+      },
+
+      "/api/product-admin/rbac/demote": {
+        post: {
+          summary: "Demote superadmin to admin",
+          description: "Demote a superadmin to admin and assign to a college (superadmin only)",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    adminId: { type: "string" },
+                    collegeId: { type: "string" },
+                  },
+                  required: ["adminId", "collegeId"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Admin demoted successfully" },
+            "400": { description: "Only superadmins can be demoted or validation failed" },
+            "404": { description: "Admin or college not found" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires superadmin role" },
+          },
+        },
+      },
+
+      "/api/product-admin/rbac/roles/{role}/permissions": {
+        get: {
+          summary: "Get permissions for a role",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "role",
+              in: "path",
+              required: true,
+              schema: { type: "string", enum: ["super_admin", "college_admin"] },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "List of permissions for the role",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      role: { type: "string" },
+                      permissionCount: { type: "integer" },
+                      permissions: {
+                        type: "array",
+                        items: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid role" },
+          },
+        },
+      },
+
+      "/api/product-admin/rbac/my-permissions": {
+        get: {
+          summary: "Get current user's permissions",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Current user's role and permissions",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      role: { type: "string", enum: ["super_admin", "college_admin"] },
+                      permissionCount: { type: "integer" },
+                      permissions: {
+                        type: "array",
+                        items: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
           },
         },
       },

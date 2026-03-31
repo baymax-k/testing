@@ -65,6 +65,24 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8, "Password must be at least 8 characters").max(128),
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100).optional(),
+  phone: z.string().max(20).optional().nullable(),
+  companyName: z.string().max(200).optional(),
+});
+
+const updateSettingsSchema = z.object({
+  emailNotifications: z.boolean().optional(),
+  notifyOnCollegeCreation: z.boolean().optional(),
+  notifyOnAdminAssignment: z.boolean().optional(),
+  notifyOnUserRegistration: z.boolean().optional(),
+  theme: z.enum(["light", "dark"]).optional(),
+  language: z.string().max(10).optional(),
+  itemsPerPage: z.number().min(5).max(100).optional(),
+  twoFactorEnabled: z.boolean().optional(),
+  sessionTimeout: z.number().min(300).max(86400).optional(),
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
@@ -536,7 +554,7 @@ export async function refresh(req: Request, res: Response): Promise<void> {
 // ─── Get Current User ─────────────────────────────────────────────────────────
 
 /**
- * GET /api/v1/product-admin/auth/me
+ * GET /api/product-admin/auth/me
  * Returns the current authenticated product admin's profile.
  */
 export async function getCurrentUser(req: AuthRequest, res: Response): Promise<void> {
@@ -563,5 +581,209 @@ export async function getCurrentUser(req: AuthRequest, res: Response): Promise<v
   } catch (err) {
     console.error("[getCurrentUser]", err);
     res.status(500).json({ error: "Failed to fetch user profile" });
+  }
+}
+
+// ─── Update Profile ───────────────────────────────────────────────────────────
+
+/**
+ * PATCH /api/product-admin/profile
+ * Updates product admin's profile (name, phone, company info)
+ */
+export async function updateProfile(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const validation = updateProfileSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.issues,
+      });
+      return;
+    }
+
+    const data = validation.data;
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.role !== "product_admin") {
+      res.status(403).json({ error: "This endpoint is for product admins only" });
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.user.userId },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.phone !== undefined && { phone: data.phone }),
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: safeUser(updated),
+    });
+  } catch (err: any) {
+    console.error("[updateProfile]", err);
+    res.status(500).json({ error: err.message || "Failed to update profile" });
+  }
+}
+
+// ─── Get Settings ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/product-admin/settings
+ * Retrieves current product admin's settings
+ */
+export async function getSettings(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.role !== "product_admin") {
+      res.status(403).json({ error: "This endpoint is for product admins only" });
+      return;
+    }
+
+    let settings = await prisma.productAdminSettings.findUnique({
+      where: { userId: req.user.userId },
+    });
+
+    // Create default settings if not exists
+    if (!settings) {
+      settings = await prisma.productAdminSettings.create({
+        data: {
+          userId: req.user.userId,
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      settings: {
+        id: settings.id,
+        emailNotifications: settings.emailNotifications,
+        notifyOnCollegeCreation: settings.notifyOnCollegeCreation,
+        notifyOnAdminAssignment: settings.notifyOnAdminAssignment,
+        notifyOnUserRegistration: settings.notifyOnUserRegistration,
+        theme: settings.theme,
+        language: settings.language,
+        itemsPerPage: settings.itemsPerPage,
+        twoFactorEnabled: settings.twoFactorEnabled,
+        sessionTimeout: settings.sessionTimeout,
+        updatedAt: settings.updatedAt,
+      },
+    });
+  } catch (err: any) {
+    console.error("[getSettings]", err);
+    res.status(500).json({ error: err.message || "Failed to fetch settings" });
+  }
+}
+
+// ─── Update Settings ──────────────────────────────────────────────────────────
+
+/**
+ * PATCH /api/product-admin/settings
+ * Updates product admin's settings
+ */
+export async function updateSettings(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const validation = updateSettingsSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.issues,
+      });
+      return;
+    }
+
+    const data = validation.data;
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.role !== "product_admin") {
+      res.status(403).json({ error: "This endpoint is for product admins only" });
+      return;
+    }
+
+    // Get or create settings
+    let settings = await prisma.productAdminSettings.findUnique({
+      where: { userId: req.user.userId },
+    });
+
+    if (!settings) {
+      settings = await prisma.productAdminSettings.create({
+        data: { userId: req.user.userId },
+      });
+    }
+
+    // Update settings
+    const updated = await prisma.productAdminSettings.update({
+      where: { userId: req.user.userId },
+      data: {
+        ...(data.emailNotifications !== undefined && { emailNotifications: data.emailNotifications }),
+        ...(data.notifyOnCollegeCreation !== undefined && {
+          notifyOnCollegeCreation: data.notifyOnCollegeCreation,
+        }),
+        ...(data.notifyOnAdminAssignment !== undefined && {
+          notifyOnAdminAssignment: data.notifyOnAdminAssignment,
+        }),
+        ...(data.notifyOnUserRegistration !== undefined && {
+          notifyOnUserRegistration: data.notifyOnUserRegistration,
+        }),
+        ...(data.theme && { theme: data.theme }),
+        ...(data.language && { language: data.language }),
+        ...(data.itemsPerPage && { itemsPerPage: data.itemsPerPage }),
+        ...(data.twoFactorEnabled !== undefined && { twoFactorEnabled: data.twoFactorEnabled }),
+        ...(data.sessionTimeout && { sessionTimeout: data.sessionTimeout }),
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Settings updated successfully",
+      settings: {
+        id: updated.id,
+        emailNotifications: updated.emailNotifications,
+        notifyOnCollegeCreation: updated.notifyOnCollegeCreation,
+        notifyOnAdminAssignment: updated.notifyOnAdminAssignment,
+        notifyOnUserRegistration: updated.notifyOnUserRegistration,
+        theme: updated.theme,
+        language: updated.language,
+        itemsPerPage: updated.itemsPerPage,
+        twoFactorEnabled: updated.twoFactorEnabled,
+        sessionTimeout: updated.sessionTimeout,
+        updatedAt: updated.updatedAt,
+      },
+    });
+  } catch (err: any) {
+    console.error("[updateSettings]", err);
+    res.status(500).json({ error: err.message || "Failed to update settings" });
   }
 }
