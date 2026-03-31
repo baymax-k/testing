@@ -78,6 +78,10 @@ function safeCollege(college: any) {
   };
 }
 
+function isPlatformAdmin(role: string): boolean {
+  return role === "super_admin" || role === "product_admin";
+}
+
 // ─── Create College ───────────────────────────────────────────────────────────
 
 /**
@@ -91,9 +95,9 @@ export async function createCollege(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // Only superadmin can create colleges
-    if (req.user.role !== "super_admin") {
-      res.status(403).json({ error: "Only super_admin can create colleges" });
+    // Platform admins can create colleges
+    if (!isPlatformAdmin(req.user.role)) {
+      res.status(403).json({ error: "Only product_admin or super_admin can create colleges" });
       return;
     }
 
@@ -166,11 +170,15 @@ export async function getColleges(req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    if (!isPlatformAdmin(req.user.role) && !req.user.collegeId) {
+      res.status(403).json({ error: "No college assigned to this account" });
+      return;
+    }
+
     // Determine which colleges to fetch based on role
-    const whereClause =
-      req.user.role === "super_admin"
-        ? {}
-        : { id: req.user.collegeId }; // college_admin can only see their own college
+    const whereClause: any = isPlatformAdmin(req.user.role)
+      ? {}
+      : { id: req.user.collegeId }; // college_admin can only see their own college
 
     const colleges = await prisma.college.findMany({
       where: whereClause,
@@ -195,7 +203,7 @@ export async function getColleges(req: AuthRequest, res: Response): Promise<void
 
     res.status(200).json({
       success: true,
-      colleges: colleges.map((c) => ({
+      colleges: colleges.map((c: any) => ({
         ...safeCollege(c),
         stats: {
           totalDepartments: c._count.departments,
@@ -260,8 +268,8 @@ export async function getCollege(req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Check access - superadmin can access all, admin can only access their own
-    if (!canAccessCollege(req.user.role, req.user.collegeId || null, collegeId)) {
+    // Check access - platform admins can access all, college_admin can only access their own
+    if (!isPlatformAdmin(req.user.role) && !canAccessCollege(req.user.role, req.user.collegeId || null, collegeId)) {
       res.status(403).json({ error: "You don't have access to this college" });
       return;
     }
@@ -406,30 +414,18 @@ export async function createCollegeAdmin(req: AuthRequest, res: Response): Promi
       return;
     }
 
-    // Create user via Better Auth
-    const newUser = await auth.api.signUpEmail({
-      body: {
-        email: data.email,
-        password: data.password,
-        name: data.name,
-      } as any,
-    });
-
-    if (!newUser || !newUser.user || (newUser as any).error) {
-      const errorMessage = (newUser as any).error?.message || "Failed to create user";
-      res.status(400).json({ error: errorMessage });
-      return;
-    }
-
-    // Update user with college_admin role and college assignment
-    const admin = await prisma.user.update({
-      where: { email: data.email },
+    // Create user directly in Prisma for deterministic seeding/admin creation flow
+    const passwordHash = await hashPassword(data.password);
+    const admin = await prisma.user.create({
       data: {
+        email: data.email,
+        name: data.name,
+        passwordHash,
         role: "college_admin",
         phone: data.phone || null,
         collegeId: data.collegeId,
         emailVerified: true,
-      },
+      } as any,
     });
 
     // Assign admin to college
@@ -679,9 +675,9 @@ export async function deleteCollege(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // Only superadmin can delete colleges
-    if (req.user.role !== "super_admin") {
-      res.status(403).json({ error: "Only super_admin can delete colleges" });
+    // Platform admins can delete colleges
+    if (!isPlatformAdmin(req.user.role)) {
+      res.status(403).json({ error: "Only product_admin or super_admin can delete colleges" });
       return;
     }
 
