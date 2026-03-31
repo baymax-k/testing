@@ -54,7 +54,7 @@ const createUserSchema = z.object({
     message: "Invalid role",
   }),
   phone: z.string().optional(),
-  departmentId: z.string().optional(),
+  departmentId: z.string().nullable().optional(), // Optional for HOD creation without immediate department assignment
 });
 
 const bulkUsersSchema = z.object({
@@ -85,14 +85,14 @@ const createDepartmentSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   code: z.string().min(2, "Code must be at least 2 characters").max(10, "Code too long"),
   description: z.string().optional(),
-  hodId: z.string().optional(),
+  hodId: z.string().nullable().optional(), // Optional: HOD can be assigned later
 });
 
 const updateDepartmentSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
   code: z.string().min(2, "Code must be at least 2 characters").max(10, "Code too long").optional(),
   description: z.string().optional(),
-  hodId: z.string().nullable().optional(),
+  hodId: z.string().nullable().optional(), // Can be null to unassign HOD
 });
 
 // ─── Batch Validation Schemas ───────────────────────────────────────────────────
