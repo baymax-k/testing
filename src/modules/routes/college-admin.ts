@@ -2439,7 +2439,7 @@ router.post(
 
       // Update user with additional fields
       const updatedUser = await prisma.user.update({
-        where: { id: newUser.user.id },
+        where: { email: data.email },
         data: {
           role: data.role as Role,
           phone: data.phone,
@@ -2504,7 +2504,7 @@ router.post(
           if (newUser && newUser.user && !(newUser as any).error) {
             // Update user with additional fields
             const updatedUser = await prisma.user.update({
-              where: { id: newUser.user.id },
+              where: { email: userData.email },
               data: {
                 role: userData.role as Role,
                 phone: userData.phone,
