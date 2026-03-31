@@ -8,61 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Auth Models ─────────────────────────────────────────────────────────────
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String    @unique
-  name          String
-  passwordHash  String
-  role          Role      @default(student)
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  refreshTokens  RefreshToken[]
-  submissions    Submission[]
-  participations ContestParticipation[]
-  mcqSessions    McqPracticeSession[]
-  dailySolves    DailyChallengeSolve[]
-  streak         UserStreak?
-  dailyPracticeActivities DailyPracticeActivity[]
-  practiceRandomSets      PracticeRandomSet[]
-
-  @@map("user")
-}
-
-// Stores active refresh tokens (one per device/session).
-// Deleted on sign-out or when a new sign-in invalidates all previous sessions.
-model RefreshToken {
-  id        String   @id @default(cuid())
-  jti       String   @unique   // JWT ID — used to look up and revoke tokens
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("refresh_token")
-}
-
-// Stores temporary OTP codes for email verification and password reset.
-// identifier = "<email>:<type>"  e.g. "user@example.com:email-verification"
-// value      = SHA-256 hash of the 6-digit OTP
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
-}
-
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum Role {
@@ -113,6 +58,13 @@ enum QuestionType {
   coding
 }
 
+enum McqSessionStatus {
+  in_progress
+  submitted
+}
+
+// ─── Auth Models ─────────────────────────────────────────────────────────────
+
 model User {
   id            String      @id @default(cuid())
   email         String      @unique
@@ -123,6 +75,8 @@ model User {
   emailVerified Boolean     @default(false)
   image         String?
   phone         String?
+  collegeId     String?
+  college       College?    @relation("CollegeUsers", fields: [collegeId], references: [id], onDelete: SetNull)
   departmentId  String?
   department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   batchId       String?
@@ -140,12 +94,22 @@ model User {
   // Practice/contest flow
   submissions    Submission[]
   participations ContestParticipation[]
+  mcqSessions    McqPracticeSession[]
+  dailySolves    DailyChallengeSolve[]
+  streak         UserStreak?
+  dailyPracticeActivities DailyPracticeActivity[]
+  practiceRandomSets      PracticeRandomSet[]
+
+  // College/Organization management (Product Admin)
+  collegesAdministered College[] @relation("CollegeAdmin")
+  collegesCreated       College[] @relation("CollegeCreatedBy")
 
   // College-admin flow
   mentoredBatches Batch[]      @relation("BatchMentor")
   createdTests    Test[]       @relation("TestCreatedBy")
   testAttempts    TestAttempt[] @relation("StudentTestAttempts")
 
+  @@index([collegeId])
   @@index([departmentId])
   @@index([batchId])
   @@index([role])
@@ -213,18 +177,46 @@ model Verification {
   @@map("verification")
 }
 
+// ─── College & Organization Models ───────────────────────────────────────────
+
+model College {
+  id             String       @id @default(cuid())
+  name           String       @unique
+  code           String       @unique
+  description    String?
+  website        String?
+  location       String?
+  adminId        String?      @unique
+  admin          User?        @relation("CollegeAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+  createdById    String
+  createdBy      User         @relation("CollegeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  departments    Department[]
+  users          User[]       @relation("CollegeUsers")
+
+  @@index([adminId])
+  @@index([createdById])
+  @@map("college")
+}
+
 model Department {
   id          String   @id @default(cuid())
-  name        String   @unique
-  code        String   @unique
+  name        String
+  code        String
   description String?
-  hodId       String?  @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  collegeId   String
+  college     College   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  hodId       String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   users       User[]
   batches     Batch[]
   tests       Test[]
 
+  @@unique([code, collegeId])
+  @@unique([name, collegeId])
+  @@index([collegeId])
   @@map("department")
 }
 
@@ -247,10 +239,6 @@ model Batch {
   @@index([departmentId])
   @@index([mentorId])
   @@map("batch")
-}
-enum McqSessionStatus {
-  in_progress
-  submitted
 }
 
 // ─── Problem Models ──────────────────────────────────────────────────────────
@@ -437,6 +425,8 @@ model TestAttempt {
   @@index([studentId])
   @@index([status])
   @@map("test_attempt")
+}
+
 model McqPracticeSession {
   id             String           @id @default(cuid())
   userId         String
