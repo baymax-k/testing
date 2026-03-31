@@ -1,5 +1,7 @@
 import { Router, type Response, type Router as RouterType } from "express";
 import { z } from "zod";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { auth, prisma } from "../../config/auth.js";
@@ -449,7 +451,7 @@ async function createSingleStudentAccount(
  *               email:
  *                 type: string
  *                 format: email
- *                 example: collegesuperadmin@codeethnics.com
+ *                 example: collegeadmin@codeethnics.com
  *               password:
  *                 type: string
  *                 example: CollegeAdmin@123
@@ -1599,7 +1601,7 @@ async function createSingleStudentAccount(
 
 /**
  * POST /api/college-admin/auth/login
- * College admin login (proxies to Better Auth)
+ * College admin login with direct password verification
  */
 router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -1614,14 +1616,31 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
 
     const { email, password } = validation.data;
 
-    // Sign in via Better Auth
-    const result = await auth.api.signInEmail({
-      body: { email, password },
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        image: true,
+        passwordHash: true,
+      },
     });
 
-    // Check if user has college admin portal access (super_admin, college_admin, principal, hod, mentor, dept_admin)
+    if (!user) {
+      res.status(401).json({
+        error: "Authentication failed",
+        message: "Invalid email or password",
+      });
+      return;
+    }
+
+    // Check if user has college admin portal access
     const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
-    if (result?.user && !allowedRoles.includes(result.user.role)) {
+    if (!allowedRoles.includes(user.role)) {
       res.status(403).json({
         error: "Access denied",
         message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
@@ -1629,37 +1648,64 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    if (result?.user) {
-      // Set Better Auth session cookie so subsequent requests are authenticated
-      if (result.token) {
-        res.cookie("better-auth.session_token", result.token, {
-          httpOnly: true,
-          secure: isProd,
-          sameSite: "lax",
-          path: "/",
-          maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+    // Verify password - check if passwordHash exists and is bcrypt hash
+    let passwordValid = false;
+    if (user.passwordHash) {
+      try {
+        passwordValid = await bcrypt.compare(password, user.passwordHash);
+      } catch (err) {
+        // If bcrypt fails, password hash is invalid
+        passwordValid = false;
       }
+    }
 
-      res.json({
-        success: true,
-        message: "Login successful",
-        user: {
-          id: result.user.id,
-          email: result.user.email,
-          name: result.user.name,
-          role: result.user.role,
-          emailVerified: result.user.emailVerified,
-          image: result.user.image,
-        },
-        token: result.token,
-      });
-    } else {
+    if (!passwordValid) {
       res.status(401).json({
         error: "Authentication failed",
         message: "Invalid email or password",
       });
+      return;
     }
+
+    // Create a session
+    const sessionId = crypto.randomUUID();
+    const sessionToken = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Store session in database
+    await prisma.session.create({
+      data: {
+        id: sessionId,
+        token: sessionToken,
+        userId: user.id,
+        expiresAt,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+      },
+    });
+
+    // Set session cookie
+    res.cookie("better-auth.session_token", sessionToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        image: user.image,
+      },
+      token: sessionToken,
+    });
   } catch (error) {
     console.error("[college-admin/auth/login] Error:", error);
     res.status(500).json({
@@ -1753,6 +1799,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
     }
 
     const { email } = validation.data;
+    console.log(`[college-admin/auth/forgot-password] Processing password reset request for: ${email}`);
 
     // Check if user exists and is college_admin
     const user = await appPrisma.user.findUnique({
@@ -1761,6 +1808,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
 
     if (!user) {
       // Don't reveal if email exists
+      console.log(`[college-admin/auth/forgot-password] User not found: ${email}`);
       res.json({
         success: true,
         message: "If a college admin account exists with this email, a password reset code has been sent",
@@ -1770,6 +1818,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
 
     const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
     if (!allowedRoles.includes(user.role)) {
+      console.log(`[college-admin/auth/forgot-password] User role not allowed: ${user.role}`);
       res.status(403).json({
         error: "Access denied",
         message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
@@ -1777,15 +1826,32 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
       return;
     }
 
-    // Generate OTP and send via Mailtrap credentials
-    const otp = await generateAndStoreOTP(email, "forget-password");
-    await sendOTPEmail(email, otp, "forget-password");
+    console.log(`[college-admin/auth/forgot-password] User found. Generating OTP for: ${email}`);
 
-    res.json({
-      success: true,
-      message: "Password reset code has been sent to your email",
-    });
-  } catch (error) {
+    // Generate OTP and send via Mailtrap credentials
+    try {
+      const otp = await generateAndStoreOTP(email, "forget-password");
+      console.log(`[college-admin/auth/forgot-password] OTP generated: ${otp} for ${email}`);
+
+      await sendOTPEmail(email, otp, "forget-password");
+      console.log(`[college-admin/auth/forgot-password] OTP email sent successfully to ${email}`);
+
+      res.json({
+        success: true,
+        message: "Password reset code has been sent to your email",
+      });
+    } catch (emailError: any) {
+      console.error(`[college-admin/auth/forgot-password] Email sending failed for ${email}:`, emailError.message);
+      console.error("Full error:", emailError);
+      
+      // Return error instead of success
+      res.status(500).json({
+        error: "Email error",
+        message: "Failed to send reset code to email. Please try again later.",
+        details: emailError.message,
+      });
+    }
+  } catch (error: any) {
     console.error("[college-admin/auth/forgot-password] Error:", error);
     res.status(500).json({
       error: "Internal server error",
@@ -2363,8 +2429,11 @@ router.post(
         } as any,
       });
 
-      if (!newUser?.user) {
-        res.status(400).json({ error: "Failed to create user" });
+      // Check if Better Auth returned an error response
+      if (!newUser || !newUser.user || (newUser as any).error) {
+        const errorMessage = (newUser as any).error?.message || "Failed to create user";
+        console.error("[college-admin/users/create] Better Auth error:", newUser);
+        res.status(400).json({ error: errorMessage });
         return;
       }
 
@@ -2432,7 +2501,7 @@ router.post(
             } as any,
           });
 
-          if (newUser?.user) {
+          if (newUser && newUser.user && !(newUser as any).error) {
             // Update user with additional fields
             const updatedUser = await prisma.user.update({
               where: { id: newUser.user.id },
@@ -2454,7 +2523,7 @@ router.post(
           } else {
             results.failed.push({
               email: userData.email,
-              error: "Failed to create user",
+              error: (newUser as any).error?.message || "Failed to create user",
             });
           }
         } catch (error: any) {

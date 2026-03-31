@@ -2,7 +2,7 @@ import { prisma } from "../src/config/prisma";
 
 async function main() {
   await prisma.user.update({
-    where: { email: "collegesuperadmin@codeethnics.com" },
+    where: { email: "collegeadmin@codeethnics.com" },
     data: { emailVerified: true },
   });
   console.log("email verified");

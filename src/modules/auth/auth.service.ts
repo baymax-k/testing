@@ -297,7 +297,7 @@ export async function sendOTPEmail(
   const { subject, heading, label } = templates[type];
 
   await mailTransporter.sendMail({
-    from: process.env.EMAIL_FROM || `"CodeEthnics" <no-reply@codeethnics.com>`,
+    from: process.env.EMAIL_FROM || "noreply@codeethnics.com",
     to: email,
     subject,
     html: `

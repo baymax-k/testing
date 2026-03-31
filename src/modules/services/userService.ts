@@ -59,15 +59,31 @@ export class UserService {
         take: limit,
         include: {
           department: true,
-          batch: true,
+          batch: {
+            include: {
+              mentor: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
       prisma.user.count({ where }),
     ]);
 
+    // Add mentorName for students
+    const usersWithMentorName = users.map((user) => ({
+      ...user,
+      mentorName: user.batch?.mentor?.name || null,
+    }));
+
     return {
-      users,
+      users: usersWithMentorName,
       pagination: {
         page,
         limit,
@@ -81,27 +97,59 @@ export class UserService {
    * Get user by ID
    */
   static async getUserById(userId: string) {
-    return prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         department: true,
-        batch: true,
+        batch: {
+          include: {
+            mentor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    if (!user) return null;
+
+    return {
+      ...user,
+      mentorName: user.batch?.mentor?.name || null,
+    };
   }
 
   /**
    * Update user
    */
   static async updateUser(userId: string, data: UpdateUserInput) {
-    return prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data,
       include: {
         department: true,
-        batch: true,
+        batch: {
+          include: {
+            mentor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    return {
+      ...user,
+      mentorName: user.batch?.mentor?.name || null,
+    };
   }
 
   /**
@@ -131,14 +179,29 @@ export class UserService {
    * Assign role to user
    */
   static async assignRole(userId: string, role: Role) {
-    return prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data: { role },
       include: {
         department: true,
-        batch: true,
+        batch: {
+          include: {
+            mentor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    return {
+      ...user,
+      mentorName: user.batch?.mentor?.name || null,
+    };
   }
 
   /**
@@ -155,14 +218,29 @@ export class UserService {
       }
     }
 
-    return prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data: { departmentId },
       include: {
         department: true,
-        batch: true,
+        batch: {
+          include: {
+            mentor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    return {
+      ...user,
+      mentorName: user.batch?.mentor?.name || null,
+    };
   }
 
   /**

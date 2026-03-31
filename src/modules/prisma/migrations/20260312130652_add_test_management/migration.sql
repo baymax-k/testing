@@ -6,10 +6,38 @@ EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
 
--- CreateEnum (idempotent)
+-- AlterEnum (idempotent)
 DO $$
 BEGIN
-    CREATE TYPE "QuestionType" AS ENUM ('multiple_choice', 'true_false', 'short_answer', 'long_answer', 'coding');
+    ALTER TYPE "QuestionType" ADD VALUE 'multiple_choice';
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TYPE "QuestionType" ADD VALUE 'true_false';
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TYPE "QuestionType" ADD VALUE 'short_answer';
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TYPE "QuestionType" ADD VALUE 'long_answer';
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TYPE "QuestionType" ADD VALUE 'coding';
 EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
@@ -36,22 +64,10 @@ CREATE TABLE "test" (
     CONSTRAINT "test_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "question" (
-    "id" TEXT NOT NULL,
-    "testId" TEXT NOT NULL,
-    "type" "QuestionType" NOT NULL,
-    "content" TEXT NOT NULL,
-    "marks" INTEGER NOT NULL DEFAULT 1,
-    "options" JSONB,
-    "correctAnswer" TEXT,
-    "explanation" TEXT,
-    "orderIndex" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "question_pkey" PRIMARY KEY ("id")
-);
+-- AlterTable question to add test management fields
+ALTER TABLE "question" ADD COLUMN "testId" TEXT,
+ADD COLUMN "content" TEXT,
+ADD COLUMN "orderIndex" INTEGER NOT NULL DEFAULT 0;
 
 -- CreateTable
 CREATE TABLE "test_attempt" (
