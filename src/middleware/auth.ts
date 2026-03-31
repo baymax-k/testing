@@ -16,6 +16,7 @@ export interface AuthRequest extends Request {
     emailVerified: boolean;
     image?: string | null;
     phone?: string | null;
+    collegeId?: string | null;
     departmentId?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
@@ -90,6 +91,7 @@ export const requireCollegeAdminAuth = async (
         emailVerified: true,
         image: true,
         phone: true,
+        collegeId: true,
         departmentId: true,
         createdAt: true,
         updatedAt: true,
@@ -110,6 +112,7 @@ export const requireCollegeAdminAuth = async (
       emailVerified: fullUser.emailVerified,
       image: fullUser.image,
       phone: fullUser.phone,
+      collegeId: fullUser.collegeId,
       departmentId: fullUser.departmentId,
       createdAt: fullUser.createdAt,
       updatedAt: fullUser.updatedAt,

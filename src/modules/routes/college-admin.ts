@@ -84,6 +84,7 @@ const assignDepartmentSchema = z.object({
 const createDepartmentSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   code: z.string().min(2, "Code must be at least 2 characters").max(10, "Code too long"),
+  collegeId: z.string().optional(),
   description: z.string().optional(),
   hodId: z.string().nullable().optional(), // Optional: HOD can be assigned later
 });
@@ -2862,7 +2863,24 @@ router.post(
         return;
       }
 
-      const department = await DepartmentService.createDepartment(validation.data);
+      const payload = validation.data;
+      const effectiveCollegeId =
+        req.user?.role === "super_admin"
+          ? payload.collegeId || req.user?.collegeId
+          : req.user?.collegeId;
+
+      if (!effectiveCollegeId) {
+        res.status(400).json({
+          error: "collegeId is required to create a department",
+        });
+        return;
+      }
+
+      const { collegeId: _ignoredCollegeId, ...departmentData } = payload;
+      const department = await DepartmentService.createDepartment({
+        ...departmentData,
+        collegeId: effectiveCollegeId,
+      });
 
       res.status(201).json({
         success: true,
