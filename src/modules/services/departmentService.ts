@@ -65,6 +65,24 @@ async function validateHodAssignment(hodId: string | null | undefined): Promise<
   }
 }
 
+/**
+ * Helper: Update HOD user's department assignment
+ * When a HOD is assigned to a department, ensure the HOD user's departmentId matches the department ID
+ */
+async function updateHodDepartmentAssignment(
+  hodId: string | null | undefined,
+  departmentId: string
+): Promise<void> {
+  if (!hodId) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: hodId },
+    data: { departmentId },
+  });
+}
+
 export class DepartmentService {
   /**
    * Create a new department
@@ -100,8 +118,22 @@ export class DepartmentService {
       }
     }
 
-    return prisma.department.create({
+    // Create department first to get its ID
+    const department = await prisma.department.create({
       data,
+      include: {
+        users: true,
+      },
+    });
+
+    // Update HOD's departmentId to match this department's ID
+    if (data.hodId) {
+      await updateHodDepartmentAssignment(data.hodId, department.id);
+    }
+
+    // Return updated department (refetch to ensure we have latest data)
+    return prisma.department.findUnique({
+      where: { id: department.id },
       include: {
         users: true,
       },
@@ -246,6 +278,16 @@ export class DepartmentService {
 
     // Validate HOD assignment using helper
     await validateHodAssignment(data.hodId);
+
+    // If hodId is being changed, update the new HOD's departmentId
+    if (data.hodId !== undefined && data.hodId !== department.hodId) {
+      if (data.hodId) {
+        // New HOD is being assigned - update their departmentId
+        await updateHodDepartmentAssignment(data.hodId, deptId);
+      }
+      // Note: If hodId is being set to null, we don't clear the previous HOD's departmentId
+      // as they might have other roles or responsibilities in that department
+    }
 
     return prisma.department.update({
       where: { id: deptId },
