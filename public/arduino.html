@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino Platform - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+    <style>
+        /* Arduino-specific styles */
+        .arduino-header {
+            background: linear-gradient(135deg, #00979d 0%, #0077be 100%);
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .arduino-header h2 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+
+        .arduino-header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-queued { background: #fff3cd; color: #856404; }
+        .status-processing { background: #cce7ff; color: #004085; }
+        .status-compiled { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+
+        .code-editor {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 200px;
+            resize: vertical;
+        }
+
+        .board-selector {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .board-option {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .board-option:hover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+
+        .board-option.selected {
+            border-color: #007bff;
+            background: #e7f1ff;
+        }
+
+        .board-option h4 {
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+
+        .board-option p {
+            margin: 0;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .problem-card {
+            border-left: 4px solid #00979d;
+            margin-bottom: 15px;
+        }
+
+        .problem-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .problem-meta span {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .difficulty-easy { color: #28a745; font-weight: bold; }
+        .difficulty-medium { color: #fd7e14; font-weight: bold; }
+        .difficulty-hard { color: #dc3545; font-weight: bold; }
+
+        .submission-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .submission-item:last-child {
+            border-bottom: none;
+        }
+
+        .submission-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .code-examples {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .example-code {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+
+        .polling-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #ddd;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .compile-progress {
+            width: 100%;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .compile-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #00979d);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .memory-usage {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .board-selector {
+                flex-direction: column;
+            }
+            
+            .problem-meta {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/arduino.html">Arduino</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="arduino-header">
+                <h2>🔧 Arduino Platform</h2>
+                <p>Hardware programming challenges for real-world embedded systems development</p>
+            </div>
+
+            <div class="grid">
+                <!-- Arduino Problems Section -->
+                <div class="card">
+                    <h3>Arduino Problems</h3>
+                    <div class="form-group">
+                        <label>Filter by Difficulty:</label>
+                        <select id="difficulty-filter" onchange="loadArduinoProblems()">
+                            <option value="">All Levels</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <div id="arduino-problems-list">
+                        <div class="loading">Loading Arduino problems...</div>
+                    </div>
+                </div>
+
+                <!-- Code Editor Section -->
+                <div class="card">
+                    <h3>Arduino IDE</h3>
+                    <div id="selected-problem-info" style="display: none;">
+                        <h4 id="problem-title">Select a problem to start coding</h4>
+                        <p id="problem-description"></p>
+                        <div class="problem-meta">
+                            <span>Difficulty: <span id="problem-difficulty"></span></span>
+                            <span>Memory Limit: <span id="problem-memory"></span>KB</span>
+                            <span>Time Limit: <span id="problem-time"></span>s</span>
+                        </div>
+                    </div>
+
+                    <div class="board-selector">
+                        <div class="board-option selected" onclick="selectBoard('uno')">
+                            <h4>Arduino Uno</h4>
+                            <p>ATmega328P • 32KB Flash • 2KB RAM</p>
+                        </div>
+                        <div class="board-option" onclick="selectBoard('mega')">
+                            <h4>Arduino Mega</h4>
+                            <p>ATmega2560 • 256KB Flash • 8KB RAM</p>
+                        </div>
+                    </div>
+
+                    <textarea 
+                        id="code-editor" 
+                        class="code-editor" 
+                        placeholder="// Write your Arduino code here...
+void setup() {
+  // Initialize your hardware here
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  // Main program loop
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}">void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}</textarea>
+
+                    <div class="form-group">
+                        <button onclick="compileCode()" id="compile-btn" class="btn btn-primary">
+                            📟 Compile & Submit
+                        </button>
+                        <button onclick="loadExample()" class="btn">
+                            💡 Load Example
+                        </button>
+                    </div>
+
+                    <div id="compile-status" style="display: none;">
+                        <div class="compile-progress">
+                            <div class="compile-progress-bar" id="progress-bar"></div>
+                        </div>
+                        <p id="compile-message">Compiling...</p>
+                        <div class="memory-usage" id="memory-info" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submissions History -->
+            <div class="card">
+                <h3>📝 Your Recent Submissions</h3>
+                <div id="submissions-list">
+                    <div class="loading">Loading your submissions...</div>
+                </div>
+                <button onclick="loadMoreSubmissions()" id="load-more-btn" class="btn" style="display: none;">
+                    Load More Submissions
+                </button>
+            </div>
+
+            <!-- Code Examples -->
+            <div class="code-examples">
+                <h4>💡 Arduino Code Examples</h4>
+                <div>
+                    <strong>Basic LED Blink:</strong>
+                    <div class="example-code">void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}</div>
+                </div>
+                <div>
+                    <strong>Serial Communication:</strong>
+                    <div class="example-code">void setup() {
+  Serial.begin(9600);
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  Serial.println("Hello Arduino!");
+  digitalWrite(13, !digitalRead(13));
+  delay(500);
+}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let selectedProblemId = null;
+        let selectedBoard = 'uno';
+        let currentSubmissionId = null;
+        let pollingInterval = null;
+        let submissionsOffset = 0;
+
+        // Mock authentication (replace with actual auth)
+        const authToken = 'student-auth-token';
+
+        // API helpers
+        async function apiCall(endpoint, options = {}) {
+            const response = await fetch(`/api/v1/arduino${endpoint}`, {
+                ...options,
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            return await response.json();
+        }
+
+        // Board selection
+        function selectBoard(board) {
+            selectedBoard = board;
+            document.querySelectorAll('.board-option').forEach(el => 
+                el.classList.remove('selected')
+            );
+            event.target.closest('.board-option').classList.add('selected');
+        }
+
+        // Load Arduino problems
+        async function loadArduinoProblems() {
+            const difficulty = document.getElementById('difficulty-filter').value;
+            const container = document.getElementById('arduino-problems-list');
+            
+            container.innerHTML = '<div class="loading">Loading problems...</div>';
+            
+            try {
+                const params = difficulty ? `?difficulty=${difficulty}` : '';
+                const response = await fetch(`/api/v1/arduino/problems${params}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayProblems(data.data.problems);
+                } else {
+                    container.innerHTML = '<div class="error">Failed to load problems</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="error">Network error loading problems</div>';
+            }
+        }
+
+        // Display problems list
+        function displayProblems(problems) {
+            const container = document.getElementById('arduino-problems-list');
+            
+            if (problems.length === 0) {
+                container.innerHTML = '<p>No problems found for this difficulty level.</p>';
+                return;
+            }
+            
+            container.innerHTML = problems.map(problem => `
+                <div class="card problem-card" onclick="selectProblem('${problem.id}', '${problem.title}', '${problem.description}', '${problem.difficulty}', ${problem.maxMemory}, ${problem.timeLimit})">
+                    <h4>${problem.title}</h4>
+                    <p>${problem.description.substring(0, 150)}${problem.description.length > 150 ? '...' : ''}</p>
+                    <div class="problem-meta">
+                        <span class="difficulty-${problem.difficulty}">${problem.difficulty.toUpperCase()}</span>
+                        <span>${problem._count?.submissions || 0} submissions</span>
+                        <span>Memory: ${problem.maxMemory / 1024}KB</span>
+                        <span>Time: ${problem.timeLimit / 1000}s</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Select a problem
+        function selectProblem(id, title, description, difficulty, maxMemory, timeLimit) {
+            selectedProblemId = id;
+            
+            document.getElementById('selected-problem-info').style.display = 'block';
+            document.getElementById('problem-title').textContent = title;
+            document.getElementById('problem-description').textContent = description;
+            document.getElementById('problem-difficulty').textContent = difficulty.toUpperCase();
+            document.getElementById('problem-difficulty').className = `difficulty-${difficulty}`;
+            document.getElementById('problem-memory').textContent = Math.round(maxMemory / 1024);
+            document.getElementById('problem-time').textContent = timeLimit / 1000;
+            
+            // Highlight selected problem
+            document.querySelectorAll('.problem-card').forEach(el => 
+                el.style.borderLeftColor = '#00979d'
+            );
+            event.currentTarget.style.borderLeftColor = '#007bff';
+        }
+
+        // Compile Arduino code
+        async function compileCode() {
+            if (!selectedProblemId) {
+                alert('Please select a problem first!');
+                return;
+            }
+            
+            const code = document.getElementById('code-editor').value.trim();
+            if (!code) {
+                alert('Please enter some Arduino code!');
+                return;
+            }
+            
+            const compileBtn = document.getElementById('compile-btn');
+            const statusDiv = document.getElementById('compile-status');
+            const progressBar = document.getElementById('progress-bar');
+            const messageEl = document.getElementById('compile-message');
+            
+            // Show loading state
+            compileBtn.textContent = '⏳ Compiling...';
+            compileBtn.disabled = true;
+            statusDiv.style.display = 'block';
+            progressBar.style.width = '30%';
+            messageEl.textContent = 'Submitting code to compiler...';
+            
+            try {
+                const response = await apiCall('/compile', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        problemId: selectedProblemId,
+                        code: code,
+                        boardType: selectedBoard
+                    })
+                });
+                
+                if (response.success) {
+                    currentSubmissionId = response.data.submissionId;
+                    progressBar.style.width = '60%';
+                    messageEl.innerHTML = `Job queued (ID: ${currentSubmissionId.substring(0, 8)}...) <span class="polling-indicator"></span>`;
+                    
+                    // Start polling for results
+                    startPolling();
+                } else {
+                    throw new Error(response.error || 'Compilation failed');
+                }
+            } catch (error) {
+                messageEl.textContent = `Error: ${error.message}`;
+                progressBar.style.width = '0%';
+                compileBtn.textContent = '📟 Compile & Submit';
+                compileBtn.disabled = false;
+            }
+        }
+
+        // Poll for compilation results
+        function startPolling() {
+            pollingInterval = setInterval(async () => {
+                if (!currentSubmissionId) return;
+                
+                try {
+                    const response = await apiCall(`/jobs/${currentSubmissionId}`);
+                    
+                    if (response.success) {
+                        const job = response.data;
+                        updateCompileStatus(job);
+                        
+                        if (job.status === 'compiled' || job.status === 'failed') {
+                            stopPolling();
+                            loadSubmissions(); // Refresh submissions list
+                        }
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 2000);
+        }
+
+        // Update compilation status
+        function updateCompileStatus(job) {
+            const progressBar = document.getElementById('progress-bar');
+            const messageEl = document.getElementById('compile-message');
+            const memoryEl = document.getElementById('memory-info');
+            const compileBtn = document.getElementById('compile-btn');
+            
+            progressBar.style.width = `${job.progress || 0}%`;
+            
+            if (job.status === 'compiled') {
+                progressBar.style.width = '100%';
+                messageEl.innerHTML = `✅ Compilation successful! (${job.result?.compileTime}ms)`;
+                
+                if (job.result?.memoryUsage) {
+                    const mem = job.result.memoryUsage;
+                    memoryEl.style.display = 'block';
+                    memoryEl.textContent = `Memory usage: Program ${mem.program} bytes, Data ${mem.data} bytes`;
+                }
+                
+                compileBtn.textContent = '📟 Compile & Submit';
+                compileBtn.disabled = false;
+            } else if (job.status === 'failed') {
+                progressBar.style.width = '100%';
+                progressBar.style.background = '#dc3545';
+                messageEl.textContent = `❌ Compilation failed: ${job.result?.error || 'Unknown error'}`;
+                
+                compileBtn.textContent = '📟 Compile & Submit';
+                compileBtn.disabled = false;
+            } else if (job.status === 'processing') {
+                messageEl.innerHTML = `🔄 Compiling your code... <span class="polling-indicator"></span>`;
+            }
+        }
+
+        // Stop polling
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+
+        // Load example code
+        function loadExample() {
+            document.getElementById('code-editor').value = `void setup() {
+  Serial.begin(9600);
+  pinMode(13, OUTPUT);
+  Serial.println("Arduino initialized!");
+}
+
+void loop() {
+  Serial.println("Hello from Arduino!");
+  digitalWrite(13, HIGH);
+  delay(500);
+  digitalWrite(13, LOW);
+  delay(500);
+}`;
+        }
+
+        // Load user submissions
+        async function loadSubmissions(offset = 0) {
+            const container = document.getElementById('submissions-list');
+            
+            if (offset === 0) {
+                container.innerHTML = '<div class="loading">Loading submissions...</div>';
+            }
+            
+            try {
+                const response = await apiCall(`/submissions?limit=5&offset=${offset}`);
+                
+                if (response.success) {
+                    displaySubmissions(response.data.submissions, offset === 0);
+                    
+                    const loadMoreBtn = document.getElementById('load-more-btn');
+                    loadMoreBtn.style.display = response.data.submissions.length === 5 ? 'block' : 'none';
+                } else {
+                    if (offset === 0) {
+                        container.innerHTML = '<p>No submissions found. Start coding to see your submission history!</p>';
+                    }
+                }
+            } catch (error) {
+                if (offset === 0) {
+                    container.innerHTML = '<div class="error">Failed to load submissions</div>';
+                }
+            }
+        }
+
+        // Display submissions
+        function displaySubmissions(submissions, replace = true) {
+            const container = document.getElementById('submissions-list');
+            
+            if (replace) {
+                container.innerHTML = '';
+            }
+            
+            if (submissions.length === 0 && replace) {
+                container.innerHTML = '<p>No submissions yet. Select a problem and start coding!</p>';
+                return;
+            }
+            
+            submissions.forEach(submission => {
+                const submissionEl = document.createElement('div');
+                submissionEl.className = 'submission-item';
+                submissionEl.innerHTML = `
+                    <div>
+                        <strong>Problem ${submission.problemId.substring(0, 8)}...</strong>
+                        <span class="status-badge status-${submission.status}">${submission.status}</span>
+                        <div class="submission-time">${new Date(submission.createdAt).toLocaleString()}</div>
+                    </div>
+                    <div>
+                        <small>${submission.boardType.toUpperCase()}</small>
+                        ${submission.compileTimeMs ? `<small>${submission.compileTimeMs}ms</small>` : ''}
+                    </div>
+                `;
+                container.appendChild(submissionEl);
+            });
+        }
+
+        // Load more submissions
+        function loadMoreSubmissions() {
+            submissionsOffset += 5;
+            loadSubmissions(submissionsOffset);
+        }
+
+        // Sign out function (placeholder)
+        function signOut() {
+            alert('Sign out functionality - integrate with your auth system');
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadArduinoProblems();
+            loadSubmissions();
+        });
+    </script>
+</body>
+</html>

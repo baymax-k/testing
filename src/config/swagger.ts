@@ -16,8 +16,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
         "**Practice** G�� Filter problems by difficulty/tag/type, submit MCQ answers\n" +
         "**Contests** G�� Join contests, submit DSA solutions, view leaderboards\n" +
         "**Code Execution** G�� Run code in a sandbox (playground) or submit against test cases via Judge0\n" +
+        "**Arduino Platform** G�� Submit Arduino sketches for compilation, hardware-based programming problems\n" +
         "**Submissions** G�� Track submission history and verdicts\n\n" +
-        "Rate limits: 15 submissions/min, 15 sign-in attempts/min, 100 auth requests/15min per IP.",
+        "Rate limits: 15 submissions/min, 15 sign-in attempts/min, 100 auth requests/15min per IP, 5 Arduino compilations/min per user.",
     },
     servers: [
       {
@@ -53,6 +54,22 @@ const swaggerOptions: swaggerJsdoc.Options = {
       {
         name: "College Admin - Performance",
         description: "Performance analytics, status, leaderboards, and skill insights.",
+      },
+      {
+        name: "Arduino Platform",
+        description: "Arduino code compilation, job management, and hardware problem solving.",
+      },
+      {
+        name: "Arduino Problems",
+        description: "Browse and manage Arduino coding problems and test cases.",
+      },
+      {
+        name: "Arduino Jobs",
+        description: "Submit, monitor, and manage Arduino compilation jobs.",
+      },
+      {
+        name: "Arduino Admin",
+        description: "Administrative endpoints for Arduino platform management.",
       },
     ],
 
@@ -2204,6 +2221,275 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
         },
       },
+
+      // ═══ Arduino Platform API ═══════════════════════════════════════════════════
+      "/api/v1/arduino/problems": {
+        get: {
+          tags: ["Arduino Problems"],
+          summary: "Get Arduino problems",
+          description: "Retrieve a list of Arduino programming problems",
+          parameters: [
+            {
+              name: "difficulty",
+              in: "query",
+              schema: { type: "string", enum: ["easy", "medium", "hard"] },
+              description: "Filter by difficulty level"
+            },
+            {
+              name: "limit",
+              in: "query", 
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+              description: "Number of problems to return"
+            },
+            {
+              name: "offset",
+              in: "query",
+              schema: { type: "integer", minimum: 0, default: 0 },
+              description: "Number of problems to skip"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "List of Arduino problems",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: {
+                        type: "object",
+                        properties: {
+                          problems: {
+                            type: "array",
+                            items: { $ref: "#/components/schemas/ArduinoProblem" }
+                          },
+                          pagination: {
+                            type: "object",
+                            properties: {
+                              limit: { type: "integer" },
+                              offset: { type: "integer" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/arduino/problems/{problemId}": {
+        get: {
+          tags: ["Arduino Problems"],
+          summary: "Get Arduino problem details",
+          description: "Retrieve detailed information about a specific Arduino problem",
+          parameters: [
+            {
+              name: "problemId",
+              in: "path",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+              description: "Problem UUID"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Arduino problem details",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: {
+                        allOf: [
+                          { $ref: "#/components/schemas/ArduinoProblem" },
+                          {
+                            type: "object",
+                            properties: {
+                              testCases: {
+                                type: "array",
+                                items: { $ref: "#/components/schemas/ArduinoTestCase" }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": { description: "Problem not found" }
+          }
+        }
+      },
+      "/api/v1/arduino/compile": {
+        post: {
+          tags: ["Arduino Jobs"],
+          summary: "Submit Arduino code for compilation",
+          description: "Submit Arduino sketch for compilation. Rate limited to 5 requests per minute per user.",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CompileRequest" }
+              }
+            }
+          },
+          responses: {
+            "202": {
+              description: "Compilation job submitted successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/CompileResponse" }
+                }
+              },
+              headers: {
+                "X-RateLimit-Limit": { 
+                  schema: { type: "string" },
+                  description: "Requests allowed per window"
+                },
+                "X-RateLimit-Remaining": {
+                  schema: { type: "string" },
+                  description: "Requests remaining in current window"
+                }
+              }
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Authentication required" },
+            "404": { description: "Arduino problem not found" },
+            "429": { description: "Rate limit exceeded" },
+            "500": { description: "Compilation service error" }
+          }
+        }
+      },
+      "/api/v1/arduino/jobs/{submissionId}": {
+        get: {
+          tags: ["Arduino Jobs"],
+          summary: "Get compilation job status",
+          description: "Check the status and results of a compilation job",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "submissionId",
+              in: "path",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+              description: "Submission UUID"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Job status retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/JobStatusResponse" }
+                }
+              }
+            },
+            "401": { description: "Authentication required" },
+            "404": { description: "Submission not found or not owned by user" }
+          }
+        },
+        delete: {
+          tags: ["Arduino Jobs"],
+          summary: "Cancel compilation job",
+          description: "Cancel a queued compilation job (only possible for queued jobs)",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "submissionId", 
+              in: "path",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+              description: "Submission UUID"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Job cancelled successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Job cancelled successfully" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Job cannot be cancelled" },
+            "401": { description: "Authentication required" },
+            "404": { description: "Submission not found" }
+          }
+        }
+      },
+      "/api/v1/arduino/submissions": {
+        get: {
+          tags: ["Arduino Jobs"],
+          summary: "Get user's Arduino submissions",
+          description: "Retrieve submission history for the authenticated user",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "problemId",
+              in: "query",
+              schema: { type: "string", format: "uuid" },
+              description: "Filter by specific problem"
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+              description: "Number of submissions to return"
+            },
+            {
+              name: "offset",
+              in: "query", 
+              schema: { type: "integer", minimum: 0, default: 0 },
+              description: "Number of submissions to skip"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "User submissions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/SubmissionsResponse" }
+                }
+              }
+            },
+            "401": { description: "Authentication required" }
+          }
+        }
+      },
+      "/api/v1/arduino/admin/queue/stats": {
+        get: {
+          tags: ["Arduino Admin"],
+          summary: "Get compilation queue statistics",
+          description: "Administrative endpoint to view queue health and statistics. Requires admin role.",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Queue statistics retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/QueueStatsResponse" }
+                }
+              }
+            },
+            "401": { description: "Authentication required" },
+            "403": { description: "Admin access required" }
+          }
+        }
+      },
     },
   },
   apis: ["src/modules/routes/*.ts", "dist/modules/routes/*.js"],
@@ -2282,12 +2568,195 @@ const potdSchemas = {
   },
 };
 
+const arduinoSchemas = {
+  ArduinoProblem: {
+    type: "object",
+    properties: {
+      id: { type: "string", format: "uuid", example: "550e8400-e29b-41d4-a716-446655440000" },
+      title: { type: "string", example: "LED Blink Pattern" },
+      description: { type: "string", example: "Create a program that blinks an LED in a specific pattern" },
+      difficulty: { type: "string", enum: ["easy", "medium", "hard"], example: "easy" },
+      maxMemory: { type: "integer", example: 2048, description: "Maximum memory usage in bytes" },
+      timeLimit: { type: "integer", example: 5000, description: "Time limit in milliseconds" },
+      createdAt: { type: "string", format: "date-time" },
+      _count: {
+        type: "object",
+        properties: {
+          submissions: { type: "integer", example: 42 }
+        }
+      }
+    }
+  },
+  ArduinoTestCase: {
+    type: "object",
+    properties: {
+      id: { type: "string", format: "uuid" },
+      input: { type: "string", example: "Button press simulation data" },
+      expectedOutput: { type: "string", example: "LED pattern: HIGH-LOW-HIGH-LOW" },
+      isHidden: { type: "boolean", example: false }
+    }
+  },
+  ArduinoSubmission: {
+    type: "object",
+    properties: {
+      id: { type: "string", format: "uuid", example: "123e4567-e89b-12d3-a456-426614174000" },
+      userId: { type: "string", format: "uuid" },
+      problemId: { type: "string", format: "uuid" },
+      code: { type: "string", example: "void setup() { pinMode(13, OUTPUT); }" },
+      boardType: { type: "string", enum: ["uno", "mega"], example: "uno" },
+      status: { type: "string", enum: ["queued", "processing", "compiled", "failed"], example: "compiled" },
+      hexCode: { type: "string", nullable: true, example: ":100000000C9434000C9446000C9446000C944600AA" },
+      error: { type: "string", nullable: true, example: null },
+      compileTimeMs: { type: "integer", nullable: true, example: 1250 },
+      memoryUsage: { type: "string", nullable: true, example: "{\"program\": 924, \"data\": 9}" },
+      createdAt: { type: "string", format: "date-time" },
+      processedAt: { type: "string", format: "date-time", nullable: true },
+      completedAt: { type: "string", format: "date-time", nullable: true }
+    }
+  },
+  CompileRequest: {
+    type: "object",
+    required: ["problemId", "code"],
+    properties: {
+      problemId: { type: "string", format: "uuid", example: "550e8400-e29b-41d4-a716-446655440000" },
+      code: { 
+        type: "string", 
+        maxLength: 50000,
+        example: `void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}`
+      },
+      boardType: { type: "string", enum: ["uno", "mega"], default: "uno", example: "uno" }
+    }
+  },
+  CompileResponse: {
+    type: "object",
+    properties: {
+      success: { type: "boolean", example: true },
+      message: { type: "string", example: "Compilation job submitted successfully" },
+      data: {
+        type: "object",
+        properties: {
+          submissionId: { type: "string", format: "uuid", example: "123e4567-e89b-12d3-a456-426614174000" },
+          status: { type: "string", example: "queued" }
+        }
+      }
+    }
+  },
+  JobStatusResponse: {
+    type: "object",
+    properties: {
+      success: { type: "boolean", example: true },
+      data: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          status: { type: "string", enum: ["queued", "processing", "compiled", "failed"] },
+          progress: { type: "integer", minimum: 0, maximum: 100, example: 100 },
+          createdAt: { type: "string", format: "date-time" },
+          processedAt: { type: "string", format: "date-time", nullable: true },
+          completedAt: { type: "string", format: "date-time", nullable: true },
+          result: {
+            type: "object",
+            nullable: true,
+            properties: {
+              success: { type: "boolean" },
+              hexCode: { type: "string", nullable: true },
+              error: { type: "string", nullable: true },
+              compileTime: { type: "integer", example: 1250 },
+              memoryUsage: {
+                type: "object",
+                nullable: true,
+                properties: {
+                  program: { type: "integer", example: 924 },
+                  data: { type: "integer", example: 9 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  SubmissionsResponse: {
+    type: "object",
+    properties: {
+      success: { type: "boolean", example: true },
+      data: {
+        type: "object",
+        properties: {
+          submissions: {
+            type: "array",
+            items: { $ref: "#/components/schemas/ArduinoSubmission" }
+          },
+          pagination: {
+            type: "object",
+            properties: {
+              limit: { type: "integer", example: 20 },
+              offset: { type: "integer", example: 0 },
+              total: { type: "integer", example: 5 }
+            }
+          }
+        }
+      }
+    }
+  },
+  QueueStatsResponse: {
+    type: "object",
+    properties: {
+      success: { type: "boolean", example: true },
+      data: {
+        type: "object",
+        properties: {
+          queue: { type: "string", example: "arduino-compile" },
+          stats: {
+            type: "object",
+            properties: {
+              waiting: { type: "integer", example: 3 },
+              active: { type: "integer", example: 2 },
+              completed: { type: "integer", example: 150 },
+              failed: { type: "integer", example: 5 },
+              total: { type: "integer", example: 160 }
+            }
+          },
+          timestamp: { type: "string", format: "date-time" }
+        }
+      }
+    }
+  },
+  ArduinoError: {
+    type: "object",
+    properties: {
+      success: { type: "boolean", example: false },
+      error: { type: "string", example: "Rate limit exceeded" },
+      message: { type: "string", example: "You can only compile 5 Arduino sketches per minute" },
+      details: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            field: { type: "string" },
+            message: { type: "string" }
+          }
+        }
+      }
+    }
+  }
+};
+
 export const swaggerSpec = (() => {
   const spec = swaggerJsdoc(swaggerOptions) as {
     components?: { schemas?: Record<string, unknown> };
   };
   if (spec.components?.schemas) {
-    Object.assign(spec.components.schemas, potdSchemas);
+    Object.assign(spec.components.schemas, potdSchemas, arduinoSchemas);
   }
   return spec;
 })();

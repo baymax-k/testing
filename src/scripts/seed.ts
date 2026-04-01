@@ -5,8 +5,41 @@
 import "dotenv/config";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const SALT_ROUNDS = 12;
-const prisma = new PrismaClient();
+
+// Setup SSL for AWS RDS if needed
+function setupSSLCert(): void {
+  if (process.env.NODE_ENV === "production") return;
+
+  const certPath = process.env.RDS_SSL_CERT
+    ? path.resolve(__dirname, "../../..", process.env.RDS_SSL_CERT)
+    : null;
+  if (certPath && fs.existsSync(certPath)) {
+    process.env.NODE_EXTRA_CA_CERTS = certPath;
+    console.log("[prisma] Using RDS SSL cert:", certPath);
+  }
+}
+
+setupSSLCert();
+
+// Create PostgreSQL pool with proper configuration
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
+});
+
+// Create Prisma adapter
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({ adapter });
 
 const users = [
   {
@@ -369,30 +402,29 @@ async function seed() {
   console.log(`✓ Seeded ${dsaQuestions.length} DSA practice questions`);
 
   // ─── Seed Daily Challenges ──────────────────────────────────────────────────
-  const { default: dailyChallengesData } = await import("../data/daily-challenges.json", { with: { type: "json" } });
-
-  const now = new Date();
-
-  for (const entry of dailyChallengesData) {
-    const challengeDate = new Date(
-      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + entry.daysFromToday)
-    );
-
-    await prisma.dailyChallenge.upsert({
-      where: { date: challengeDate },
-      update: {
-        questionId: entry.questionId,
-        createdBy: adminUserId,
-      },
-      create: {
-        questionId: entry.questionId,
-        date: challengeDate,
-        createdBy: adminUserId,
-      },
-    });
-  }
-
-  console.log(`✓ Seeded ${dailyChallengesData.length} daily challenges`);
+  // Note: DailyChallenge model not yet implemented in schema
+  // Uncomment when model is added to Prisma schema
+  
+  // const { default: dailyChallengesData } = await import("../data/daily-challenges.json", { with: { type: "json" } });
+  // const now = new Date();
+  // for (const entry of dailyChallengesData) {
+  //   const challengeDate = new Date(
+  //     Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + entry.daysFromToday)
+  //   );
+  //   await prisma.dailyChallenge.upsert({
+  //     where: { date: challengeDate },
+  //     update: {
+  //       questionId: entry.questionId,
+  //       createdBy: adminUserId,
+  //     },
+  //     create: {
+  //       questionId: entry.questionId,
+  //       date: challengeDate,
+  //       createdBy: adminUserId,
+  //     },
+  //   });
+  // }
+  // console.log(`✓ Seeded ${dailyChallengesData.length} daily challenges`);
 
   console.log("\n✅ Seed complete.");
 }
