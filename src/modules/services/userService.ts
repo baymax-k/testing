@@ -149,9 +149,22 @@ export class UserService {
 
     if (!user) return null;
 
+    let assignedStudentsCount: number | undefined;
+    if (user.role === "mentor") {
+      assignedStudentsCount = await prisma.user.count({
+        where: {
+          role: "student",
+          batch: {
+            mentorId: user.id,
+          },
+        },
+      });
+    }
+
     return {
       ...user,
       mentorName: user.batch?.mentor?.name || null,
+      ...(assignedStudentsCount === undefined ? {} : { assignedStudentsCount }),
     };
   }
 

@@ -407,6 +407,8 @@ async function createSingleStudentAccount(
       return { success: false, error: "Failed to create account" };
     }
 
+    const passwordHash = await hashPassword(studentData.password);
+
     // Determine departmentId
     const departmentId = studentData.departmentId || 
       (["hod", "dept_admin"].includes(currentUser.role) ? currentUser.departmentId : null);
@@ -415,7 +417,9 @@ async function createSingleStudentAccount(
     const student = await prisma.user.update({
       where: { email: studentData.email },
       data: {
+        passwordHash,
         role: "student",
+        emailVerified: true,
         phone: studentData.phone || null,
         departmentId,
         batchId: studentData.batchId || null,
@@ -2306,7 +2310,7 @@ router.get(
           const [totalBatches, totalStudents, totalTests, totalMentors] = await Promise.all([
             prisma.batch.count({ where: { departmentId: user.departmentId } }),
             prisma.user.count({ where: { role: "student", departmentId: user.departmentId } }),
-            safeTestCount({ where: { departmentId: user.departmentId } }),
+            safeTestCount({ departmentId: user.departmentId }),
             prisma.user.count({ where: { role: "mentor", departmentId: user.departmentId } }),
           ]);
 
@@ -2326,7 +2330,7 @@ router.get(
                 // In future: add mentorId filter when batch-mentor relation is established
               } 
             }),
-            safeTestCount({ where: { departmentId: user.departmentId } }),
+            safeTestCount({ departmentId: user.departmentId }),
           ]);
 
           stats.myStudents = myStudents;
@@ -3854,11 +3858,15 @@ router.post(
         return;
       }
 
+      const passwordHash = await hashPassword(password);
+
       // Update the user with additional fields
       const student = await prisma.user.update({
         where: { email },
         data: {
+          passwordHash,
           role: "student",
+          emailVerified: true,
           phone: phone || null,
           departmentId: departmentId || (["hod", "dept_admin"].includes(currentUser.role) ? currentUser.departmentId : null),
           batchId: batchId || null,

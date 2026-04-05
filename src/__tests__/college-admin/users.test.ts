@@ -325,6 +325,7 @@ describe("College Admin - User Management Endpoints", () => {
         ...mockUsers.mentor,
         department: mockDepartment,
       } as any);
+      vi.spyOn(prisma.user, "count").mockResolvedValue(12);
 
       const response = await request(app as Express)
         .get("/api/college-admin/users/test_mentor_id")
@@ -333,6 +334,7 @@ describe("College Admin - User Management Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.user).toBeDefined();
+      expect(response.body.user.assignedStudentsCount).toBe(12);
     });
 
     it("should return 404 for non-existent user", async () => {
