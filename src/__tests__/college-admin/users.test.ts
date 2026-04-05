@@ -128,6 +128,16 @@ describe("College Admin - User Management Endpoints", () => {
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
       expect(response.body.user).toBeDefined();
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            passwordHash: expect.any(String),
+          }),
+        })
+      );
+
+      const updateCall = (prisma.user.update as any).mock.calls[0]?.[0];
+      expect(updateCall?.data?.passwordHash).not.toBe("");
     });
 
     it("should return 400 if email already exists", async () => {
@@ -230,6 +240,13 @@ describe("College Admin - User Management Endpoints", () => {
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
       expect(response.body.results.success.length).toBe(2);
+
+      const updateCalls = (prisma.user.update as any).mock.calls;
+      expect(updateCalls).toHaveLength(2);
+      for (const [callArg] of updateCalls) {
+        expect(callArg?.data?.passwordHash).toEqual(expect.any(String));
+        expect(callArg?.data?.passwordHash).not.toBe("");
+      }
     });
 
     it("should return 400 if more than 100 users", async () => {
@@ -271,6 +288,14 @@ describe("College Admin - User Management Endpoints", () => {
     it("should filter users by role", async () => {
       vi.spyOn(prisma.user, "findMany").mockResolvedValue([mockUsers.mentor] as any);
       vi.spyOn(prisma.user, "count").mockResolvedValue(1);
+      vi.spyOn(prisma.batch, "findMany").mockResolvedValue([
+        {
+          mentorId: mockUsers.mentor.id,
+          _count: {
+            students: 12,
+          },
+        },
+      ] as any);
 
       const response = await request(app as Express)
         .get("/api/college-admin/users?role=mentor")
@@ -278,6 +303,7 @@ describe("College Admin - User Management Endpoints", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
+      expect(response.body.users[0].assignedStudentsCount).toBe(12);
     });
 
     it("should filter users by department", async () => {

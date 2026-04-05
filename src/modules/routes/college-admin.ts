@@ -452,10 +452,10 @@ async function createSingleStudentAccount(
  *               email:
  *                 type: string
  *                 format: email
- *                 example: collegeadmin@codeethnics.com
+ *                 example: citadmin@codeethnics.com
  *               password:
  *                 type: string
- *                 example: CollegeAdmin@123
+ *                 example: CitAdmin@123
  *     responses:
  *       "200":
  *         description: Login successful
@@ -2432,17 +2432,21 @@ router.post(
       });
 
       // Check if Better Auth returned an error response
-      if (!newUser || !newUser.user || (newUser as any).error) {
-        const errorMessage = (newUser as any).error?.message || "Failed to create user";
+      const signUpError = (newUser as any)?.error;
+      if (!newUser?.user || signUpError) {
+        const errorMessage = signUpError?.message || "Failed to create user";
         console.error("[college-admin/users/create] Better Auth error:", newUser);
         res.status(400).json({ error: errorMessage });
         return;
       }
 
+      const passwordHash = await hashPassword(data.password);
+
       // Update user with additional fields
       const updatedUser = await prisma.user.update({
-        where: { email: data.email },
+        where: { id: (newUser as any).user.id },
         data: {
+          passwordHash,
           role: data.role as Role,
           phone: data.phone,
           departmentId: data.departmentId,
@@ -2503,11 +2507,14 @@ router.post(
             } as any,
           });
 
-          if (newUser && newUser.user && !(newUser as any).error) {
+          if (newUser?.user && !(newUser as any)?.error) {
+            const passwordHash = await hashPassword(userData.password);
+
             // Update user with additional fields
             const updatedUser = await prisma.user.update({
-              where: { email: userData.email },
+              where: { id: (newUser as any).user.id },
               data: {
+                passwordHash,
                 role: userData.role as Role,
                 phone: userData.phone,
                 departmentId: userData.departmentId,

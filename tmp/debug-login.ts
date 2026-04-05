@@ -8,7 +8,7 @@ async function main() {
     // Check users
     const users = await prisma.user.findMany({
       where: {
-        email: "collegeadmin@codeethnics.com",
+        email: "citadmin@codeethnics.com",
       },
       select: {
         id: true,
@@ -28,7 +28,7 @@ async function main() {
     const accounts = await prisma.account.findMany({
       where: {
         user: {
-          email: "collegeadmin@codeethnics.com",
+          email: "citadmin@codeethnics.com",
         },
       },
     });
@@ -39,7 +39,7 @@ async function main() {
     const sessions = await prisma.session.findMany({
       where: {
         user: {
-          email: "collegeadmin@codeethnics.com",
+          email: "citadmin@codeethnics.com",
         },
       },
     });

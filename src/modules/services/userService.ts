@@ -82,8 +82,40 @@ export class UserService {
       mentorName: user.batch?.mentor?.name || null,
     }));
 
+    let usersWithExtras = usersWithMentorName;
+
+    if (role === "mentor" && usersWithMentorName.length > 0) {
+      const mentorIds = usersWithMentorName.map((user) => user.id);
+      const mentorBatches = await prisma.batch.findMany({
+        where: {
+          mentorId: {
+            in: mentorIds,
+          },
+        },
+        select: {
+          mentorId: true,
+          _count: {
+            select: {
+              students: true,
+            },
+          },
+        },
+      });
+
+      const studentsCountByMentorId = mentorBatches.reduce<Record<string, number>>((acc, batch) => {
+        if (!batch.mentorId) return acc;
+        acc[batch.mentorId] = (acc[batch.mentorId] || 0) + batch._count.students;
+        return acc;
+      }, {});
+
+      usersWithExtras = usersWithMentorName.map((user) => ({
+        ...user,
+        assignedStudentsCount: studentsCountByMentorId[user.id] || 0,
+      }));
+    }
+
     return {
-      users: usersWithMentorName,
+      users: usersWithExtras,
       pagination: {
         page,
         limit,
