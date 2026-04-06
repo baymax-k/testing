@@ -290,6 +290,7 @@ describe("College Admin - User Management Endpoints", () => {
       vi.spyOn(prisma.user, "count").mockResolvedValue(1);
       vi.spyOn(prisma.batch, "findMany").mockResolvedValue([
         {
+          id: "mentor_assigned_batch_1",
           mentorId: mockUsers.mentor.id,
           _count: {
             students: 12,
@@ -304,6 +305,8 @@ describe("College Admin - User Management Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.users[0].assignedStudentsCount).toBe(12);
+      expect(response.body.users[0].batchId).toBe("mentor_assigned_batch_1");
+      expect(response.body.users[0].assignedBatchIds).toEqual(["mentor_assigned_batch_1"]);
     });
 
     it("should filter users by department", async () => {

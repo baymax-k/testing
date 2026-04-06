@@ -92,7 +92,11 @@ export class UserService {
             in: mentorIds,
           },
         },
+        orderBy: {
+          createdAt: "asc",
+        },
         select: {
+          id: true,
           mentorId: true,
           _count: {
             select: {
@@ -108,8 +112,20 @@ export class UserService {
         return acc;
       }, {});
 
+      const batchIdsByMentorId = mentorBatches.reduce<Record<string, string[]>>((acc, batch) => {
+        if (!batch.mentorId) return acc;
+        if (!acc[batch.mentorId]) {
+          acc[batch.mentorId] = [];
+        }
+        acc[batch.mentorId].push(batch.id);
+        return acc;
+      }, {});
+
       usersWithExtras = usersWithMentorName.map((user) => ({
         ...user,
+        // For mentors, return batchId based on Batch.mentorId relation.
+        batchId: user.batchId || batchIdsByMentorId[user.id]?.[0] || null,
+        assignedBatchIds: batchIdsByMentorId[user.id] || [],
         assignedStudentsCount: studentsCountByMentorId[user.id] || 0,
       }));
     }
