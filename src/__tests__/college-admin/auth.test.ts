@@ -53,6 +53,7 @@ vi.mock("../../config/auth.js", () => ({
 vi.mock("../../modules/auth/auth.service.js", () => ({
   generateAndStoreOTP: vi.fn().mockResolvedValue("123456"),
   sendOTPEmail: vi.fn().mockResolvedValue(undefined),
+  validateOTP: vi.fn().mockResolvedValue({ valid: true }),
   verifyOTP: vi.fn().mockResolvedValue({ valid: true }),
   hashPassword: vi.fn().mockResolvedValue("hashed-password"),
 }));
@@ -226,6 +227,7 @@ describe("College Admin - Authentication Endpoints", () => {
   describe("PUT /api/college-admin/auth/reset-password", () => {
     it("should reset password with valid payload", async () => {
       vi.spyOn(authService, "hashPassword").mockResolvedValue("hashed-password");
+      vi.spyOn(authService, "verifyOTP").mockResolvedValue({ valid: true });
       vi.spyOn(appPrisma.user, "findUnique").mockResolvedValue(mockUsers.collegeAdmin as any);
       vi.spyOn(appPrisma.user, "update").mockResolvedValue(mockUsers.collegeAdmin as any);
       vi.spyOn(appPrisma.refreshToken, "deleteMany").mockResolvedValue({ count: 1 } as any);
@@ -234,13 +236,32 @@ describe("College Admin - Authentication Endpoints", () => {
         .put("/api/college-admin/auth/reset-password")
         .send({
           email: "admin@college.test",
+          otp: "123456",
           password: "NewSecurePassword123",
         });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.message).toContain("reset");
+      expect(authService.verifyOTP).toHaveBeenCalledWith("admin@college.test", "forget-password", "123456");
       expect(appPrisma.user.update).toHaveBeenCalled();
+    });
+
+    it("should return 400 for invalid OTP", async () => {
+      vi.spyOn(authService, "verifyOTP").mockResolvedValue({ valid: false, reason: "Incorrect OTP" });
+      vi.spyOn(appPrisma.user, "findUnique").mockResolvedValue(mockUsers.collegeAdmin as any);
+
+      const response = await request(app as Express)
+        .put("/api/college-admin/auth/reset-password")
+        .send({
+          email: "admin@college.test",
+          otp: "000000",
+          password: "NewSecurePassword123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Incorrect OTP");
+      expect(appPrisma.user.update).not.toHaveBeenCalled();
     });
 
     it("should return 400 for invalid email", async () => {
@@ -248,6 +269,7 @@ describe("College Admin - Authentication Endpoints", () => {
         .put("/api/college-admin/auth/reset-password")
         .send({
           email: "invalid-email",
+          otp: "123456",
           password: "NewPassword123",
         });
 
@@ -260,6 +282,7 @@ describe("College Admin - Authentication Endpoints", () => {
         .put("/api/college-admin/auth/reset-password")
         .send({
           email: "admin@college.test",
+          otp: "123456",
           password: "short",
         });
 

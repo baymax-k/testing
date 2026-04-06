@@ -6,7 +6,7 @@ import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { auth, prisma } from "../../config/auth.js";
 import { prisma as appPrisma } from "../../config/prisma.js";
-import { generateAndStoreOTP, sendOTPEmail, hashPassword, validateOTP } from "../auth/auth.service.js";
+import { generateAndStoreOTP, sendOTPEmail, hashPassword, validateOTP, verifyOTP } from "../auth/auth.service.js";
 import { UserService } from "../services/userService.js";
 import { DepartmentService } from "../services/departmentService.js";
 import { BatchService } from "../services/batchService.js";
@@ -31,6 +31,7 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
   email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address"),
+  otp: z.string().length(6, "OTP must be 6 digits"),
   password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long"),
 });
 
@@ -554,12 +555,16 @@ async function createSingleStudentAccount(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password]
+ *             required: [email, otp, password]
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
  *                 example: superadmin@codeethnics.com
+ *               otp:
+ *                 type: string
+ *                 description: OTP sent to email
+ *                 example: "123456"
  *               password:
  *                 type: string
  *                 example: NewPass@123
@@ -1937,7 +1942,7 @@ router.put("/auth/reset-password", async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    const { password, email } = validation.data;
+    const { password, email, otp } = validation.data;
 
     const user = await appPrisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -1953,6 +1958,15 @@ router.put("/auth/reset-password", async (req: AuthRequest, res: Response): Prom
       res.status(403).json({
         error: "Access denied",
         message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    const otpVerification = await verifyOTP(email, "forget-password", otp);
+    if (!otpVerification.valid) {
+      res.status(400).json({
+        error: otpVerification.reason || "Invalid or expired OTP",
+        message: "Please request a new password reset code",
       });
       return;
     }
