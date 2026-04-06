@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Admin Hackathons Endpoint Tester</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #221b17;
+        --card: #fffdf9;
+        --line: #e0d3c8;
+        --primary: #8a3f12;
+        --primary-strong: #6f330f;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+        background:
+          radial-gradient(circle at 12% 8%, #ffe8d7 0%, transparent 32%),
+          radial-gradient(circle at 85% 20%, #e2ebff 0%, transparent 28%),
+          linear-gradient(165deg, #fcf6ef 0%, #faf4ed 48%, #f4f7ff 100%);
+      }
+
+      .wrap {
+        width: min(1220px, 94vw);
+        margin: 26px auto 40px;
+      }
+
+      .hero {
+        border-radius: 16px;
+        border: 1px solid #ab5122;
+        background: linear-gradient(135deg, #8a3f12, #bb5b24);
+        color: #fff1e7;
+        padding: 20px;
+      }
+
+      .hero h1 { margin: 0; font-size: clamp(1.3rem, 2.1vw, 1.95rem); }
+      .hero p { margin: 10px 0 0; color: #ffe3d1; }
+
+      .grid {
+        margin-top: 14px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(12, 1fr);
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .span-12 { grid-column: span 12; }
+      .span-6 { grid-column: span 6; }
+
+      @media (max-width: 940px) {
+        .span-6 { grid-column: span 12; }
+      }
+
+      h2 { margin: 0 0 10px; font-size: 1rem; }
+
+      label {
+        display: block;
+        margin: 8px 0 5px;
+        font-size: 0.82rem;
+        color: #5f5048;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: #fff;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      textarea {
+        min-height: 92px;
+        resize: vertical;
+      }
+
+      .actions {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .btn-primary { background: var(--primary); color: #fff4ec; }
+      .btn-primary:hover { background: var(--primary-strong); }
+      .btn-soft { background: #f0e4da; color: #5e4230; }
+      .btn-danger { background: #ffe0d7; color: #6a230f; }
+
+      .log {
+        margin-top: 10px;
+        border: 1px solid #dfd3c8;
+        border-radius: 12px;
+        background: #17120f;
+        color: #ffd9bf;
+        padding: 12px;
+        min-height: 260px;
+        max-height: 420px;
+        overflow: auto;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .ok { color: #ffd8b3; }
+      .bad { color: #ffb3b3; }
+      .hint { margin: 8px 0 0; font-size: 0.84rem; color: #7b6759; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Product Admin Hackathons Endpoint Tester</h1>
+        <p>Includes all /api/product-admin/hackathons routes, including status updates and team scoring updates.</p>
+      </section>
+
+      <section class="grid">
+        <article class="card span-12">
+          <h2>API Target and Session</h2>
+          <label for="baseUrl">Base URL</label>
+          <input id="baseUrl" value="http://localhost:5000" />
+          <label for="authBody">POST /api/product-admin/auth/sign-in payload</label>
+          <textarea id="authBody">{
+  "identifier": "super.admin@example.com",
+  "password": "SuperAdmin@123"
+}</textarea>
+          <div class="actions">
+            <button class="btn-soft" id="btnUseOrigin">Use Current Origin</button>
+            <button class="btn-primary" id="btnSignIn">Sign In</button>
+            <button class="btn-danger" id="btnSignOut">Sign Out</button>
+            <button class="btn-soft" id="btnClearLog">Clear Console</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Create and List</h2>
+          <label for="hackathonId">Hackathon ID</label>
+          <input id="hackathonId" placeholder="used for get, patch, status, stats, delete" />
+
+          <label for="createHackathonBody">POST /hackathons payload</label>
+          <textarea id="createHackathonBody">{
+  "title": "CodeEthnics Spring Hackathon",
+  "description": "Main event description",
+  "shortDescription": "Spring coding challenge",
+  "collegeId": "",
+  "startDate": "2026-05-10T09:00:00.000Z",
+  "endDate": "2026-05-12T18:00:00.000Z",
+  "registrationDeadline": "2026-05-05T23:59:59.000Z",
+  "maxTeams": 100,
+  "maxTeamSize": 5,
+  "minTeamSize": 1,
+  "theme": "AI for Education",
+  "problemStatementUrl": "https://example.com/problem.pdf",
+  "isPublic": true,
+  "allowRemoteParticipation": true,
+  "prizesInfo": "Top 3 teams receive prizes",
+  "rulesUrl": "https://example.com/rules"
+}</textarea>
+
+          <label for="listQuery">Query string for GET /hackathons</label>
+          <input id="listQuery" placeholder="collegeId=...&status=draft&page=1&limit=20" />
+
+          <div class="actions">
+            <button class="btn-primary" id="btnCreateHackathon">Create Hackathon</button>
+            <button class="btn-soft" id="btnGetHackathons">Get Hackathons</button>
+            <button class="btn-soft" id="btnGetById">Get Hackathon By ID</button>
+            <button class="btn-soft" id="btnGetStats">Get Hackathon Stats</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Update and Delete</h2>
+          <label for="updateHackathonBody">PATCH /hackathons/:hackathonId payload</label>
+          <textarea id="updateHackathonBody">{
+  "title": "CodeEthnics Spring Hackathon Updated",
+  "shortDescription": "Updated short description",
+  "maxTeams": 120
+}</textarea>
+
+          <label for="statusBody">PATCH /hackathons/:hackathonId/status payload</label>
+          <textarea id="statusBody">{
+  "status": "registration_open"
+}</textarea>
+
+          <label for="teamId">Team ID</label>
+          <input id="teamId" placeholder="team id for patch team" />
+
+          <label for="teamBody">PATCH /hackathons/:hackathonId/teams/:teamId payload</label>
+          <textarea id="teamBody">{
+  "projectTitle": "Smart Attendance Bot",
+  "repositoryUrl": "https://github.com/org/repo",
+  "demoUrl": "https://demo.example.com",
+  "score": 87,
+  "ranking": 3
+}</textarea>
+
+          <div class="actions">
+            <button class="btn-primary" id="btnPatchHackathon">Patch Hackathon</button>
+            <button class="btn-primary" id="btnPatchStatus">Patch Status</button>
+            <button class="btn-primary" id="btnPatchTeam">Patch Team</button>
+            <button class="btn-danger" id="btnDeleteHackathon">Delete Hackathon</button>
+          </div>
+          <p class="hint">Create, patch status, and delete require super_admin role.</p>
+        </article>
+
+        <article class="card span-12">
+          <h2>Response Console</h2>
+          <pre id="log" class="log"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const get = (id) => document.getElementById(id);
+      const logEl = get("log");
+
+      function baseUrl() {
+        return get("baseUrl").value.trim().replace(/\/$/, "");
+      }
+
+      function now() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function print(title, payload, ok = true) {
+        const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+        logEl.textContent += `[${now()}] ${title}\n${body}\n\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+        logEl.className = `log ${ok ? "ok" : "bad"}`;
+      }
+
+      function parseJson(id) {
+        return JSON.parse(get(id).value.trim() || "{}");
+      }
+
+      async function callApi(method, path, body) {
+        const options = {
+          method,
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+        if (body !== undefined) {
+          options.body = JSON.stringify(body);
+        }
+
+        const url = `${baseUrl()}${path}`;
+        let response;
+        try {
+          response = await fetch(url, options);
+        } catch (error) {
+          print(`${method} ${path} NETWORK ERROR`, String(error), false);
+          throw error;
+        }
+
+        const text = await response.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : { message: "No content" };
+        } catch {
+          data = text;
+        }
+
+        print(`${method} ${path} -> ${response.status}`, data, response.ok);
+        return { ok: response.ok, status: response.status, data };
+      }
+
+      async function runJson(method, path, bodyId) {
+        try {
+          return await callApi(method, path, bodyId ? parseJson(bodyId) : undefined);
+        } catch (error) {
+          print("INVALID JSON", String(error), false);
+          return null;
+        }
+      }
+
+      function getHackathonIdOrWarn() {
+        const id = get("hackathonId").value.trim();
+        if (!id) {
+          print("HACKATHON ID", "Hackathon ID is required", false);
+          return null;
+        }
+        return id;
+      }
+
+      function getTeamIdOrWarn() {
+        const id = get("teamId").value.trim();
+        if (!id) {
+          print("TEAM ID", "Team ID is required", false);
+          return null;
+        }
+        return id;
+      }
+
+      get("btnUseOrigin").addEventListener("click", () => {
+        get("baseUrl").value = window.location.origin;
+        print("BASE URL", { value: window.location.origin }, true);
+      });
+
+      get("btnClearLog").addEventListener("click", () => {
+        logEl.textContent = "";
+      });
+
+      get("btnSignIn").addEventListener("click", () => runJson("POST", "/api/product-admin/auth/sign-in", "authBody"));
+      get("btnSignOut").addEventListener("click", () => callApi("POST", "/api/product-admin/auth/sign-out"));
+
+      get("btnCreateHackathon").addEventListener("click", async () => {
+        const result = await runJson("POST", "/api/product-admin/hackathons", "createHackathonBody");
+        const id = result && result.data && result.data.hackathon && result.data.hackathon.id;
+        if (result && result.ok && id) {
+          get("hackathonId").value = id;
+        }
+      });
+
+      get("btnGetHackathons").addEventListener("click", () => {
+        const query = get("listQuery").value.trim();
+        const suffix = query ? `?${query}` : "";
+        callApi("GET", `/api/product-admin/hackathons${suffix}`);
+      });
+
+      get("btnGetById").addEventListener("click", () => {
+        const id = getHackathonIdOrWarn();
+        if (!id) return;
+        callApi("GET", `/api/product-admin/hackathons/${encodeURIComponent(id)}`);
+      });
+
+      get("btnGetStats").addEventListener("click", () => {
+        const id = getHackathonIdOrWarn();
+        if (!id) return;
+        callApi("GET", `/api/product-admin/hackathons/${encodeURIComponent(id)}/stats`);
+      });
+
+      get("btnPatchHackathon").addEventListener("click", () => {
+        const id = getHackathonIdOrWarn();
+        if (!id) return;
+        runJson("PATCH", `/api/product-admin/hackathons/${encodeURIComponent(id)}`, "updateHackathonBody");
+      });
+
+      get("btnPatchStatus").addEventListener("click", () => {
+        const id = getHackathonIdOrWarn();
+        if (!id) return;
+        runJson("PATCH", `/api/product-admin/hackathons/${encodeURIComponent(id)}/status`, "statusBody");
+      });
+
+      get("btnPatchTeam").addEventListener("click", () => {
+        const hackathonId = getHackathonIdOrWarn();
+        if (!hackathonId) return;
+        const teamId = getTeamIdOrWarn();
+        if (!teamId) return;
+        runJson(
+          "PATCH",
+          `/api/product-admin/hackathons/${encodeURIComponent(hackathonId)}/teams/${encodeURIComponent(teamId)}`,
+          "teamBody"
+        );
+      });
+
+      get("btnDeleteHackathon").addEventListener("click", () => {
+        const id = getHackathonIdOrWarn();
+        if (!id) return;
+        callApi("DELETE", `/api/product-admin/hackathons/${encodeURIComponent(id)}`);
+      });
+
+      print("READY", {
+        page: "product-admin-hackathons-test.html",
+        baseUrl: baseUrl(),
+        endpoints: "all /api/product-admin/hackathons endpoints",
+      });
+    </script>
+  </body>
+</html>

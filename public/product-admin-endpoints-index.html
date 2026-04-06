@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Admin Endpoint Test Pages</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --ink: #18241e;
+        --line: #d5decd;
+        --panel: #fbfdf7;
+        --primary: #195442;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+        background:
+          radial-gradient(circle at 10% 10%, #dff2e1 0%, transparent 32%),
+          radial-gradient(circle at 88% 18%, #ffe8c7 0%, transparent 28%),
+          linear-gradient(160deg, #f4f8ef 0%, #f6f3ea 55%, #eef3fb 100%);
+      }
+
+      .wrap {
+        width: min(920px, 92vw);
+        margin: 30px auto;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #195442, #236953);
+        color: #e9f8f0;
+        border: 1px solid #2a7b62;
+        border-radius: 16px;
+        padding: 22px;
+      }
+
+      .hero h1 { margin: 0; }
+      .hero p { margin: 10px 0 0; color: #cee9db; }
+
+      .grid {
+        margin-top: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      a {
+        display: block;
+        text-decoration: none;
+        color: #163d31;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 12px;
+        padding: 14px;
+      }
+
+      a:hover {
+        border-color: #9db9a8;
+        background: #f4fbf3;
+      }
+
+      .title { font-weight: 700; color: var(--primary); }
+      .desc { margin-top: 4px; font-size: 0.9rem; color: #4a6057; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Product Admin Endpoint Test Pages</h1>
+        <p>Open a page below to test each product-admin route group.</p>
+      </section>
+
+      <section class="grid">
+        <a href="/product-admin-auth-test.html">
+          <div class="title">Auth Endpoints</div>
+          <div class="desc">Sign up, sign in, OTP, reset password, profile, and settings endpoints.</div>
+        </a>
+
+        <a href="/product-admin-colleges-test.html">
+          <div class="title">Colleges Endpoints</div>
+          <div class="desc">College CRUD and college-admin create, assign, edit, remove endpoints.</div>
+        </a>
+
+        <a href="/product-admin-rbac-test.html">
+          <div class="title">RBAC Endpoints</div>
+          <div class="desc">Admin listing, details, promote/demote, role permissions, my permissions.</div>
+        </a>
+
+        <a href="/product-admin-hackathons-test.html">
+          <div class="title">Hackathons Endpoints</div>
+          <div class="desc">Hackathon create/list/get/update/status/delete and team update endpoints.</div>
+        </a>
+      </section>
+    </main>
+  </body>
+</html>
