@@ -631,6 +631,12 @@ export class TestService {
       throw new Error("Question not found");
     }
 
+    if (!existingQuestion.test || !existingQuestion.testId) {
+      throw new Error("Question is not associated with any test");
+    }
+
+    const existingQuestionTestId = existingQuestion.testId;
+
     // Don't allow editing questions in active or completed tests
     if (
       existingQuestion.test.status === "active" ||
@@ -657,9 +663,9 @@ export class TestService {
 
     // Update test total marks if marks changed
     if (data.marks !== undefined) {
-      const totalMarks = await calculateTotalMarks(existingQuestion.testId);
+      const totalMarks = await calculateTotalMarks(existingQuestionTestId);
       await prisma.test.update({
-        where: { id: existingQuestion.testId },
+        where: { id: existingQuestionTestId },
         data: { totalMarks },
       });
     }
@@ -681,6 +687,12 @@ export class TestService {
       throw new Error("Question not found");
     }
 
+    if (!question.test || !question.testId) {
+      throw new Error("Question is not associated with any test");
+    }
+
+    const questionTestId = question.testId;
+
     // Don't allow deleting questions from active or completed tests
     if (question.test.status === "active" || question.test.status === "completed") {
       throw new Error(`Cannot delete questions from ${question.test.status} test`);
@@ -691,9 +703,9 @@ export class TestService {
     });
 
     // Update test total marks
-    const totalMarks = await calculateTotalMarks(question.testId);
+    const totalMarks = await calculateTotalMarks(questionTestId);
     await prisma.test.update({
-      where: { id: question.testId },
+      where: { id: questionTestId },
       data: { totalMarks },
     });
 

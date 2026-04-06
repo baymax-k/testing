@@ -2477,7 +2477,6 @@ router.post(
           role: data.role as Role,
           phone: data.phone,
           departmentId: data.departmentId,
-          collegeId: data.collegeId,
           emailVerified: true,
         },
         include: {
@@ -2546,7 +2545,6 @@ router.post(
                 role: userData.role as Role,
                 phone: userData.phone,
                 departmentId: userData.departmentId,
-                collegeId: userData.collegeId,
                 emailVerified: true,
               },
               include: {

@@ -92,7 +92,6 @@ export class DepartmentService {
     // Check if code or name already exists
     const existing = await prisma.department.findFirst({
       where: {
-        collegeId: data.collegeId,
         OR: [{ code: data.code }, { name: data.name }],
       },
     });

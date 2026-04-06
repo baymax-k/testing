@@ -390,7 +390,7 @@ export class ReportService {
 
       return {
         questionId: question.id,
-        questionText: question.content.substring(0, 100),
+        questionText: (question.content ?? "").substring(0, 100),
         type: question.type,
         correctAnswerPercentage,
         averageScoreOnQuestion: (correctAnswerPercentage / 100) * question.marks,

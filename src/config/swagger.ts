@@ -2680,7 +2680,7 @@ const addResponseExamples = (paths: Record<string, unknown>): void => {
   });
 };
 
-addResponseExamples(swaggerOptions.definition.paths as Record<string, unknown>);
+addResponseExamples((swaggerOptions.definition?.paths ?? {}) as Record<string, unknown>);
 
 // ── Supplementary Schemas ──────────────────────────────────────────────────────
 // Injected after swaggerOptions so we can reference them cleanly.
