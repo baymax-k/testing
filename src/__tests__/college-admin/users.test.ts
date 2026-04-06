@@ -111,6 +111,7 @@ describe("College Admin - User Management Endpoints", () => {
         phone: null,
         batchId: null,
         departmentId: null,
+        collegeId: "college_test_id",
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any);
@@ -123,6 +124,7 @@ describe("College Admin - User Management Endpoints", () => {
           name: "New User",
           password: "User@123",
           role: "mentor",
+          collegeId: "college_test_id",
         });
 
       expect(response.status).toBe(201);
@@ -132,9 +134,12 @@ describe("College Admin - User Management Endpoints", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             passwordHash: expect.any(String),
+            collegeId: "college_test_id",
           }),
         })
       );
+
+      expect(response.body.user.collegeId).toBe("college_test_id");
 
       const updateCall = (prisma.user.update as any).mock.calls[0]?.[0];
       expect(updateCall?.data?.passwordHash).not.toBe("");
@@ -200,6 +205,7 @@ describe("College Admin - User Management Endpoints", () => {
           phone: null,
           batchId: null,
           departmentId: null,
+          collegeId: "college_test_id",
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any)
@@ -213,6 +219,7 @@ describe("College Admin - User Management Endpoints", () => {
           phone: null,
           batchId: null,
           departmentId: null,
+          collegeId: "college_test_id",
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any);
@@ -227,12 +234,14 @@ describe("College Admin - User Management Endpoints", () => {
               name: "User One",
               password: "User@123",
               role: "mentor",
+              collegeId: "college_test_id",
             },
             {
               email: "user2@test.com",
               name: "User Two",
               password: "User@123",
               role: "instructor_staff",
+              collegeId: "college_test_id",
             },
           ],
         });
@@ -246,7 +255,11 @@ describe("College Admin - User Management Endpoints", () => {
       for (const [callArg] of updateCalls) {
         expect(callArg?.data?.passwordHash).toEqual(expect.any(String));
         expect(callArg?.data?.passwordHash).not.toBe("");
+        expect(callArg?.data?.collegeId).toBe("college_test_id");
       }
+
+      expect(response.body.results.success[0].user.collegeId).toBe("college_test_id");
+      expect(response.body.results.success[1].user.collegeId).toBe("college_test_id");
     });
 
     it("should return 400 if more than 100 users", async () => {

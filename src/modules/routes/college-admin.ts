@@ -56,6 +56,7 @@ const createUserSchema = z.object({
   }),
   phone: z.string().optional(),
   departmentId: z.string().nullable().optional(), // Optional for HOD creation without immediate department assignment
+  collegeId: z.string().nullable().optional(),
 });
 
 const bulkUsersSchema = z.object({
@@ -698,6 +699,10 @@ async function createSingleStudentAccount(
  *               departmentId:
  *                 type: string
  *                 example: dept_123
+ *               collegeId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: college_123
  *             additionalProperties: false
  *     responses:
  *       "201":
@@ -747,6 +752,10 @@ async function createSingleStudentAccount(
  *                     departmentId:
  *                       type: string
  *                       example: dept_123
+ *                     collegeId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: college_123
  *                   additionalProperties: false
  *             additionalProperties: false
  *     responses:
@@ -2468,6 +2477,7 @@ router.post(
           role: data.role as Role,
           phone: data.phone,
           departmentId: data.departmentId,
+          collegeId: data.collegeId,
           emailVerified: true,
         },
         include: {
@@ -2536,6 +2546,7 @@ router.post(
                 role: userData.role as Role,
                 phone: userData.phone,
                 departmentId: userData.departmentId,
+                collegeId: userData.collegeId,
                 emailVerified: true,
               },
               include: {
