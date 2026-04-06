@@ -1,8 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken, ACCESS_TOKEN_COOKIE } from "../modules/auth/auth.service";
 import type { AccessTokenPayload } from "../modules/auth/auth.service";
-import { fromNodeHeaders } from "better-auth/node";
-import { auth } from "../config/auth";
 import { prisma } from "../config/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -18,6 +16,7 @@ export interface AuthRequest extends Request {
     emailVerified: boolean;
     image?: string | null;
     phone?: string | null;
+    collegeId?: string | null;
     departmentId?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
@@ -62,17 +61,28 @@ export const requireCollegeAdminAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
+    const sessionToken = req.cookies?.["better-auth.session_token"];
+
+    if (!sessionToken) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { token: sessionToken },
+      select: {
+        userId: true,
+        expiresAt: true,
+      },
     });
 
-    if (!session?.user) {
+    if (!session || session.expiresAt < new Date()) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
     const fullUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: session.userId },
       select: {
         id: true,
         email: true,
@@ -81,6 +91,7 @@ export const requireCollegeAdminAuth = async (
         emailVerified: true,
         image: true,
         phone: true,
+        collegeId: true,
         departmentId: true,
         createdAt: true,
         updatedAt: true,
@@ -101,6 +112,7 @@ export const requireCollegeAdminAuth = async (
       emailVerified: fullUser.emailVerified,
       image: fullUser.image,
       phone: fullUser.phone,
+      collegeId: fullUser.collegeId,
       departmentId: fullUser.departmentId,
       createdAt: fullUser.createdAt,
       updatedAt: fullUser.updatedAt,

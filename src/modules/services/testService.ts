@@ -7,6 +7,7 @@ export interface CreateTestInput {
   instructions?: string;
   durationMinutes?: number;
   maxAttempts?: number;
+  maximumMarks?: number;
   passingMarks?: number;
   scheduledStartTime?: Date;
   scheduledEndTime?: Date;
@@ -100,7 +101,7 @@ async function checkTestManagementPermission(
     throw new Error("User not found");
   }
 
-  // Super admins and college admins can manage all tests
+  // College super admins and college admins can manage all tests
   if (allowedRoles.includes(user.role) || user.role === "super_admin" || user.role === "college_admin") {
     return true;
   }
@@ -221,7 +222,7 @@ export class TestService {
         status,
         durationMinutes: data.durationMinutes || 60,
         maxAttempts: data.maxAttempts || 1,
-        totalMarks: 0, // Will be calculated as questions are added
+        totalMarks: data.maximumMarks ?? 0, // Provided cap or will be calculated as questions are added
         passingMarks: data.passingMarks,
         scheduledStartTime: data.scheduledStartTime,
         scheduledEndTime: data.scheduledEndTime,

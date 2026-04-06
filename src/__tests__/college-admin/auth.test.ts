@@ -16,6 +16,9 @@ vi.mock("../../config/auth.js", () => ({
       delete: vi.fn(),
       count: vi.fn(),
     },
+    refreshToken: {
+      deleteMany: vi.fn(),
+    },
     department: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -47,6 +50,26 @@ vi.mock("../../config/auth.js", () => ({
   },
 }));
 
+vi.mock("../../modules/auth/auth.service.js", () => ({
+  generateAndStoreOTP: vi.fn().mockResolvedValue("123456"),
+  sendOTPEmail: vi.fn().mockResolvedValue(undefined),
+  validateOTP: vi.fn().mockResolvedValue({ valid: true }),
+  verifyOTP: vi.fn().mockResolvedValue({ valid: true }),
+  hashPassword: vi.fn().mockResolvedValue("hashed-password"),
+}));
+
+vi.mock("../../config/prisma.js", () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    refreshToken: {
+      deleteMany: vi.fn(),
+    },
+  },
+}));
+
 // Mock auth middleware
 vi.mock("../../middleware/auth.js", () => ({
   requireAuth: (req: any, res: any, next: any) => {
@@ -68,6 +91,8 @@ vi.mock("../../middleware/auth.js", () => ({
 
 // Import after mocks
 const { prisma, auth } = await import("../../config/auth.js");
+const { prisma: appPrisma } = await import("../../config/prisma.js");
+const authService = await import("../../modules/auth/auth.service.js");
 const app = (await import("../../app.js")).default;
 
 describe("College Admin - Authentication Endpoints", () => {
@@ -172,12 +197,6 @@ describe("College Admin - Authentication Endpoints", () => {
 
   describe("POST /api/college-admin/auth/forgot-password", () => {
     it("should send OTP for password reset", async () => {
-      // Mock fetch for Better Auth email-otp endpoint
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as any);
-
       vi.spyOn(prisma.user, "findUnique").mockResolvedValue(mockUsers.collegeAdmin as any);
 
       const response = await request(app as Express)
@@ -189,6 +208,8 @@ describe("College Admin - Authentication Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.message).toContain("sent");
+      expect(authService.generateAndStoreOTP).toHaveBeenCalledWith("admin@college.test", "forget-password");
+      expect(authService.sendOTPEmail).toHaveBeenCalled();
     });
 
     it("should return 400 for invalid email", async () => {
@@ -203,16 +224,16 @@ describe("College Admin - Authentication Endpoints", () => {
     });
   });
 
-  describe("POST /api/college-admin/auth/reset-password", () => {
-    it("should reset password with valid OTP", async () => {
-      // Mock fetch for Better Auth reset password endpoint
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as any);
+  describe("PUT /api/college-admin/auth/reset-password", () => {
+    it("should reset password with valid payload", async () => {
+      vi.spyOn(authService, "hashPassword").mockResolvedValue("hashed-password");
+      vi.spyOn(authService, "verifyOTP").mockResolvedValue({ valid: true });
+      vi.spyOn(appPrisma.user, "findUnique").mockResolvedValue(mockUsers.collegeAdmin as any);
+      vi.spyOn(appPrisma.user, "update").mockResolvedValue(mockUsers.collegeAdmin as any);
+      vi.spyOn(appPrisma.refreshToken, "deleteMany").mockResolvedValue({ count: 1 } as any);
 
       const response = await request(app as Express)
-        .post("/api/college-admin/auth/reset-password")
+        .put("/api/college-admin/auth/reset-password")
         .send({
           email: "admin@college.test",
           otp: "123456",
@@ -222,14 +243,33 @@ describe("College Admin - Authentication Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.message).toContain("reset");
+      expect(authService.verifyOTP).toHaveBeenCalledWith("admin@college.test", "forget-password", "123456");
+      expect(appPrisma.user.update).toHaveBeenCalled();
     });
 
-    it("should return 400 for invalid OTP length", async () => {
+    it("should return 400 for invalid OTP", async () => {
+      vi.spyOn(authService, "verifyOTP").mockResolvedValue({ valid: false, reason: "Incorrect OTP" });
+      vi.spyOn(appPrisma.user, "findUnique").mockResolvedValue(mockUsers.collegeAdmin as any);
+
       const response = await request(app as Express)
-        .post("/api/college-admin/auth/reset-password")
+        .put("/api/college-admin/auth/reset-password")
         .send({
           email: "admin@college.test",
-          otp: "123",
+          otp: "000000",
+          password: "NewSecurePassword123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Incorrect OTP");
+      expect(appPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("should return 400 for invalid email", async () => {
+      const response = await request(app as Express)
+        .put("/api/college-admin/auth/reset-password")
+        .send({
+          email: "invalid-email",
+          otp: "123456",
           password: "NewPassword123",
         });
 
@@ -239,7 +279,7 @@ describe("College Admin - Authentication Endpoints", () => {
 
     it("should return 400 for short password", async () => {
       const response = await request(app as Express)
-        .post("/api/college-admin/auth/reset-password")
+        .put("/api/college-admin/auth/reset-password")
         .send({
           email: "admin@college.test",
           otp: "123456",

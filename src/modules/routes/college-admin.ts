@@ -1,8 +1,12 @@
 import { Router, type Response, type Router as RouterType } from "express";
 import { z } from "zod";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { auth, prisma } from "../../config/auth.js";
+import { prisma as appPrisma } from "../../config/prisma.js";
+import { generateAndStoreOTP, sendOTPEmail, hashPassword, validateOTP, verifyOTP } from "../auth/auth.service.js";
 import { UserService } from "../services/userService.js";
 import { DepartmentService } from "../services/departmentService.js";
 import { BatchService } from "../services/batchService.js";
@@ -12,6 +16,7 @@ import type { Role, TestStatus } from "../../generated/prisma/client.js";
 
 const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;
+const isProd = process.env.NODE_ENV === "production";
 
 // ─── Validation Schemas ─────────────────────────────────────────────────────────
 
@@ -30,6 +35,11 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long"),
 });
 
+const verifyOtpSchema = z.object({
+  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address"),
+  otp: z.string().length(6, "OTP must be 6 digits"),
+});
+
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
   image: z.string().regex(/^https?:\/\/.+/, "Invalid image URL").optional(),
@@ -45,7 +55,8 @@ const createUserSchema = z.object({
     message: "Invalid role",
   }),
   phone: z.string().optional(),
-  departmentId: z.string().optional(),
+  departmentId: z.string().nullable().optional(), // Optional for HOD creation without immediate department assignment
+  collegeId: z.string().nullable().optional(),
 });
 
 const bulkUsersSchema = z.object({
@@ -75,15 +86,16 @@ const assignDepartmentSchema = z.object({
 const createDepartmentSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   code: z.string().min(2, "Code must be at least 2 characters").max(10, "Code too long"),
+  collegeId: z.string().optional(),
   description: z.string().optional(),
-  hodId: z.string().optional(),
+  hodId: z.string().nullable().optional(), // Optional: HOD can be assigned later
 });
 
 const updateDepartmentSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
   code: z.string().min(2, "Code must be at least 2 characters").max(10, "Code too long").optional(),
   description: z.string().optional(),
-  hodId: z.string().nullable().optional(),
+  hodId: z.string().nullable().optional(), // Can be null to unassign HOD
 });
 
 // ─── Batch Validation Schemas ───────────────────────────────────────────────────
@@ -117,6 +129,11 @@ const assignMentorToBatchSchema = z.object({
   mentorId: z.string().min(1, "Mentor ID is required"),
 });
 
+const assignMentorToStudentsSchema = z.object({
+  mentorId: z.string().min(1, "Mentor ID is required"),
+  studentIds: z.array(z.string().min(1, "Student ID is required")).min(1, "At least one student ID is required"),
+});
+
 // ─── Student Management Validation Schemas ──────────────────────────────────────
 
 const createStudentSchema = z.object({
@@ -137,6 +154,13 @@ const updateStudentSchema = z.object({
   phone: z.string().optional(),
   departmentId: z.string().nullable().optional(),
   batchId: z.string().nullable().optional(),
+});
+
+const mentorStudentsQuerySchema = z.object({
+  page: z
+    .preprocess((val) => (val === undefined ? undefined : Number(val)), z.number().int().min(1).optional()),
+  limit: z
+    .preprocess((val) => (val === undefined ? undefined : Number(val)), z.number().int().min(1).max(100).optional()),
 });
 
 // ─── Helper Functions ───────────────────────────────────────────────────────────
@@ -385,6 +409,8 @@ async function createSingleStudentAccount(
       return { success: false, error: "Failed to create account" };
     }
 
+    const passwordHash = await hashPassword(studentData.password);
+
     // Determine departmentId
     const departmentId = studentData.departmentId || 
       (["hod", "dept_admin"].includes(currentUser.role) ? currentUser.departmentId : null);
@@ -393,7 +419,9 @@ async function createSingleStudentAccount(
     const student = await prisma.user.update({
       where: { email: studentData.email },
       data: {
+        passwordHash,
         role: "student",
+        emailVerified: true,
         phone: studentData.phone || null,
         departmentId,
         batchId: studentData.batchId || null,
@@ -419,6 +447,21 @@ async function createSingleStudentAccount(
  *     tags: [College Admin - Auth]
  *     summary: College admin login
  *     description: Authenticates a college-admin portal user through Better Auth.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: citadmin@codeethnics.com
+ *               password:
+ *                 type: string
+ *                 example: CitAdmin@123
  *     responses:
  *       "200":
  *         description: Login successful
@@ -457,21 +500,80 @@ async function createSingleStudentAccount(
  *   post:
  *     tags: [College Admin - Auth]
  *     summary: Request college-admin password reset OTP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@codeethnics.com
  *     responses:
  *       "200":
  *         description: Password reset request accepted
  *       "403":
  *         description: User role not allowed for this portal
  *
- * /api/college-admin/auth/reset-password:
+ * /api/college-admin/auth/verify-otp:
  *   post:
  *     tags: [College Admin - Auth]
- *     summary: Reset college-admin password using OTP
+ *     summary: Verify password reset OTP for college-admin
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@codeethnics.com
+ *               otp:
+ *                 type: string
+ *                 description: OTP sent to email
+ *                 example: "123456"
+ *     responses:
+ *       "200":
+ *         description: OTP is valid
+ *       "400":
+ *         description: Invalid or expired OTP
+ *       "403":
+ *         description: User role not allowed for this portal
+ *
+ * /api/college-admin/auth/reset-password:
+ *   put:
+ *     tags: [College Admin - Auth]
+ *     summary: Reset college-admin password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@codeethnics.com
+ *               otp:
+ *                 type: string
+ *                 description: OTP sent to email
+ *                 example: "123456"
+ *               password:
+ *                 type: string
+ *                 example: NewPass@123
  *     responses:
  *       "200":
  *         description: Password reset successful
  *       "400":
- *         description: Validation failed or invalid OTP
+ *         description: Validation failed or user not allowed
  *
  * /api/college-admin/profile:
  *   get:
@@ -489,6 +591,21 @@ async function createSingleStudentAccount(
  *     summary: Update authenticated college-admin profile
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: College Super Admin
+ *               image:
+ *                 type: string
+ *                 format: uri
+ *                 example: https://cdn.example.com/avatar.png
+ *             additionalProperties: false
  *     responses:
  *       "200":
  *         description: Profile updated
@@ -519,6 +636,33 @@ async function createSingleStudentAccount(
  *     summary: List users with filters
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [student, mentor, instructor_staff, dept_admin, hod, principal, college_admin]
+ *         description: Filter by role
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *         description: Filter by department
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name or email
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number (1-based)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Page size
  *     responses:
  *       "200":
  *         description: Users list returned
@@ -527,6 +671,39 @@ async function createSingleStudentAccount(
  *     summary: Create a user
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, name, role]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: principal1@college.edu
+ *               password:
+ *                 type: string
+ *                 example: StrongPass@123
+ *               name:
+ *                 type: string
+ *                 example: Principal User
+ *               role:
+ *                 type: string
+ *                 enum: [student, mentor, instructor_staff, dept_admin, hod, principal, college_admin]
+ *                 example: principal
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-123-4567"
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               collegeId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: college_123
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: User created
@@ -539,6 +716,48 @@ async function createSingleStudentAccount(
  *     summary: Create users in bulk
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [users]
+ *             properties:
+ *               users:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 100
+ *                 items:
+ *                   type: object
+ *                   required: [email, password, name, role]
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: mentor1@college.edu
+ *                     password:
+ *                       type: string
+ *                       example: StrongPass@123
+ *                     name:
+ *                       type: string
+ *                       example: Mentor User
+ *                     role:
+ *                       type: string
+ *                       enum: [student, mentor, instructor_staff, dept_admin, hod, principal, college_admin]
+ *                       example: mentor
+ *                     phone:
+ *                       type: string
+ *                       example: "+1-555-987-6543"
+ *                     departmentId:
+ *                       type: string
+ *                       example: dept_123
+ *                     collegeId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: college_123
+ *                   additionalProperties: false
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: Bulk create processed
@@ -571,6 +790,32 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Name
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-000-1111"
+ *               image:
+ *                 type: string
+ *                 format: uri
+ *                 example: https://cdn.example.com/avatar.png
+ *               role:
+ *                 type: string
+ *                 enum: [student, mentor, instructor_staff, dept_admin, hod, principal]
+ *                 example: mentor
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: dept_456
+ *             additionalProperties: false
  *     responses:
  *       "200":
  *         description: User updated
@@ -589,6 +834,68 @@ async function createSingleStudentAccount(
  *       "200":
  *         description: User deleted
  *
+ * /api/college-admin/users/{userId}/assign-role:
+ *   put:
+ *     tags: [College Admin - Students]
+ *     summary: Assign role to user
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [role]
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [student, mentor, instructor_staff, dept_admin, hod, principal]
+ *                 example: mentor
+ *             additionalProperties: false
+ *     responses:
+ *       "200":
+ *         description: Role assigned
+ *       "400":
+ *         description: Validation failed
+ *
+ * /api/college-admin/users/{userId}/assign-department:
+ *   put:
+ *     tags: [College Admin - Students]
+ *     summary: Assign department to user
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [departmentId]
+ *             properties:
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: dept_123
+ *             additionalProperties: false
+ *     responses:
+ *       "200":
+ *         description: Department assigned
+ *       "400":
+ *         description: Validation failed
+ *
  * /api/college-admin/departments:
  *   get:
  *     tags: [College Admin - Departments]
@@ -603,6 +910,27 @@ async function createSingleStudentAccount(
  *     summary: Create department
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, code]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Computer Science
+ *               code:
+ *                 type: string
+ *                 example: CSE
+ *               description:
+ *                 type: string
+ *                 example: CS department description
+ *               hodId:
+ *                 type: string
+ *                 example: user_hod_123
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: Department created
@@ -635,6 +963,27 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Department Name
+ *               code:
+ *                 type: string
+ *                 example: CSE-NEW
+ *               description:
+ *                 type: string
+ *                 example: Updated description
+ *               hodId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: user_hod_123
+ *             additionalProperties: false
  *     responses:
  *       "200":
  *         description: Department updated
@@ -659,6 +1008,33 @@ async function createSingleStudentAccount(
  *     summary: Create batch
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, code, year, departmentId]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Batch 2024
+ *               code:
+ *                 type: string
+ *                 example: B24
+ *               year:
+ *                 type: integer
+ *                 example: 2
+ *               semester:
+ *                 type: integer
+ *                 example: 3
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               mentorId:
+ *                 type: string
+ *                 example: user_mentor_123
+ *             additionalProperties: false
  *     responses:
  *       "201":
  *         description: Batch created
@@ -667,6 +1043,31 @@ async function createSingleStudentAccount(
  *     summary: List batches
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: semester
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: mentorId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
  *     responses:
  *       "200":
  *         description: Batches returned
@@ -697,6 +1098,29 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Batch Name
+ *               code:
+ *                 type: string
+ *                 example: B24-NEW
+ *               year:
+ *                 type: integer
+ *                 example: 3
+ *               semester:
+ *                 type: integer
+ *                 example: 5
+ *               mentorId:
+ *                 type: string
+ *                 example: user_mentor_123
+ *             additionalProperties: false
  *   delete:
  *     tags: [College Admin - Batches]
  *     summary: Delete batch by id
@@ -715,11 +1139,60 @@ async function createSingleStudentAccount(
  *     summary: Create a student
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, name]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: student1@college.edu
+ *               password:
+ *                 type: string
+ *                 example: StrongPass@123
+ *               name:
+ *                 type: string
+ *                 example: Student User
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-222-3333"
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               batchId:
+ *                 type: string
+ *                 example: batch_123
+ *             additionalProperties: false
  *   get:
  *     tags: [College Admin - Students]
  *     summary: List students
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: batchId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
  *
  * /api/college-admin/students/bulk:
  *   post:
@@ -727,6 +1200,43 @@ async function createSingleStudentAccount(
  *     summary: Bulk create students
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [students]
+ *             properties:
+ *               students:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 100
+ *                 items:
+ *                   type: object
+ *                   required: [email, password, name]
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: student1@college.edu
+ *                     password:
+ *                       type: string
+ *                       example: StrongPass@123
+ *                     name:
+ *                       type: string
+ *                       example: Student User
+ *                     phone:
+ *                       type: string
+ *                       example: "+1-555-222-3333"
+ *                     departmentId:
+ *                       type: string
+ *                       example: dept_123
+ *                     batchId:
+ *                       type: string
+ *                       example: batch_123
+ *                   additionalProperties: false
+ *             additionalProperties: false
  *
  * /api/college-admin/students/{studentId}:
  *   get:
@@ -751,6 +1261,28 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Updated Student Name
+ *               phone:
+ *                 type: string
+ *                 example: "+1-555-999-8888"
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: dept_456
+ *               batchId:
+ *                 type: string
+ *                 nullable: true
+ *                 example: batch_456
+ *             additionalProperties: false
  *   delete:
  *     tags: [College Admin - Students]
  *     summary: Delete student by id
@@ -769,11 +1301,93 @@ async function createSingleStudentAccount(
  *     summary: Create a test
  *     security:
  *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title]
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Midterm Assessment
+ *               description:
+ *                 type: string
+ *                 example: Covers first 5 chapters
+ *               instructions:
+ *                 type: string
+ *                 example: Read all questions carefully
+ *               durationMinutes:
+ *                 type: integer
+ *                 example: 90
+ *               maxAttempts:
+ *                 type: integer
+ *                 example: 1
+ *               passingMarks:
+ *                 type: integer
+ *                 example: 40
+ *               scheduledStartTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T10:00:00Z
+ *               scheduledEndTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T12:00:00Z
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               batchId:
+ *                 type: string
+ *                 example: batch_123
+ *             additionalProperties: false
  *   get:
  *     tags: [College Admin - Tests]
  *     summary: List tests
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, scheduledStartTime, title]
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, scheduled, active, completed, archived]
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: batchId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: timeFilter
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, active, past, all]
  *
  * /api/college-admin/tests/{testId}:
  *   get:
@@ -798,6 +1412,52 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Updated Test Title
+ *               description:
+ *                 type: string
+ *                 example: Updated description
+ *               instructions:
+ *                 type: string
+ *                 example: Updated instructions
+ *               status:
+ *                 type: string
+ *                 enum: [draft, scheduled, active, completed, archived]
+ *               durationMinutes:
+ *                 type: integer
+ *                 example: 120
+ *               maxAttempts:
+ *                 type: integer
+ *                 example: 2
+ *               totalMarks:
+ *                 type: integer
+ *                 example: 100
+ *               passingMarks:
+ *                 type: integer
+ *                 example: 50
+ *               scheduledStartTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T10:00:00Z
+ *               scheduledEndTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2024-08-01T12:00:00Z
+ *               departmentId:
+ *                 type: string
+ *                 example: dept_123
+ *               batchId:
+ *                 type: string
+ *                 example: batch_123
+ *             additionalProperties: false
  *   delete:
  *     tags: [College Admin - Tests]
  *     summary: Delete test by id
@@ -822,6 +1482,38 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, content, marks]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [multiple_choice, true_false, short_answer, long_answer, coding]
+ *               content:
+ *                 type: string
+ *                 example: What is 2 + 2?
+ *               marks:
+ *                 type: integer
+ *                 example: 5
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["1", "2", "3", "4"]
+ *               correctAnswer:
+ *                 type: string
+ *                 example: 4
+ *               explanation:
+ *                 type: string
+ *                 example: Basic addition
+ *               orderIndex:
+ *                 type: integer
+ *                 example: 1
+ *             additionalProperties: false
  *   get:
  *     tags: [College Admin - Tests]
  *     summary: List test questions
@@ -840,6 +1532,12 @@ async function createSingleStudentAccount(
  *     summary: Get real-time test status
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/student/{studentId}:
  *   get:
@@ -847,6 +1545,12 @@ async function createSingleStudentAccount(
  *     summary: Get student performance report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/student/{studentId}/skillset:
  *   get:
@@ -854,6 +1558,12 @@ async function createSingleStudentAccount(
  *     summary: Get student skillset summary
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/batch/{batchId}:
  *   get:
@@ -861,6 +1571,12 @@ async function createSingleStudentAccount(
  *     summary: Get batch performance report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/batch/{batchId}/leaderboard:
  *   get:
@@ -868,6 +1584,12 @@ async function createSingleStudentAccount(
  *     summary: Get batch leaderboard
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/test/{testId}/analysis:
  *   get:
@@ -875,6 +1597,12 @@ async function createSingleStudentAccount(
  *     summary: Get test analysis report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
  *
  * /api/college-admin/report/department/{departmentId}:
  *   get:
@@ -882,11 +1610,17 @@ async function createSingleStudentAccount(
  *     summary: Get department performance report
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: departmentId
+ *         required: true
+ *         schema:
+ *           type: string
  */
 
 /**
  * POST /api/college-admin/auth/login
- * College admin login (proxies to Better Auth)
+ * College admin login with direct password verification
  */
 router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -901,41 +1635,96 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
 
     const { email, password } = validation.data;
 
-    // Sign in via Better Auth
-    const result = await auth.api.signInEmail({
-      body: { email, password },
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        image: true,
+        passwordHash: true,
+      },
     });
 
-    // Check if user has college admin portal access (super_admin, college_admin, principal, hod, mentor, dept_admin)
-    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
-    if (result?.user && !allowedRoles.includes(result.user.role)) {
-      res.status(403).json({
-        error: "Access denied",
-        message: "This portal is only accessible to super admins, college administrators, principals, HODs, and mentors",
-      });
-      return;
-    }
-
-    if (result?.user) {
-      res.json({
-        success: true,
-        message: "Login successful",
-        user: {
-          id: result.user.id,
-          email: result.user.email,
-          name: result.user.name,
-          role: result.user.role,
-          emailVerified: result.user.emailVerified,
-          image: result.user.image,
-        },
-        token: result.token,
-      });
-    } else {
+    if (!user) {
       res.status(401).json({
         error: "Authentication failed",
         message: "Invalid email or password",
       });
+      return;
     }
+
+    // Check if user has college admin portal access
+    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    if (!allowedRoles.includes(user.role)) {
+      res.status(403).json({
+        error: "Access denied",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    // Verify password - check if passwordHash exists and is bcrypt hash
+    let passwordValid = false;
+    if (user.passwordHash) {
+      try {
+        passwordValid = await bcrypt.compare(password, user.passwordHash);
+      } catch (err) {
+        // If bcrypt fails, password hash is invalid
+        passwordValid = false;
+      }
+    }
+
+    if (!passwordValid) {
+      res.status(401).json({
+        error: "Authentication failed",
+        message: "Invalid email or password",
+      });
+      return;
+    }
+
+    // Create a session
+    const sessionId = crypto.randomUUID();
+    const sessionToken = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Store session in database
+    await prisma.session.create({
+      data: {
+        id: sessionId,
+        token: sessionToken,
+        userId: user.id,
+        expiresAt,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+      },
+    });
+
+    // Set session cookie
+    res.cookie("better-auth.session_token", sessionToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        image: user.image,
+      },
+      token: sessionToken,
+    });
   } catch (error) {
     console.error("[college-admin/auth/login] Error:", error);
     res.status(500).json({
@@ -1029,14 +1818,16 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
     }
 
     const { email } = validation.data;
+    console.log(`[college-admin/auth/forgot-password] Processing password reset request for: ${email}`);
 
     // Check if user exists and is college_admin
-    const user = await prisma.user.findUnique({
+    const user = await appPrisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
       // Don't reveal if email exists
+      console.log(`[college-admin/auth/forgot-password] User not found: ${email}`);
       res.json({
         success: true,
         message: "If a college admin account exists with this email, a password reset code has been sent",
@@ -1046,26 +1837,40 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
 
     const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
     if (!allowedRoles.includes(user.role)) {
+      console.log(`[college-admin/auth/forgot-password] User role not allowed: ${user.role}`);
       res.status(403).json({
         error: "Access denied",
-        message: "This portal is only accessible to super admins, college administrators, principals, HODs, and mentors",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
       });
       return;
     }
 
-    // Send password reset OTP via Better Auth email-otp plugin
-    const baseUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
-    await fetch(`${baseUrl}/api/v1/auth/email-otp/request-password-reset`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
+    console.log(`[college-admin/auth/forgot-password] User found. Generating OTP for: ${email}`);
 
-    res.json({
-      success: true,
-      message: "Password reset code has been sent to your email",
-    });
-  } catch (error) {
+    // Generate OTP and send via Mailtrap credentials
+    try {
+      const otp = await generateAndStoreOTP(email, "forget-password");
+      console.log(`[college-admin/auth/forgot-password] OTP generated: ${otp} for ${email}`);
+
+      await sendOTPEmail(email, otp, "forget-password");
+      console.log(`[college-admin/auth/forgot-password] OTP email sent successfully to ${email}`);
+
+      res.json({
+        success: true,
+        message: "Password reset code has been sent to your email",
+      });
+    } catch (emailError: any) {
+      console.error(`[college-admin/auth/forgot-password] Email sending failed for ${email}:`, emailError.message);
+      console.error("Full error:", emailError);
+      
+      // Return error instead of success
+      res.status(500).json({
+        error: "Email error",
+        message: "Failed to send reset code to email. Please try again later.",
+        details: emailError.message,
+      });
+    }
+  } catch (error: any) {
     console.error("[college-admin/auth/forgot-password] Error:", error);
     res.status(500).json({
       error: "Internal server error",
@@ -1075,10 +1880,67 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
 });
 
 /**
- * POST /api/college-admin/auth/reset-password
- * Reset password using OTP
+ * POST /api/college-admin/auth/verify-otp
+ * Verify password reset OTP (does not consume the OTP)
  */
-router.post("/auth/reset-password", async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/auth/verify-otp", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const validation = verifyOtpSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.issues,
+      });
+      return;
+    }
+
+    const { email, otp } = validation.data;
+
+    const user = await appPrisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.status(400).json({
+        error: "Invalid or expired OTP",
+        message: "Please request a new password reset code",
+      });
+      return;
+    }
+
+    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    if (!allowedRoles.includes(user.role)) {
+      res.status(403).json({
+        error: "Access denied",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    const verification = await validateOTP(email, "forget-password", otp);
+    if (!verification.valid) {
+      res.status(400).json({
+        error: verification.reason || "Invalid or expired OTP",
+        message: "Please request a new password reset code",
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "OTP is valid",
+    });
+  } catch (error) {
+    console.error("[college-admin/auth/verify-otp] Error:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "An error occurred while verifying OTP",
+    });
+  }
+});
+
+/**
+ * PUT /api/college-admin/auth/reset-password
+ * Reset password
+ */
+router.put("/auth/reset-password", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const validation = resetPasswordSchema.safeParse(req.body);
     if (!validation.success) {
@@ -1089,28 +1951,48 @@ router.post("/auth/reset-password", async (req: AuthRequest, res: Response): Pro
       return;
     }
 
-    const { otp, password, email } = validation.data;
+    const { password, email, otp } = validation.data;
 
-    // Reset password via Better Auth email-otp plugin
-    const baseUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
-    const response = await fetch(`${baseUrl}/api/v1/auth/email-otp/reset-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp, password }),
-    });
-
-    if (response.ok) {
-      res.json({
-        success: true,
-        message: "Password has been reset successfully",
-      });
-    } else {
-      const errorData = await response.json();
+    const user = await appPrisma.user.findUnique({ where: { email } });
+    if (!user) {
       res.status(400).json({
-        error: errorData.message || "Invalid or expired OTP",
+        error: "Invalid or expired OTP",
         message: "Please request a new password reset code",
       });
+      return;
     }
+
+    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    if (!allowedRoles.includes(user.role)) {
+      res.status(403).json({
+        error: "Access denied",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    const otpVerification = await verifyOTP(email, "forget-password", otp);
+    if (!otpVerification.valid) {
+      res.status(400).json({
+        error: otpVerification.reason || "Invalid or expired OTP",
+        message: "Please request a new password reset code",
+      });
+      return;
+    }
+
+    const passwordHash = await hashPassword(password);
+    await appPrisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+    if (appPrisma.refreshToken?.deleteMany) {
+      await appPrisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    }
+
+    res.json({
+      success: true,
+      message: "Password has been reset successfully",
+    });
   } catch (error) {
     console.error("[college-admin/auth/reset-password] Error:", error);
     res.status(500).json({
@@ -1239,29 +2121,31 @@ router.put(
 router.get(
   "/dashboard",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("college_admin", "principal", "hod", "mentor", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const user = req.user!;
     const { role: queryRole } = req.query;
+    const normalizedQueryRole =
+      typeof queryRole === "string" ? queryRole.replace(/-/g, "_") : undefined;
     
     // Determine which role to use for dashboard data
     // If ?role= is provided and valid, use it; otherwise use user's actual role
     let effectiveRole = user.role;
     
-    if (queryRole && typeof queryRole === "string") {
-      const validRoles = ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"];
+    if (normalizedQueryRole) {
+      const validRoles = ["college_admin", "principal", "hod", "dept_admin", "mentor"];
       
       // Verify the query role is valid
-      if (validRoles.includes(queryRole)) {
-        // Security check: Only super_admin/college_admin/principal can view other role dashboards
-        if (user.role === "super_admin" || user.role === "college_admin" || user.role === "principal") {
-          effectiveRole = queryRole;
-        } else if (queryRole === user.role) {
+      if (validRoles.includes(normalizedQueryRole)) {
+        // Security check: Only college_admin/principal can view other role dashboards
+        if (user.role === "college_admin" || user.role === "principal") {
+          effectiveRole = normalizedQueryRole;
+        } else if (normalizedQueryRole === user.role) {
           // Users can always view their own role dashboard
-          effectiveRole = queryRole;
+          effectiveRole = normalizedQueryRole;
         } else {
           res.status(403).json({
-            error: "You do not have permission to view dashboard for role: " + queryRole,
+            error: "You do not have permission to view dashboard for role: " + normalizedQueryRole,
           });
           return;
         }
@@ -1280,35 +2164,35 @@ router.get(
           name: "Department Management", 
           status: "active", 
           endpoint: "/api/college-admin/departments",
-          roles: ["super_admin", "college_admin", "principal"],
+          roles: ["college_admin", "principal"],
           description: "Manage departments, assign HODs"
         },
         { 
           name: "Batch Management", 
           status: "active", 
           endpoint: "/api/college-admin/batches",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin"],
+          roles: ["college_admin", "principal", "hod", "dept_admin"],
           description: "Create and manage student batches"
         },
         { 
           name: "User Management", 
           status: "active", 
           endpoint: "/api/college-admin/users",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin"],
+          roles: ["college_admin", "principal", "hod", "dept_admin"],
           description: "Create and manage users (Principal, HOD, Mentors, Students)"
         },
         { 
           name: "Student Management", 
           status: "active", 
           endpoint: "/api/college-admin/students",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Manage student records, bulk operations"
         },
         { 
           name: "Test Management", 
           status: "active", 
           endpoint: "/api/college-admin/tests",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Create, schedule and manage tests"
         },
         { 
@@ -1339,14 +2223,14 @@ router.get(
           name: "Active Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=active",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "View currently active tests"
         },
         { 
           name: "Upcoming Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=upcoming",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "View scheduled upcoming tests"
         },
         { 
@@ -1360,14 +2244,14 @@ router.get(
           name: "Performance Analytics", 
           status: "coming soon", 
           endpoint: "/api/college-admin/analytics",
-          roles: ["super_admin", "college_admin", "principal", "hod"],
+          roles: ["college_admin", "principal", "hod"],
           description: "View performance metrics and analytics"
         },
         { 
           name: "Reports", 
           status: "coming soon", 
           endpoint: "/api/college-admin/reports",
-          roles: ["super_admin", "college_admin", "principal", "hod"],
+          roles: ["college_admin", "principal", "hod"],
           description: "Generate and view reports"
         },
       ];
@@ -1383,7 +2267,6 @@ router.get(
     // Get role-specific greeting and statistics
     const getRoleTitle = (role: string) => {
       const roleTitles: Record<string, string> = {
-        super_admin: "Super Administrator",
         college_admin: "College Administrator",
         principal: "Principal",
         hod: "Head of Department",
@@ -1398,26 +2281,59 @@ router.get(
       const stats: any = {};
 
       try {
-        if (role === "super_admin" || role === "college_admin" || role === "principal") {
-          // Global statistics
-          const [totalDepartments, totalBatches, totalStudents, totalTests] = await Promise.all([
-            prisma.department.count(),
-            prisma.batch.count(),
-            prisma.user.count({ where: { role: "student" } }),
-            prisma.test.count(),
-          ]);
+        const safeTestCount = async (where?: any) => {
+          try {
+            return await prisma.test.count({ where });
+          } catch (err: any) {
+            if (err?.code === "P2021") {
+              console.warn("[dashboard] Test table missing, returning 0 count");
+              return 0;
+            }
+            throw err;
+          }
+        };
 
-          stats.totalDepartments = totalDepartments;
-          stats.totalBatches = totalBatches;
-          stats.totalStudents = totalStudents;
-          stats.totalTests = totalTests;
+        const now = new Date();
+
+        const [totalDepartmentsCollege, totalBatchesCollege, totalStudentsCollege, totalTestsCollege, totalActiveTestsCollege] = await Promise.all([
+          prisma.department.count(),
+          prisma.batch.count(),
+          prisma.user.count({ where: { role: "student" } }),
+          safeTestCount(),
+          safeTestCount({
+            scheduledStartTime: { lte: now },
+            scheduledEndTime: { gte: now },
+            status: { notIn: ["archived"] },
+          }),
+        ]);
+
+        stats.totalDepartments = totalDepartmentsCollege;
+        stats.totalBatches = totalBatchesCollege;
+        stats.totalStudents = totalStudentsCollege;
+        stats.totalTests = totalTestsCollege;
+        stats.activeTests = totalActiveTestsCollege;
+        stats.collegeTotals = {
+          totalDepartments: totalDepartmentsCollege,
+          totalBatches: totalBatchesCollege,
+          totalStudents: totalStudentsCollege,
+          totalTests: totalTestsCollege,
+          activeTests: totalActiveTestsCollege,
+        };
+        stats.totalDepartmentsCollege = totalDepartmentsCollege;
+        stats.totalBatchesCollege = totalBatchesCollege;
+        stats.totalStudentsCollege = totalStudentsCollege;
+        stats.totalTestsCollege = totalTestsCollege;
+        stats.activeTestsCollege = totalActiveTestsCollege;
+
+        if (role === "college_admin" || role === "principal") {
+          // Global statistics
           stats.scope = "institution";
         } else if ((role === "hod" || role === "dept_admin") && user.departmentId) {
           // Department-specific statistics
           const [totalBatches, totalStudents, totalTests, totalMentors] = await Promise.all([
             prisma.batch.count({ where: { departmentId: user.departmentId } }),
             prisma.user.count({ where: { role: "student", departmentId: user.departmentId } }),
-            prisma.test.count({ where: { departmentId: user.departmentId } }),
+            safeTestCount({ departmentId: user.departmentId }),
             prisma.user.count({ where: { role: "mentor", departmentId: user.departmentId } }),
           ]);
 
@@ -1437,7 +2353,7 @@ router.get(
                 // In future: add mentorId filter when batch-mentor relation is established
               } 
             }),
-            prisma.test.count({ where: { departmentId: user.departmentId } }),
+            safeTestCount({ departmentId: user.departmentId }),
           ]);
 
           stats.myStudents = myStudents;
@@ -1445,20 +2361,6 @@ router.get(
           stats.scope = "mentor";
           stats.departmentId = user.departmentId;
         }
-
-        // Active tests (common for all roles)
-        const now = new Date();
-        const activeTestsCount = await prisma.test.count({
-          where: {
-            scheduledStartTime: { lte: now },
-            scheduledEndTime: { gte: now },
-            status: { notIn: ["archived"] },
-            ...(role !== "super_admin" && role !== "college_admin" && role !== "principal" && user.departmentId
-              ? { departmentId: user.departmentId }
-              : {}),
-          },
-        });
-        stats.activeTests = activeTestsCount;
 
       } catch (error) {
         console.error("[dashboard] Error fetching statistics:", error);
@@ -1556,18 +2458,26 @@ router.post(
         } as any,
       });
 
-      if (!newUser?.user) {
-        res.status(400).json({ error: "Failed to create user" });
+      // Check if Better Auth returned an error response
+      const signUpError = (newUser as any)?.error;
+      if (!newUser?.user || signUpError) {
+        const errorMessage = signUpError?.message || "Failed to create user";
+        console.error("[college-admin/users/create] Better Auth error:", newUser);
+        res.status(400).json({ error: errorMessage });
         return;
       }
 
+      const passwordHash = await hashPassword(data.password);
+
       // Update user with additional fields
       const updatedUser = await prisma.user.update({
-        where: { id: newUser.user.id },
+        where: { id: (newUser as any).user.id },
         data: {
+          passwordHash,
           role: data.role as Role,
           phone: data.phone,
           departmentId: data.departmentId,
+          collegeId: data.collegeId,
           emailVerified: true,
         },
         include: {
@@ -1625,14 +2535,18 @@ router.post(
             } as any,
           });
 
-          if (newUser?.user) {
+          if (newUser?.user && !(newUser as any)?.error) {
+            const passwordHash = await hashPassword(userData.password);
+
             // Update user with additional fields
             const updatedUser = await prisma.user.update({
-              where: { id: newUser.user.id },
+              where: { id: (newUser as any).user.id },
               data: {
+                passwordHash,
                 role: userData.role as Role,
                 phone: userData.phone,
                 departmentId: userData.departmentId,
+                collegeId: userData.collegeId,
                 emailVerified: true,
               },
               include: {
@@ -1647,7 +2561,7 @@ router.post(
           } else {
             results.failed.push({
               email: userData.email,
-              error: "Failed to create user",
+              error: (newUser as any).error?.message || "Failed to create user",
             });
           }
         } catch (error: any) {
@@ -1700,9 +2614,43 @@ router.get(
         limit: limit ? Number.parseInt(limit as string) : undefined,
       });
 
+      let departmentStats: { totalStudents: number; totalMentors: number } | undefined;
+      let mentorStats: { totalStudents: number } | undefined;
+      if (currentUser.role === "hod") {
+        if (!currentUser.departmentId) {
+          res.status(403).json({
+            error: "User must have a department assigned",
+          });
+          return;
+        }
+
+        const [totalStudentsDept, totalMentorsDept] = await Promise.all([
+          prisma.user.count({ where: { role: "student", departmentId: currentUser.departmentId } }),
+          prisma.user.count({ where: { role: "mentor", departmentId: currentUser.departmentId } }),
+        ]);
+
+        departmentStats = {
+          totalStudents: totalStudentsDept,
+          totalMentors: totalMentorsDept,
+        };
+      } else if (currentUser.role === "mentor") {
+        const totalStudentsForMentor = await prisma.user.count({
+          where: {
+            role: "student",
+            batch: { mentorId: currentUser.id },
+          },
+        });
+
+        mentorStats = {
+          totalStudents: totalStudentsForMentor,
+        };
+      }
+
       res.json({
         success: true,
         ...result,
+        ...(departmentStats ? { departmentStats } : {}),
+        ...(mentorStats ? { mentorStats } : {}),
       });
     } catch (error: any) {
       console.error("[college-admin/users/list] Error:", error);
@@ -1756,7 +2704,7 @@ router.get(
 router.put(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principalcor", "hod", "dept_admin"),
+  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -1952,7 +2900,24 @@ router.post(
         return;
       }
 
-      const department = await DepartmentService.createDepartment(validation.data);
+      const payload = validation.data;
+      const effectiveCollegeId =
+        req.user?.role === "super_admin"
+          ? payload.collegeId || req.user?.collegeId
+          : req.user?.collegeId;
+
+      if (!effectiveCollegeId) {
+        res.status(400).json({
+          error: "collegeId is required to create a department",
+        });
+        return;
+      }
+
+      const { collegeId: _ignoredCollegeId, ...departmentData } = payload;
+      const department = await DepartmentService.createDepartment({
+        ...departmentData,
+        collegeId: effectiveCollegeId,
+      });
 
       res.status(201).json({
         success: true,
@@ -2671,6 +3636,177 @@ router.get(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * GET /api/college-admin/mentors/:mentorId/students
+ * Get all students assigned to a mentor (via batch mentor assignment)
+ * Access: college_admin, principal, hod (own department), dept_admin (own department), mentor (self only)
+ */
+router.get(
+  "/mentors/:mentorId/students",
+  requireAuth,
+  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const currentUser = req.user!;
+      const { mentorId } = req.params;
+
+      const queryValidation = mentorStudentsQuerySchema.safeParse(req.query);
+      if (!queryValidation.success) {
+        res.status(400).json({
+          error: "Validation failed",
+          details: queryValidation.error.issues,
+        });
+        return;
+      }
+
+      // Mentors can only view their own mentees
+      if (currentUser.role === "mentor" && currentUser.id !== mentorId) {
+        res.status(403).json({
+          error: "Mentors can only view their own students",
+        });
+        return;
+      }
+
+      const result = await BatchService.getStudentsByMentor(mentorId, queryValidation.data);
+
+      // HOD and Dept Admin can only view mentors in their department
+      if (["hod", "dept_admin"].includes(currentUser.role)) {
+        if (!currentUser.departmentId) {
+          res.status(403).json({
+            error: "User must have a department assigned",
+          });
+          return;
+        }
+
+        if (!result.mentor.departmentId) {
+          res.status(400).json({
+            error: "Mentor must belong to a department",
+          });
+          return;
+        }
+
+        if (result.mentor.departmentId !== currentUser.departmentId) {
+          res.status(403).json({
+            error: "You can only view mentors in your own department",
+          });
+          return;
+        }
+      }
+
+      res.json({
+        success: true,
+        mentor: result.mentor,
+        students: result.students,
+        pagination: result.pagination,
+      });
+    } catch (error: any) {
+      console.error("[college-admin/mentors/students] Error:", error);
+      res.status(error.message.includes("not found") ? 404 : 400).json({
+        error: error.message || "Failed to fetch students for mentor",
+      });
+    }
+  }
+);
+
+/**
+ * PUT /api/college-admin/students/assign-mentor
+ * Assign a mentor to students (all students must belong to the same batch)
+ * Access: college_admin, principal, hod (own department), dept_admin (own department)
+ */
+router.put(
+  "/students/assign-mentor",
+  requireAuth,
+  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const currentUser = req.user!;
+
+      const validation = assignMentorToStudentsSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          error: "Validation failed",
+          details: validation.error.issues,
+        });
+        return;
+      }
+
+      const { mentorId, studentIds } = validation.data;
+
+      // Fetch students to verify existence and batch consistency
+      const students = await prisma.user.findMany({
+        where: {
+          id: { in: studentIds },
+          role: "student",
+        },
+        select: { id: true, batchId: true, departmentId: true },
+      });
+
+      if (students.length !== studentIds.length) {
+        res.status(404).json({
+          error: "One or more students not found",
+        });
+        return;
+      }
+
+      // All students must belong to a batch to inherit mentor
+      if (students.some((s) => !s.batchId)) {
+        res.status(400).json({
+          error: "All students must belong to a batch before assigning a mentor",
+        });
+        return;
+      }
+
+      const batchIds = [...new Set(students.map((s) => s.batchId))];
+      if (batchIds.length !== 1) {
+        res.status(400).json({
+          error: "All students must be in the same batch to assign a mentor",
+        });
+        return;
+      }
+
+      const batchId = batchIds[0]!;
+
+      // HOD/Dept Admin scope restriction
+      if (["hod", "dept_admin"].includes(currentUser.role)) {
+        if (!currentUser.departmentId) {
+          res.status(403).json({ error: "User must have a department assigned" });
+          return;
+        }
+
+        const batch = await prisma.batch.findUnique({
+          where: { id: batchId },
+          select: { departmentId: true },
+        });
+
+        if (!batch) {
+          res.status(404).json({ error: "Batch not found" });
+          return;
+        }
+
+        if (batch.departmentId !== currentUser.departmentId) {
+          res.status(403).json({
+            error: "You can only assign mentors to students in your own department",
+          });
+          return;
+        }
+      }
+
+      const updatedBatch = await BatchService.assignMentorToBatch(batchId, mentorId);
+
+      res.json({
+        success: true,
+        message: "Mentor assigned to students successfully",
+        batch: updatedBatch,
+      });
+    } catch (error: any) {
+      console.error("[college-admin/students/assign-mentor] Error:", error);
+      res.status(error.message?.includes("not found") ? 404 : 400).json({
+        error: error.message || "Failed to assign mentor to students",
+      });
+    }
+  }
+);
+
+/**
  * POST /api/college-admin/students
  * Create a new student
  * Access: college_admin, principal, hod (only their department), dept_admin (only their department)
@@ -2747,11 +3883,15 @@ router.post(
         return;
       }
 
+      const passwordHash = await hashPassword(password);
+
       // Update the user with additional fields
       const student = await prisma.user.update({
         where: { email },
         data: {
+          passwordHash,
           role: "student",
+          emailVerified: true,
           phone: phone || null,
           departmentId: departmentId || (["hod", "dept_admin"].includes(currentUser.role) ? currentUser.departmentId : null),
           batchId: batchId || null,
@@ -2888,10 +4028,26 @@ router.get(
 
       const result = await UserService.getAllUsers(filters);
 
+      let departmentStats: { totalStudents: number; totalMentors: number } | undefined;
+
+      // For HOD, include department-level student/mentor counts
+      if (currentUser.role === "hod" && currentUser.departmentId) {
+        const [totalStudentsDept, totalMentorsDept] = await Promise.all([
+          prisma.user.count({ where: { role: "student", departmentId: currentUser.departmentId } }),
+          prisma.user.count({ where: { role: "mentor", departmentId: currentUser.departmentId } }),
+        ]);
+
+        departmentStats = {
+          totalStudents: totalStudentsDept,
+          totalMentors: totalMentorsDept,
+        };
+      }
+
       res.json({
         success: true,
         students: result.users,
         pagination: result.pagination,
+        ...(departmentStats ? { departmentStats } : {}),
       });
     } catch (error: any) {
       console.error("[college-admin/students/list] Error:", error);
@@ -3115,17 +4271,30 @@ router.delete(
 
 // ─── Test Validation Schemas ────────────────────────────────────────────────────
 
+// Accepts ISO datetime strings, but gracefully treats null/empty as undefined so drafts can omit scheduling.
+const optionalDateString = z.preprocess(
+  (val) => (val === null || val === "" ? undefined : val),
+  z.string().refine((parsed) => !isNaN(Date.parse(parsed)), { message: "Invalid datetime" }).optional()
+);
+
+// Converts null/empty strings to undefined so optional string IDs don't reject null from frontend.
+const optionalStringId = z.preprocess(
+  (val) => (val === null || val === "" ? undefined : val),
+  z.string().optional()
+);
+
 const createTestSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title too long"),
   description: z.string().max(1000).optional(),
   instructions: z.string().max(2000).optional(),
   durationMinutes: z.number().int().min(1).max(600).optional(),
   maxAttempts: z.number().int().min(1).max(10).optional(),
+  maximumMarks: z.number().int().min(0).optional(),
   passingMarks: z.number().int().min(0).optional(),
-  scheduledStartTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  scheduledEndTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  departmentId: z.string().optional(),
-  batchId: z.string().optional(),
+  scheduledStartTime: optionalDateString,
+  scheduledEndTime: optionalDateString,
+  departmentId: optionalStringId,
+  batchId: optionalStringId,
 });
 
 const updateTestSchema = z.object({
@@ -3137,10 +4306,10 @@ const updateTestSchema = z.object({
   maxAttempts: z.number().int().min(1).max(10).optional(),
   totalMarks: z.number().int().min(0).optional(),
   passingMarks: z.number().int().min(0).optional(),
-  scheduledStartTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  scheduledEndTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid datetime" }).optional(),
-  departmentId: z.string().optional(),
-  batchId: z.string().optional(),
+  scheduledStartTime: optionalDateString,
+  scheduledEndTime: optionalDateString,
+  departmentId: optionalStringId,
+  batchId: optionalStringId,
 });
 
 const createQuestionSchema = z.object({

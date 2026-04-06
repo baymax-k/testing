@@ -95,7 +95,7 @@ model User {
   image         String?
   phone         String?
   departmentId  String?
-  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department    Department? @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
   batchId       String?
   batch         Batch?      @relation(fields: [batchId], references: [id], onDelete: SetNull)
   createdAt     DateTime    @default(now())
@@ -123,6 +123,7 @@ model User {
   testAttempts    TestAttempt[] @relation("StudentTestAttempts")
   proctoringVideos        ProctoringVideo[] @relation("ProctoringVideoStudent")
   reviewedProctoringVideos ProctoringVideo[] @relation("ProctoringVideoReviewer")
+  departmentAsHod Department?  @relation("DepartmentHod")
 
   @@index([departmentId])
   @@index([batchId])
@@ -197,12 +198,14 @@ model Department {
   code        String   @unique
   description String?
   hodId       String?  @unique
+  hod         User?    @relation("DepartmentHod", fields: [hodId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  users       User[]
+  users       User[]   @relation("UserDepartment")
   batches     Batch[]
   tests       Test[]
 
+  @@index([hodId])
   @@map("department")
 }
 

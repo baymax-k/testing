@@ -386,10 +386,10 @@ describe("College Admin API - Integration Tests", () => {
       });
     });
 
-    describe("POST /api/college-admin/auth/reset-password", () => {
-      it("should require token and new password", async () => {
+    describe("PUT /api/college-admin/auth/reset-password", () => {
+      it("should require email, otp and new password", async () => {
         const response = await request(testApp)
-          .post("/api/college-admin/auth/reset-password")
+          .put("/api/college-admin/auth/reset-password")
           .send({});
 
         expect(response.status).toBe(400);
@@ -398,9 +398,10 @@ describe("College Admin API - Integration Tests", () => {
 
       it("should validate password strength", async () => {
         const response = await request(testApp)
-          .post("/api/college-admin/auth/reset-password")
+          .put("/api/college-admin/auth/reset-password")
           .send({
-            token: "dummy-token",
+            email: "test@example.com",
+            otp: "123456",
             password: "weak",
           });
 
