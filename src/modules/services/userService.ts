@@ -149,7 +149,7 @@ export class UserService {
   /**
    * Get user by ID
    */
-  static async getUserById(userId: string) {
+  static async getUserById(userId: string, collegeId?: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -169,6 +169,7 @@ export class UserService {
     });
 
     if (!user) return null;
+    if (collegeId && user.collegeId !== collegeId) return null;
 
     let assignedStudentsCount: number | undefined;
     if (user.role === "mentor") {

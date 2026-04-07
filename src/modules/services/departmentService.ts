@@ -145,14 +145,19 @@ export class DepartmentService {
    * Get all departments with optional filters
    */
   static async getAllDepartments(filters?: {
+    collegeId?: string;
     search?: string;
     page?: number;
     limit?: number;
   }) {
-    const { search, page = 1, limit = 50 } = filters || {};
+    const { collegeId, search, page = 1, limit = 50 } = filters || {};
     const skip = (page - 1) * limit;
 
     const where: any = {};
+
+    if (collegeId) {
+      where.collegeId = collegeId;
+    }
 
     if (search) {
       where.OR = [
@@ -231,7 +236,7 @@ export class DepartmentService {
   /**
    * Get department by ID
    */
-  static async getDepartmentById(deptId: string) {
+  static async getDepartmentById(deptId: string, collegeId?: string) {
     const department = await prisma.department.findUnique({
       where: { id: deptId },
       include: {
@@ -249,6 +254,10 @@ export class DepartmentService {
     });
 
     if (!department) return null;
+
+    if (collegeId && department.collegeId !== collegeId) {
+      return null;
+    }
 
     const [totalStudents, totalBatches] = await Promise.all([
       prisma.user.count({ where: { departmentId: deptId, role: "student" } }),

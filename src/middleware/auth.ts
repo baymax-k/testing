@@ -112,7 +112,7 @@ export const requireCollegeAdminAuth = async (
       emailVerified: fullUser.emailVerified,
       image: fullUser.image,
       phone: fullUser.phone,
-      collegeId: fullUser.collegeId,
+      collegeId: fullUser.collegeId ?? (req as AuthRequest).user?.collegeId ?? null,
       departmentId: fullUser.departmentId,
       createdAt: fullUser.createdAt,
       updatedAt: fullUser.updatedAt,

@@ -1,4 +1,4 @@
-import { Router, type Response, type Router as RouterType } from "express";
+import { Router, type NextFunction, type Response, type Router as RouterType } from "express";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -462,6 +462,246 @@ async function createSingleStudentAccount(
     return { success: true, student };
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to create student" };
+  }
+}
+
+function getRequestedCollegeId(req: AuthRequest): string | undefined {
+  const queryCollegeId =
+    typeof req.query?.collegeId === "string" ? req.query.collegeId : undefined;
+  const bodyCollegeId =
+    req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? (req.body as Record<string, unknown>).collegeId
+      : undefined;
+
+  return typeof bodyCollegeId === "string" ? bodyCollegeId : queryCollegeId;
+}
+
+async function getResourceCollegeId(pathname: string): Promise<string | null | undefined> {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length === 0) return undefined;
+
+  if ((segments[0] === "users" || segments[0] === "students") && segments[1] && segments[1] !== "bulk") {
+    const user = await prisma.user.findUnique({
+      where: { id: segments[1] },
+      select: { collegeId: true },
+    });
+    return user?.collegeId ?? null;
+  }
+
+  if (segments[0] === "departments" && segments[1]) {
+    const department = await prisma.department.findUnique({
+      where: { id: segments[1] },
+      select: { collegeId: true },
+    });
+    return department?.collegeId ?? null;
+  }
+
+  if (segments[0] === "batches" && segments[1]) {
+    const batch = await prisma.batch.findUnique({
+      where: { id: segments[1] },
+      select: {
+        department: {
+          select: {
+            collegeId: true,
+          },
+        },
+      },
+    });
+    return batch?.department?.collegeId ?? null;
+  }
+
+  if (segments[0] === "tests" && segments[1]) {
+    const test = await prisma.test.findUnique({
+      where: { id: segments[1] },
+      select: {
+        department: {
+          select: {
+            collegeId: true,
+          },
+        },
+        batch: {
+          select: {
+            department: {
+              select: {
+                collegeId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return test?.department?.collegeId || test?.batch?.department?.collegeId || null;
+  }
+
+  if (segments[0] === "report" && segments[1] && segments[2]) {
+    if (segments[1] === "student") {
+      const student = await prisma.user.findUnique({
+        where: { id: segments[2] },
+        select: { collegeId: true },
+      });
+      return student?.collegeId ?? null;
+    }
+
+    if (segments[1] === "batch") {
+      const batch = await prisma.batch.findUnique({
+        where: { id: segments[2] },
+        select: {
+          department: {
+            select: {
+              collegeId: true,
+            },
+          },
+        },
+      });
+      return batch?.department?.collegeId ?? null;
+    }
+
+    if (segments[1] === "test") {
+      const test = await prisma.test.findUnique({
+        where: { id: segments[2] },
+        select: {
+          department: {
+            select: {
+              collegeId: true,
+            },
+          },
+          batch: {
+            select: {
+              department: {
+                select: {
+                  collegeId: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      return test?.department?.collegeId || test?.batch?.department?.collegeId || null;
+    }
+
+    if (segments[1] === "department") {
+      const department = await prisma.department.findUnique({
+        where: { id: segments[2] },
+        select: { collegeId: true },
+      });
+      return department?.collegeId ?? null;
+    }
+  }
+
+  return undefined;
+}
+
+async function enforceCollegeScope(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (req.path.startsWith("/auth/")) {
+      next();
+      return;
+    }
+
+    const requestedCollegeId = getRequestedCollegeId(req);
+    const userCollegeId = req.user?.collegeId || undefined;
+
+    if (requestedCollegeId && userCollegeId && requestedCollegeId !== userCollegeId) {
+      res.status(403).json({
+        error: "You can only access data for your own college",
+      });
+      return;
+    }
+
+    const effectiveCollegeId = requestedCollegeId || userCollegeId;
+    if (!effectiveCollegeId) {
+      res.status(400).json({
+        error: "collegeId is required",
+      });
+      return;
+    }
+
+    if (req.user) {
+      req.user.collegeId = effectiveCollegeId;
+    }
+
+    if (typeof req.query === "object" && req.query !== null && !("collegeId" in req.query)) {
+      (req.query as Record<string, unknown>).collegeId = effectiveCollegeId;
+    }
+
+    if (
+      req.body &&
+      typeof req.body === "object" &&
+      !Array.isArray(req.body) &&
+      (req.body as Record<string, unknown>).collegeId === undefined
+    ) {
+      (req.body as Record<string, unknown>).collegeId = effectiveCollegeId;
+    }
+
+    if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
+      const payload = req.body as Record<string, unknown>;
+
+      if (typeof payload.departmentId === "string") {
+        const department = await prisma.department.findUnique({
+          where: { id: payload.departmentId },
+          select: { collegeId: true },
+        });
+
+        if (!department || department.collegeId !== effectiveCollegeId) {
+          res.status(403).json({
+            error: "departmentId does not belong to the requested college",
+          });
+          return;
+        }
+      }
+
+      if (typeof payload.batchId === "string") {
+        const batch = await prisma.batch.findUnique({
+          where: { id: payload.batchId },
+          select: {
+            department: {
+              select: {
+                collegeId: true,
+              },
+            },
+          },
+        });
+
+        if (!batch || batch.department.collegeId !== effectiveCollegeId) {
+          res.status(403).json({
+            error: "batchId does not belong to the requested college",
+          });
+          return;
+        }
+      }
+    }
+
+    const resourceCollegeId = await getResourceCollegeId(req.path);
+    if (resourceCollegeId && resourceCollegeId !== effectiveCollegeId) {
+      res.status(403).json({
+        error: "Resource belongs to a different college",
+      });
+      return;
+    }
+
+    const originalJson = res.json.bind(res);
+    res.json = ((body: any) => {
+      if (body && typeof body === "object" && !Array.isArray(body)) {
+        if (body.collegeId === undefined) {
+          body.collegeId = effectiveCollegeId;
+        }
+        if (body.user && typeof body.user === "object" && body.user.collegeId === undefined) {
+          body.user.collegeId = effectiveCollegeId;
+        }
+      }
+      return originalJson(body);
+    }) as Response["json"];
+
+    next();
+  } catch (error) {
+    console.error("[college-admin/college-scope] Error:", error);
+    res.status(500).json({
+      error: "Failed to enforce college scope",
+    });
   }
 }
 
@@ -2032,6 +2272,8 @@ router.put("/auth/reset-password", async (req: AuthRequest, res: Response): Prom
   }
 });
 
+router.use(requireAuth, enforceCollegeScope);
+
 // ─── Profile Endpoints ──────────────────────────────────────────────────────────
 
 /**
@@ -2708,6 +2950,7 @@ router.get(
 
       const result = await UserService.getAllUsers({
         role: role as Role | undefined,
+        collegeId: currentUser.collegeId || undefined,
         departmentId: filterDepartmentId,
         search: search as string | undefined,
         page: page ? Number.parseInt(page as string) : undefined,
@@ -2774,7 +3017,10 @@ router.get(
     try {
       const userId = req.params.userId as string;
 
-      const user = await UserService.getUserById(userId);
+      const user = await UserService.getUserById(
+        userId,
+        req.user?.collegeId || undefined
+      );
 
       if (!user) {
         res.status(404).json({
@@ -2820,7 +3066,10 @@ router.put(
       }
 
       // Get the user being updated to check permissions
-      const targetUser = await UserService.getUserById(userId);
+      const targetUser = await UserService.getUserById(
+        userId,
+        req.user?.collegeId || undefined
+      );
       if (!targetUser) {
         res.status(404).json({ error: "User not found" });
         return;
@@ -2863,7 +3112,10 @@ router.delete(
       const userId = req.params.userId as string;
 
       // Get the user being deleted to check permissions
-      const targetUser = await UserService.getUserById(userId);
+      const targetUser = await UserService.getUserById(
+        userId,
+        req.user?.collegeId || undefined
+      );
       if (!targetUser) {
         res.status(404).json({ error: "User not found" });
         return;
@@ -3048,7 +3300,10 @@ router.get(
 
       // HOD, Dept Admin, and Mentor can only view their own department
       if ((currentUser.role === "hod" || currentUser.role === "dept_admin" || currentUser.role === "mentor") && currentUser.departmentId) {
-        const department = await DepartmentService.getDepartmentById(currentUser.departmentId);
+        const department = await DepartmentService.getDepartmentById(
+          currentUser.departmentId,
+          currentUser.collegeId || undefined
+        );
         
         if (!department) {
           res.status(404).json({
@@ -3072,6 +3327,7 @@ router.get(
 
       // College Admin and Principal can view all departments
       const result = await DepartmentService.getAllDepartments({
+        collegeId: currentUser.collegeId || undefined,
         search: search as string | undefined,
         page: page ? Number.parseInt(page as string) : undefined,
         limit: limit ? Number.parseInt(limit as string) : undefined,
@@ -3114,7 +3370,10 @@ router.get(
         }
       }
 
-      const department = await DepartmentService.getDepartmentById(deptId);
+      const department = await DepartmentService.getDepartmentById(
+        deptId,
+        currentUser.collegeId || undefined
+      );
 
       if (!department) {
         res.status(404).json({
@@ -3276,6 +3535,7 @@ router.get(
       const { departmentId, year, semester, mentorId, page, limit } = req.query;
 
       let filters: any = {
+        collegeId: currentUser.collegeId || undefined,
         departmentId: departmentId as string | undefined,
         year: year ? Number.parseInt(year as string) : undefined,
         semester: semester ? Number.parseInt(semester as string) : undefined,
@@ -4133,6 +4393,7 @@ router.get(
 
       let filters: any = {
         role: "student",
+        collegeId: currentUser.collegeId || undefined,
         departmentId: departmentId as string | undefined,
         batchId: batchId as string | undefined,
         search: search as string | undefined,
@@ -4198,7 +4459,10 @@ router.get(
       const currentUser = req.user!;
       const studentId = req.params.studentId as string;
 
-      const student = await UserService.getUserById(studentId);
+      const student = await UserService.getUserById(
+        studentId,
+        req.user?.collegeId || undefined
+      );
 
       if (!student) {
         res.status(404).json({
@@ -4270,7 +4534,10 @@ router.put(
       }
 
       // Verify student exists and is a student
-      const existingStudent = await UserService.getUserById(studentId);
+      const existingStudent = await UserService.getUserById(
+        studentId,
+        req.user?.collegeId || undefined
+      );
       
       if (!existingStudent) {
         res.status(404).json({
@@ -4342,7 +4609,10 @@ router.delete(
       const studentId = req.params.studentId as string;
 
       // Verify student exists and is a student
-      const existingStudent = await UserService.getUserById(studentId);
+      const existingStudent = await UserService.getUserById(
+        studentId,
+        req.user?.collegeId || undefined
+      );
       
       if (!existingStudent) {
         res.status(404).json({
@@ -4545,6 +4815,8 @@ router.get(
       } = req.query;
 
       const filters: any = {};
+
+      filters.collegeId = user.collegeId || undefined;
 
       // Apply role-based filters
       if ((user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") && user.departmentId) {

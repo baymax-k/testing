@@ -157,6 +157,7 @@ export class BatchService {
    * Get all batches with optional filtering
    */
   static async getAllBatches(filters?: {
+    collegeId?: string;
     departmentId?: string;
     year?: number;
     semester?: number;
@@ -184,6 +185,12 @@ export class BatchService {
 
     if (filters?.mentorId) {
       where.mentorId = filters.mentorId;
+    }
+
+    if (filters?.collegeId) {
+      where.department = {
+        collegeId: filters.collegeId,
+      };
     }
 
     const [batches, total] = await Promise.all([
@@ -241,7 +248,7 @@ export class BatchService {
   /**
    * Get batch by ID
    */
-  static async getBatchById(batchId: string) {
+  static async getBatchById(batchId: string, collegeId?: string) {
     const batch = await prisma.batch.findUnique({
       where: { id: batchId },
       include: {
@@ -250,6 +257,7 @@ export class BatchService {
             id: true,
             name: true,
             code: true,
+            collegeId: true,
           },
         },
         mentor: {
@@ -276,6 +284,10 @@ export class BatchService {
     });
 
     if (!batch) {
+      throw new Error("Batch not found");
+    }
+
+    if (collegeId && batch.department.collegeId !== collegeId) {
       throw new Error("Batch not found");
     }
 

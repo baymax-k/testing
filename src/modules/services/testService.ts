@@ -60,6 +60,7 @@ export interface PaginationOptions {
 
 export interface TestFilters {
   status?: TestStatus;
+  collegeId?: string;
   departmentId?: string;
   batchId?: string;
   createdById?: string;
@@ -384,7 +385,7 @@ export class TestService {
   /**
    * Get test by ID
    */
-  static async getTestById(testId: string) {
+  static async getTestById(testId: string, collegeId?: string) {
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
@@ -401,6 +402,7 @@ export class TestService {
             id: true,
             name: true,
             code: true,
+            collegeId: true,
           },
         },
         batch: {
@@ -408,6 +410,11 @@ export class TestService {
             id: true,
             name: true,
             code: true,
+            department: {
+              select: {
+                collegeId: true,
+              },
+            },
           },
         },
         questions: {
@@ -423,6 +430,14 @@ export class TestService {
 
     if (!test) {
       throw new Error("Test not found");
+    }
+
+    if (collegeId) {
+      const testCollegeId =
+        test.department?.collegeId || test.batch?.department?.collegeId || null;
+      if (testCollegeId !== collegeId) {
+        throw new Error("Test not found");
+      }
     }
 
     return test;
@@ -457,6 +472,17 @@ export class TestService {
 
     if (filters.batchId) {
       where.batchId = filters.batchId;
+    }
+
+    if (filters.collegeId) {
+      where.AND = [
+        {
+          OR: [
+            { department: { collegeId: filters.collegeId } },
+            { batch: { department: { collegeId: filters.collegeId } } },
+          ],
+        },
+      ];
     }
 
     if (filters.createdById) {
