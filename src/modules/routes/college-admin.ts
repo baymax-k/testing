@@ -12,6 +12,7 @@ import { DepartmentService } from "../services/departmentService.js";
 import { BatchService } from "../services/batchService.js";
 import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
+import { dashboardService } from "../services/dashboardService.js";
 import type { Role, TestStatus } from "../../generated/prisma/client.js";
 
 const router: RouterType = Router();
@@ -2370,11 +2371,27 @@ router.get(
       return stats;
     };
 
-    const statistics = await getStatistics(effectiveRole);
+    const [statistics, metrics] = await Promise.all([
+      getStatistics(effectiveRole),
+      dashboardService.getDashboardMetrics(
+        user.id,
+        effectiveRole,
+        user.departmentId || undefined
+      ),
+    ]);
 
     res.json({
       panel: "college-admin",
       message: `Welcome back, ${user.name}!`,
+      totalStudents: metrics.totalStudents,
+      averageScore: metrics.averageScore,
+      activeTests: metrics.activeTests,
+      passRate: metrics.passRate,
+      studentsTrend: metrics.studentsTrend,
+      performanceTrend: metrics.performanceTrend,
+      testsTrend: metrics.testsTrend,
+      passRateTrend: metrics.passRateTrend,
+      performanceMetrics: metrics,
       dashboard: {
         title: `${getRoleTitle(effectiveRole)} Dashboard`,
         role: effectiveRole,
@@ -5128,14 +5145,15 @@ router.get(
         }
       }
 
-      const limitNum = limit ? Math.min(parseInt(limit as string) || 50, 100) : 50;
-      const leaderboard = await reportService.getLeaderboard(batchId, limitNum);
+      const limitNum = limit ? Math.min(Number.parseInt(limit as string, 10) || 50, 100) : 50;
+      const leaderboardData = await reportService.getBatchLeaderboard(batchId, limitNum);
 
       res.json({
         success: true,
         limit: limitNum,
-        count: leaderboard.length,
-        data: leaderboard,
+        count: leaderboardData.leaderboard.length,
+        leaderboard: leaderboardData.leaderboard,
+        data: leaderboardData.leaderboard,
       });
     } catch (error: any) {
       console.error("[college-admin/report/batch/leaderboard] Error:", error);
