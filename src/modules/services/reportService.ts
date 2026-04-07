@@ -1,5 +1,13 @@
 import { prisma } from "../../config/auth.js";
 
+type TrendDirection = "improving" | "stable" | "declining";
+type DifficultyLevel = "easy" | "moderate" | "hard";
+type ProficiencyLevel =
+  | "beginner"
+  | "intermediate"
+  | "advanced"
+  | "expert";
+
 export interface PerformanceMetrics {
   totalTests: number;
   attempted: number;
@@ -18,11 +26,18 @@ export interface PerformanceMetrics {
   };
 }
 
+export interface WeeklyPerformancePoint {
+  week: string;
+  score: number;
+  date: string;
+}
+
 export interface StudentPerformance {
   studentId: string;
   studentName: string;
   email: string;
   metrics: PerformanceMetrics;
+  performanceTrend: WeeklyPerformancePoint[];
   recentTests: Array<{
     testId: string;
     testTitle: string;
@@ -35,11 +50,17 @@ export interface StudentPerformance {
 }
 
 export interface BatchPerformanceStats {
+  batchId?: string;
+  batchName?: string;
   totalStudents: number;
   totalTests: number;
   averageClassScore: number;
+  averageScore: number;
+  avgScore: number;
   medianScore: number;
   classPassPercentage: number;
+  passPercentage: number;
+  passRate: number;
   topStudents: Array<{
     studentId: string;
     studentName: string;
@@ -57,6 +78,10 @@ export interface BatchPerformanceStats {
     below_average: number;
     notAttempted: number;
   };
+  scoreDistributionRanges: Array<{
+    range: string;
+    count: number;
+  }>;
 }
 
 export interface LeaderboardEntry {
@@ -64,28 +89,38 @@ export interface LeaderboardEntry {
   studentId: string;
   studentName: string;
   email: string;
+  score: number;
   averageScore: number;
   totalTestsAttempted: number;
   passingRate: number;
-  recentPerformance: "improving" | "stable" | "declining";
+  recentPerformance: TrendDirection;
+}
+
+export interface BatchLeaderboardResponse {
+  leaderboard: LeaderboardEntry[];
 }
 
 export interface TestAnalysis {
   testId: string;
   testTitle: string;
   totalStudents: number;
+  totalParticipants: number;
   attemptedCount: number;
   averageScore: number;
   medianScore: number;
   passingPercentage: number;
-  difficulty: "easy" | "moderate" | "hard";
+  passPercentage: number;
+  difficulty: DifficultyLevel;
   questionAnalysis: Array<{
+    questionNumber: number;
+    successRate: number;
+    averageTime: number;
     questionId: string;
     questionText: string;
     type: string;
     correctAnswerPercentage: number;
     averageScoreOnQuestion: number;
-    difficulty: "easy" | "moderate" | "hard";
+    difficulty: DifficultyLevel;
   }>;
   scoreDistribution: {
     excellent: number;
@@ -94,19 +129,37 @@ export interface TestAnalysis {
     below_average: number;
     notAttempted: number;
   };
+  highPerformers: Array<{
+    studentName: string;
+    batch: string;
+    score: number;
+    percentage: number;
+  }>;
+  needsImprovement: Array<{
+    studentName: string;
+    batch: string;
+    score: number;
+    percentage: number;
+  }>;
 }
 
 export interface SkillsetSummary {
   studentId: string;
   studentName: string;
+  skills: Array<{
+    skill: string;
+    testsCompleted: number;
+    value: number;
+    proficiency: ProficiencyLevel;
+  }>;
   topicsCovered: Array<{
     topic: string;
     testsCompleted: number;
     averageScore: number;
-    proficiency: "beginner" | "intermediate" | "advanced" | "expert";
+    proficiency: ProficiencyLevel;
   }>;
   overallProficiency: {
-    level: "beginner" | "intermediate" | "advanced" | "expert";
+    level: ProficiencyLevel;
     score: number;
   };
   recommendations: string[];
@@ -166,12 +219,20 @@ export class ReportService {
       submittedAt: attempt.submittedAt,
     }));
 
+    const performanceTrend = this.calculateWeeklyPerformance(
+      testAttempts.map((attempt) => ({
+        submittedAt: attempt.submittedAt,
+        percentage: this.toPercentage(attempt.score, attempt.maxScore),
+      }))
+    );
+
     return {
       studentId: student.id,
       studentName: student.name,
       email: student.email || "",
       metrics,
       recentTests,
+      performanceTrend,
     };
   }
 
@@ -246,19 +307,37 @@ export class ReportService {
       batch.students.length * batch.tests.length
     );
 
+    const averageClassScore =
+      scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    const classPassPercentage =
+      scores.length > 0
+        ? (scores.filter((s) => s >= 40).length / scores.length) * 100
+        : 0;
+
+    const scoreDistributionRanges = [
+      { range: "90-100", count: scoreDistribution.excellent },
+      { range: "80-89", count: scores.filter((s) => s >= 80 && s < 90).length },
+      { range: "70-79", count: scores.filter((s) => s >= 70 && s < 80).length },
+      { range: "60-69", count: scores.filter((s) => s >= 60 && s < 70).length },
+      { range: "Below 60", count: scoreDistribution.below_average },
+    ];
+
     return {
+      batchId: batch.id,
+      batchName: batch.name,
       totalStudents: batch.students.length,
       totalTests: batch.tests.length,
-      averageClassScore:
-        scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      averageClassScore,
+      averageScore: averageClassScore,
+      avgScore: averageClassScore,
       medianScore: this.calculateMedian(scores),
-      classPassPercentage:
-        scores.length > 0
-          ? (scores.filter((s) => s >= 40).length / scores.length) * 100
-          : 0,
+      classPassPercentage,
+      passPercentage: classPassPercentage,
+      passRate: classPassPercentage,
       topStudents,
       bottomStudents,
       scoreDistribution,
+      scoreDistributionRanges,
     };
   }
 
@@ -299,26 +378,14 @@ export class ReportService {
       const passingRate =
         attempts.length > 0 ? (passingTests.length / attempts.length) * 100 : 0;
 
-      // Determine performance trend
-      const recentScores = scores.slice(0, 3);
-      const olderScores = scores.slice(3, 6);
-      let recentPerformance: "improving" | "stable" | "declining" = "stable";
-
-      if (recentScores.length > 0 && olderScores.length > 0) {
-        const recentAvg =
-          recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
-        const olderAvg =
-          olderScores.reduce((a, b) => a + b, 0) / olderScores.length;
-
-        if (recentAvg > olderAvg + 5) recentPerformance = "improving";
-        else if (recentAvg < olderAvg - 5) recentPerformance = "declining";
-      }
+      const recentPerformance = this.calculateRecentPerformanceTrend(scores);
 
       leaderboard.push({
         rank: 0, // Will be set below
         studentId: student.id,
         studentName: student.name,
         email: student.email || "",
+        score: averageScore,
         averageScore,
         totalTestsAttempted: attempts.length,
         passingRate,
@@ -335,6 +402,14 @@ export class ReportService {
     return leaderboard.slice(0, limit);
   }
 
+  async getBatchLeaderboard(
+    batchId: string,
+    limit: number = 50
+  ): Promise<BatchLeaderboardResponse> {
+    const leaderboard = await this.getLeaderboard(batchId, limit);
+    return { leaderboard };
+  }
+
   /**
    * Get detailed analysis of a test
    */
@@ -345,7 +420,19 @@ export class ReportService {
         questions: { orderBy: { orderIndex: "asc" } },
         batch: { include: { students: true } },
         attempts: {
-          include: { student: true },
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                batch: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
           where: { status: { not: "in_progress" } },
         },
       },
@@ -366,12 +453,29 @@ export class ReportService {
       scores.length > 0
         ? (scores.filter((s) => s >= 40).length / scores.length) * 100
         : 0;
-    let difficulty: "easy" | "moderate" | "hard" = "moderate";
+    let difficulty: DifficultyLevel = "moderate";
     if (passPercentage > 75) difficulty = "easy";
     else if (passPercentage < 40) difficulty = "hard";
 
+    const averageTimePerQuestion =
+      test.questions.length > 0
+        ? Math.round(
+            test.attempts
+              .filter((attempt) => attempt.submittedAt)
+              .reduce((sum, attempt) => {
+                if (!attempt.submittedAt) return sum;
+                const durationInSeconds =
+                  Math.max(
+                    0,
+                    attempt.submittedAt.getTime() - attempt.startedAt.getTime()
+                  ) / 1000;
+                return sum + durationInSeconds / test.questions.length;
+              }, 0) / Math.max(test.attempts.filter((attempt) => attempt.submittedAt).length, 1)
+          )
+        : 0;
+
     // Analyze each question
-    const questionAnalysis = test.questions.map((question) => {
+    const questionAnalysis = test.questions.map((question, index) => {
       const correctAttempts = test.attempts.filter((attempt) => {
         const answers = attempt.answers as Record<string, any> | null;
         if (!answers) return false;
@@ -384,19 +488,69 @@ export class ReportService {
           ? ((correctAttempts.length / test.attempts.length) * 100)
           : 0;
 
-      let questionDifficulty: "easy" | "moderate" | "hard" = "moderate";
+      let questionDifficulty: DifficultyLevel = "moderate";
       if (correctAnswerPercentage > 75) questionDifficulty = "easy";
       else if (correctAnswerPercentage < 40) questionDifficulty = "hard";
 
+      const normalizedDifficulty = (question.difficulty || "").toLowerCase();
+      let normalizedQuestionDifficulty: DifficultyLevel = questionDifficulty;
+      if (normalizedDifficulty === "medium") {
+        normalizedQuestionDifficulty = "moderate";
+      } else if (normalizedDifficulty === "easy") {
+        normalizedQuestionDifficulty = "easy";
+      } else if (normalizedDifficulty === "hard") {
+        normalizedQuestionDifficulty = "hard";
+      }
+
       return {
+        questionNumber: index + 1,
+        successRate: Math.round(correctAnswerPercentage),
+        averageTime: averageTimePerQuestion,
         questionId: question.id,
-        questionText: (question.content ?? "").substring(0, 100),
+        questionText: (question.content || "").substring(0, 100),
         type: question.type,
         correctAnswerPercentage,
         averageScoreOnQuestion: (correctAnswerPercentage / 100) * question.marks,
-        difficulty: questionDifficulty,
+        difficulty: normalizedQuestionDifficulty,
       };
     });
+
+    const bestAttemptByStudent = new Map<
+      string,
+      {
+        studentName: string;
+        batch: string;
+        score: number;
+        percentage: number;
+      }
+    >();
+
+    for (const attempt of test.attempts) {
+      const percentage = this.toPercentage(attempt.score, attempt.maxScore);
+      const existing = bestAttemptByStudent.get(attempt.studentId);
+
+      if (!existing || percentage > existing.percentage) {
+        bestAttemptByStudent.set(attempt.studentId, {
+          studentName: attempt.student.name,
+          batch: attempt.student.batch?.name || "N/A",
+          score: Math.round((attempt.score ?? 0) * 100) / 100,
+          percentage: Math.round(percentage * 100) / 100,
+        });
+      }
+    }
+
+    const rankedAttempts = Array.from(bestAttemptByStudent.values()).sort(
+      (a, b) => b.percentage - a.percentage
+    );
+
+    const highPerformers = rankedAttempts
+      .filter((attempt) => attempt.percentage >= 90)
+      .slice(0, 3);
+
+    const needsImprovement = [...rankedAttempts]
+      .filter((attempt) => attempt.percentage < 60)
+      .sort((a, b) => a.percentage - b.percentage)
+      .slice(0, 3);
 
     const scoreDistribution = this.calculateScoreDistribution(scores, totalStudents);
 
@@ -404,14 +558,18 @@ export class ReportService {
       testId: test.id,
       testTitle: test.title,
       totalStudents,
+      totalParticipants: attemptedCount,
       attemptedCount,
       averageScore:
         scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0,
       medianScore: this.calculateMedian(scores),
       passingPercentage: passPercentage,
+      passPercentage,
       difficulty,
       questionAnalysis,
       scoreDistribution,
+      highPerformers,
+      needsImprovement,
     };
   }
 
@@ -472,8 +630,7 @@ export class ReportService {
           ? data.scores.reduce((a: number, b: number) => a + b, 0) / data.scores.length
           : 0;
 
-      let proficiency: "beginner" | "intermediate" | "advanced" | "expert" =
-        "beginner";
+      let proficiency: ProficiencyLevel = "beginner";
       if (avgScore >= 90) proficiency = "expert";
       else if (avgScore >= 75) proficiency = "advanced";
       else if (avgScore >= 60) proficiency = "intermediate";
@@ -495,8 +652,7 @@ export class ReportService {
         ? allScores.reduce((a, b) => a + b, 0) / allScores.length
         : 0;
 
-    let overallProficiency: "beginner" | "intermediate" | "advanced" | "expert" =
-      "beginner";
+    let overallProficiency: ProficiencyLevel = "beginner";
     if (overallScore >= 90) overallProficiency = "expert";
     else if (overallScore >= 75) overallProficiency = "advanced";
     else if (overallScore >= 60) overallProficiency = "intermediate";
@@ -507,9 +663,17 @@ export class ReportService {
       overallScore
     );
 
+    const skills = topicsCovered.map((topic) => ({
+      skill: topic.topic,
+      testsCompleted: topic.testsCompleted,
+      value: topic.averageScore,
+      proficiency: topic.proficiency,
+    }));
+
     return {
       studentId,
       studentName: student.name,
+      skills,
       topicsCovered,
       overallProficiency: {
         level: overallProficiency,
@@ -523,45 +687,210 @@ export class ReportService {
    * Get department-wide performance report
    */
   async getDepartmentPerformance(departmentId: string) {
-    const batches = await prisma.batch.findMany({
-      where: { departmentId },
-      select: { id: true },
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId },
+      include: {
+        batches: {
+          include: {
+            mentor: {
+              select: {
+                name: true,
+              },
+            },
+            students: {
+              select: {
+                id: true,
+              },
+            },
+            tests: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
     });
 
+    if (!department) {
+      throw new Error("Department not found");
+    }
+
     const batchPerformances = await Promise.all(
-      batches.map((b: any) => this.getBatchPerformance(b.id))
+      department.batches.map((batch) => this.getBatchPerformance(batch.id))
     );
 
-    const departmentMetrics = {
-      totalBatches: batches.length,
-      totalStudents: batchPerformances.reduce(
-        (sum: number, b: BatchPerformanceStats) => sum + b.totalStudents,
-        0
-      ),
-      totalTests: batchPerformances.reduce(
-        (sum: number, b: BatchPerformanceStats) => sum + b.totalTests,
-        0
-      ),
-      averageDepartmentScore: this.calculateMedian(
-        batchPerformances.map((b: BatchPerformanceStats) => b.averageClassScore)
-      ),
-      departmentPassPercentage:
-        batchPerformances.length > 0
-          ? batchPerformances.reduce(
-              (sum: number, b: BatchPerformanceStats) => sum + b.classPassPercentage,
-              0
-            ) / batchPerformances.length
-          : 0,
-      batchPerformances: batchPerformances.map((bp: BatchPerformanceStats, idx: number) => ({
-        batchId: batches[idx].id,
-        ...bp,
-      })),
-    };
+    const batches = department.batches.map((batch, index) => {
+      const performance = batchPerformances[index];
+      return {
+        batchId: batch.id,
+        batchName: batch.name,
+        studentCount: batch.students.length,
+        year: batch.year,
+        averageScore: performance.averageScore,
+        avgScore: performance.avgScore,
+        passPercentage: performance.passPercentage,
+        passRate: performance.passRate,
+        mentor: batch.mentor?.name || "N/A",
+      };
+    });
 
-    return departmentMetrics;
+    const attempts = await prisma.testAttempt.findMany({
+      where: {
+        status: { not: "in_progress" },
+        OR: [
+          { test: { departmentId } },
+          { test: { batch: { departmentId } } },
+        ],
+      },
+      select: {
+        score: true,
+        maxScore: true,
+        submittedAt: true,
+      },
+    });
+
+    const performanceTrend = this.calculateWeeklyPerformance(
+      attempts.map((attempt) => ({
+        submittedAt: attempt.submittedAt,
+        percentage: this.toPercentage(attempt.score, attempt.maxScore),
+      }))
+    );
+
+    const totalStudents = batches.reduce(
+      (sum: number, batch) => sum + batch.studentCount,
+      0
+    );
+    const totalTests = department.batches.reduce(
+      (sum: number, batch) => sum + batch.tests.length,
+      0
+    );
+
+    const averageDepartmentScore =
+      batchPerformances.length > 0
+        ? batchPerformances.reduce((sum, batch) => sum + batch.averageScore, 0) /
+          batchPerformances.length
+        : 0;
+
+    const departmentPassPercentage =
+      batchPerformances.length > 0
+        ? batchPerformances.reduce((sum, batch) => sum + batch.passPercentage, 0) /
+          batchPerformances.length
+        : 0;
+
+    return {
+      departmentId: department.id,
+      departmentName: department.name,
+      totalBatches: department.batches.length,
+      totalStudents,
+      totalTests,
+      averageDepartmentScore,
+      averageScore: averageDepartmentScore,
+      avgScore: averageDepartmentScore,
+      departmentPassPercentage,
+      passPercentage: departmentPassPercentage,
+      passRate: departmentPassPercentage,
+      batches,
+      performanceTrend,
+      batchPerformances: batchPerformances.map(
+        (batchPerformance: BatchPerformanceStats, index: number) => ({
+          batchId: department.batches[index].id,
+          ...batchPerformance,
+        })
+      ),
+    };
   }
 
   // Helper methods
+  private toPercentage(score: number | null, maxScore: number): number {
+    if (!maxScore || maxScore <= 0) {
+      return 0;
+    }
+
+    return ((score ?? 0) / maxScore) * 100;
+  }
+
+  private getWeekStart(date: Date): Date {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - start.getDay());
+    return start;
+  }
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  private calculateWeeklyPerformance(
+    entries: Array<{ submittedAt: Date | null; percentage: number }>
+  ): WeeklyPerformancePoint[] {
+    const weekInMs = 7 * 24 * 60 * 60 * 1000;
+    const currentWeekStart = this.getWeekStart(new Date());
+    const firstWeekStart = new Date(currentWeekStart);
+    firstWeekStart.setDate(firstWeekStart.getDate() - 7 * 7);
+
+    const buckets = Array.from({ length: 8 }, (_, index) => {
+      const start = new Date(firstWeekStart);
+      start.setDate(start.getDate() + index * 7);
+      return {
+        start,
+        scores: [] as number[],
+      };
+    });
+
+    for (const entry of entries) {
+      if (!entry.submittedAt) continue;
+      const submittedAt = new Date(entry.submittedAt);
+      const index = Math.floor(
+        (submittedAt.getTime() - firstWeekStart.getTime()) / weekInMs
+      );
+      if (index >= 0 && index < buckets.length) {
+        buckets[index].scores.push(entry.percentage);
+      }
+    }
+
+    return buckets.map((bucket, index) => ({
+      week: `W${index + 1}`,
+      score:
+        bucket.scores.length > 0
+          ? Math.round(
+              bucket.scores.reduce((sum, score) => sum + score, 0) /
+                bucket.scores.length
+            )
+          : 0,
+      date: this.formatDate(bucket.start),
+    }));
+  }
+
+  private calculateRecentPerformanceTrend(
+    scores: number[]
+  ): TrendDirection {
+    const recentScores = scores.slice(0, 5);
+    const olderScores = scores.slice(5, 10);
+
+    if (recentScores.length === 0) {
+      return "stable";
+    }
+
+    const recentAvg =
+      recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+    const olderAvg =
+      olderScores.length > 0
+        ? olderScores.reduce((sum, score) => sum + score, 0) / olderScores.length
+        : recentAvg;
+
+    if (recentAvg > olderAvg + 2) {
+      return "improving";
+    }
+    if (recentAvg < olderAvg - 2) {
+      return "declining";
+    }
+    return "stable";
+  }
+
   private calculatePerformanceMetrics(
     testAttempts: any[],
     allTests: any[]
@@ -605,9 +934,10 @@ export class ReportService {
     if (scores.length === 0) return 0;
     const sorted = [...scores].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 !== 0
-      ? sorted[mid]
-      : (sorted[mid - 1] + sorted[mid]) / 2;
+    if (sorted.length % 2 === 0) {
+      return (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+    return sorted[mid];
   }
 
   private extractTopic(
@@ -647,7 +977,7 @@ export class ReportService {
   private generateRecommendations(
     topics: Array<{
       topic: string;
-      proficiency: "beginner" | "intermediate" | "advanced" | "expert";
+      proficiency: ProficiencyLevel;
     }>,
     overallScore: number
   ): string[] {
