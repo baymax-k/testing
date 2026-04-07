@@ -94,6 +94,8 @@ model User {
   emailVerified Boolean     @default(false)
   image         String?
   phone         String?
+  collegeId     String?
+  college       College?    @relation(fields: [collegeId], references: [id], onDelete: SetNull)
   departmentId  String?
   department    Department? @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
   batchId       String?
@@ -127,6 +129,7 @@ model User {
 
   @@index([departmentId])
   @@index([batchId])
+  @@index([collegeId])
   @@index([role])
   @@map("user")
 }
@@ -192,11 +195,32 @@ model Verification {
   @@map("verification")
 }
 
+model College {
+  id          String       @id @default(cuid())
+  name        String
+  code        String       @unique
+  description String?
+  website     String?
+  location    String?
+  adminId     String?
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  users       User[]
+  departments Department[]
+
+  @@index([adminId])
+  @@index([createdById])
+  @@map("college")
+}
+
 model Department {
   id          String   @id @default(cuid())
   name        String   @unique
   code        String   @unique
   description String?
+  collegeId   String?
+  college     College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
   hodId       String?  @unique
   hod         User?    @relation("DepartmentHod", fields: [hodId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
@@ -205,6 +229,7 @@ model Department {
   batches     Batch[]
   tests       Test[]
 
+  @@index([collegeId])
   @@index([hodId])
   @@map("department")
 }

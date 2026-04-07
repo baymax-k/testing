@@ -7,6 +7,7 @@ export interface CreateUserInput {
   name: string;
   role: Role;
   phone?: string;
+  collegeId?: string;
   departmentId?: string;
 }
 
@@ -15,6 +16,7 @@ export interface UpdateUserInput {
   phone?: string;
   image?: string;
   role?: Role;
+  collegeId?: string | null;
   departmentId?: string | null;
 }
 
@@ -24,6 +26,7 @@ export interface BulkUserInput {
   name: string;
   role: Role;
   phone?: string;
+  collegeId?: string;
   departmentId?: string;
 }
 
@@ -33,17 +36,19 @@ export class UserService {
    */
   static async getAllUsers(filters?: {
     role?: Role;
+    collegeId?: string;
     departmentId?: string;
     search?: string;
     page?: number;
     limit?: number;
   }) {
-    const { role, departmentId, search, page = 1, limit = 50 } = filters || {};
+    const { role, collegeId, departmentId, search, page = 1, limit = 50 } = filters || {};
     const skip = (page - 1) * limit;
 
     const where: any = {};
 
     if (role) where.role = role;
+    if (collegeId) where.collegeId = collegeId;
     if (departmentId) where.departmentId = departmentId;
     if (search) {
       where.OR = [

@@ -142,6 +142,7 @@ const createStudentSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long"),
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   phone: z.string().optional(),
+  collegeId: z.string().optional(),
   departmentId: z.string().optional(),
   batchId: z.string().optional(),
 });
@@ -397,6 +398,30 @@ async function createSingleStudentAccount(
   currentUser: any
 ): Promise<{ success: boolean; student?: any; error?: string }> {
   try {
+    if (
+      currentUser.role !== "super_admin" &&
+      currentUser.collegeId &&
+      studentData.collegeId &&
+      currentUser.collegeId !== studentData.collegeId
+    ) {
+      return {
+        success: false,
+        error: "You can only create students for your own college",
+      };
+    }
+
+    const resolvedCollegeId =
+      currentUser.role === "super_admin"
+        ? studentData.collegeId || null
+        : studentData.collegeId || currentUser.collegeId || null;
+
+    if (!resolvedCollegeId) {
+      return {
+        success: false,
+        error: "collegeId is required to create student",
+      };
+    }
+
     // Create student using Better Auth
     const signUpResult = await auth.api.signUpEmail({
       body: {
@@ -424,6 +449,7 @@ async function createSingleStudentAccount(
         role: "student",
         emailVerified: true,
         phone: studentData.phone || null,
+        collegeId: resolvedCollegeId,
         departmentId,
         batchId: studentData.batchId || null,
       },
@@ -1646,6 +1672,7 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
         role: true,
         emailVerified: true,
         image: true,
+        collegeId: true,
         passwordHash: true,
       },
     });
@@ -1723,6 +1750,7 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
         role: user.role,
         emailVerified: user.emailVerified,
         image: user.image,
+        collegeId: user.collegeId,
       },
       token: sessionToken,
     });
@@ -1786,6 +1814,7 @@ router.post("/auth/refresh-token", requireAuth, async (req: AuthRequest, res: Re
           role: user.role,
           emailVerified: user.emailVerified,
           image: user.image,
+          collegeId: user.collegeId,
         },
       });
     } else {
@@ -2027,6 +2056,7 @@ router.get(
           role: true,
           emailVerified: true,
           image: true,
+          collegeId: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -2092,6 +2122,7 @@ router.put(
           role: true,
           emailVerified: true,
           image: true,
+          collegeId: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -2406,6 +2437,7 @@ router.get(
         role: user.role,
         emailVerified: user.emailVerified,
         image: user.image,
+        collegeId: user.collegeId,
         departmentId: user.departmentId,
       },
     });
@@ -2435,6 +2467,30 @@ router.post(
       }
 
       const data = validation.data;
+
+      let resolvedCollegeId: string | null = null;
+      if (currentUser.role === "super_admin") {
+        resolvedCollegeId = data.collegeId || null;
+      } else {
+        if (
+          currentUser.collegeId &&
+          data.collegeId &&
+          currentUser.collegeId !== data.collegeId
+        ) {
+          res.status(403).json({
+            error: "You can only create users for your own college",
+          });
+          return;
+        }
+        resolvedCollegeId = data.collegeId || currentUser.collegeId || null;
+      }
+
+      if (!resolvedCollegeId) {
+        res.status(400).json({
+          error: "collegeId is required to create users",
+        });
+        return;
+      }
 
       // Role-based restrictions
       if (currentUser.role === "hod" || currentUser.role === "dept_admin") {
@@ -2493,6 +2549,7 @@ router.post(
           passwordHash,
           role: data.role as Role,
           phone: data.phone,
+          collegeId: resolvedCollegeId,
           departmentId: data.departmentId,
           emailVerified: true,
         },
@@ -2525,6 +2582,7 @@ router.post(
   requireRole("super_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+      const currentUser = req.user!;
       const validation = bulkUsersSchema.safeParse(req.body);
       if (!validation.success) {
         res.status(400).json({
@@ -2554,6 +2612,32 @@ router.post(
           if (newUser?.user && !(newUser as any)?.error) {
             const passwordHash = await hashPassword(userData.password);
 
+            const resolvedCollegeId =
+              currentUser.role === "super_admin"
+                ? userData.collegeId || null
+                : userData.collegeId || currentUser.collegeId || null;
+
+            if (
+              currentUser.role !== "super_admin" &&
+              currentUser.collegeId &&
+              userData.collegeId &&
+              currentUser.collegeId !== userData.collegeId
+            ) {
+              results.failed.push({
+                email: userData.email,
+                error: "You can only create users for your own college",
+              });
+              continue;
+            }
+
+            if (!resolvedCollegeId) {
+              results.failed.push({
+                email: userData.email,
+                error: "collegeId is required to create users",
+              });
+              continue;
+            }
+
             // Update user with additional fields
             const updatedUser = await prisma.user.update({
               where: { id: (newUser as any).user.id },
@@ -2561,6 +2645,7 @@ router.post(
                 passwordHash,
                 role: userData.role as Role,
                 phone: userData.phone,
+                collegeId: resolvedCollegeId,
                 departmentId: userData.departmentId,
                 emailVerified: true,
               },
@@ -3844,7 +3929,31 @@ router.post(
         return;
       }
 
-      const { email, password, name, phone, departmentId, batchId } = validation.data;
+      const { email, password, name, phone, collegeId, departmentId, batchId } = validation.data;
+
+      const resolvedCollegeId =
+        currentUser.role === "super_admin"
+          ? collegeId || null
+          : collegeId || currentUser.collegeId || null;
+
+      if (
+        currentUser.role !== "super_admin" &&
+        currentUser.collegeId &&
+        collegeId &&
+        currentUser.collegeId !== collegeId
+      ) {
+        res.status(403).json({
+          error: "You can only create students for your own college",
+        });
+        return;
+      }
+
+      if (!resolvedCollegeId) {
+        res.status(400).json({
+          error: "collegeId is required to create student",
+        });
+        return;
+      }
 
       // HOD and Dept Admin can only create students in their department
       if (["hod", "dept_admin"].includes(currentUser.role)) {
@@ -3908,6 +4017,7 @@ router.post(
           role: "student",
           emailVerified: true,
           phone: phone || null,
+          collegeId: resolvedCollegeId,
           departmentId: departmentId || (["hod", "dept_admin"].includes(currentUser.role) ? currentUser.departmentId : null),
           batchId: batchId || null,
         },
