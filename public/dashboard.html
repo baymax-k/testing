@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <div class="user-info" id="user-info">Loading...</div>
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>Student Dashboard Summary</h2>
+            <div id="student-dashboard-summary">Loading...</div>
+        </div>
+        <div class="grid">
+            <div class="card">
+                <h2>Recent Problems</h2>
+                <div id="recent-problems">Loading...</div>
+            </div>
+            <div class="card">
+                <h2>Recent Submissions</h2>
+                <div id="recent-submissions">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        async function loadDashboard() {
+            if (!await checkAuth()) return;
+
+            let result = await fetchAPI('/me');
+            if (result && result.status === 200) {
+                const user = result.data.user;
+                document.getElementById('user-info').innerHTML = `
+                    <strong>Welcome, ${user.name}!</strong><br>
+                    Email: ${user.email} | Username: ${user.username} | Role: ${user.role}
+                `;
+            }
+
+            result = await fetchAPI('/problems?limit=5');
+            if (result && result.status === 200) {
+                const html = result.data.problems.map(p => `
+                    <div class="item">
+                        <a href="/test/problem.html?slug=${p.slug}">${p.title}</a>
+                        ${getDifficultyBadge(p.difficulty)}
+                    </div>
+                `).join('');
+                document.getElementById('recent-problems').innerHTML = html || 'No problems yet';
+            }
+
+            result = await fetchAPI('/submissions?limit=5');
+            if (result && result.status === 200) {
+                const html = result.data.submissions.map(s => `
+                    <div class="item">
+                        Problem: ${s.problemId} ${getStatusBadge(s.status)} <br>
+                        <small>${formatDate(s.createdAt)}</small>
+                    </div>
+                `).join('');
+                document.getElementById('recent-submissions').innerHTML = html || 'No submissions yet';
+            }
+
+            result = await fetchAPI('/student/dashboard');
+            if (result && result.status === 200) {
+                const sections = (result.data.dashboard?.sections || []).map((s) => `${s.name} (${s.status})`).join(', ');
+                document.getElementById('student-dashboard-summary').innerHTML = `
+                    ${result.data.message}<br>
+                    Sections: ${sections || 'No sections'}
+                `;
+            } else {
+                document.getElementById('student-dashboard-summary').innerHTML = 'Unable to fetch student summary';
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

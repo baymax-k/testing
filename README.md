@@ -51,6 +51,16 @@ npx prisma migrate dev
 npx prisma generate
 ```
 
+### Migration Policy (AWS DB)
+
+This repository now uses a baseline-forward migration strategy for the shared AWS database.
+
+- Current AWS schema is treated as baseline.
+- New database changes must be additive and forward-only.
+- Historical failed migration records are not used for release decisions.
+
+See full policy in [migration_policy.md](migration_policy.md).
+
 ### 5. Start Development Server
 ```bash
 pnpm run dev
@@ -74,3 +84,77 @@ pnpm run dev
 - **Two-Factor Authentication (2FA):** Enforce TOTP for `college_admin` and `product_admin` roles.
 - **Strict Password Policy:** Apply regex validation to ensure all passwords contain special characters, numbers, and uppercase letters.
 - **Alternative Verification:** Re-evaluate if email verification should switch from OTP codes back to Magic Links depending on user feedback.
+
+## Docker Compose (Local Stack)
+
+
+This repository includes a `docker-compose.yml` that starts the database and Judge0 services for local testing. The compose stack intentionally does NOT start the backend API server — run the backend locally with `pnpm run dev` so you can iterate on code without rebuilding containers. The compose file includes:
+
+- **postgres**: The primary application PostgreSQL database used by Prisma. By default it maps container port `5432` to the host (`0.0.0.0:5432`).
+- **db**: A second Postgres instance used by Judge0 (Judge0 requires its own DB in this setup).
+- **server**: The Judge0 HTTP server (code execution API).
+- **workers**: Judge0 worker processes that execute submitted jobs.
+- **redis**: Redis used by Judge0 for job queuing and workers.
+
+Volumes are created for the Postgres data directories so data is persisted across restarts (`postgres_data` and `data`).
+
+How to run the full stack:
+
+```bash
+pnpm run stack:up    # docker compose up -d
+pnpm run stack:logs  # follow combined logs
+pnpm run stack:down  # docker compose down -v
+```
+
+What the `docker compose up` output means and common error shown in your logs:
+
+- The output lists images pulled, networks and volumes created, and container start status.
+- If you see an error like:
+
+  ```
+  Bind for 0.0.0.0:5432 failed: port is already allocated
+  ```
+
+  it means some other process on your host already uses port `5432` (often a local Postgres service). Fixes:
+
+  - Stop the host Postgres service (systemd) or any container using that port, e.g.:
+
+    ```bash
+    sudo systemctl stop postgresql
+    # or stop an existing container
+    docker stop postgres || true
+    docker rm postgres || true
+    ```
+
+  - Find what is using the port:
+
+    ```bash
+    sudo lsof -iTCP -sTCP:LISTEN -P -n | grep 5432
+    # or
+    ss -ltnp | grep 5432
+    ```
+
+  - Alternatively, change the host port mapping in `docker-compose.yml` (e.g. map `5433:5432`) if you cannot stop the local service.
+
+After the stack is up, you still need to apply Prisma migrations (the backend expects the DB schema to exist). Typical post-start steps:
+
+```bash
+# generate client and apply migrations to the app DB
+pnpm prisma generate --schema src/modules/prisma/schema.prisma
+pnpm prisma migrate deploy --schema src/modules/prisma/schema.prisma
+
+# optional: seed example data
+pnpm ts-node --transpile-only scripts/seed.ts
+```
+
+Notes and checklist (did we forget anything?):
+
+- Ensure environment variables in `.env` (database URL, Better Auth secrets, Judge0 credentials) are set before starting. `judge0.conf` also contains placeholders that must be filled for production.
+- The Compose file maps host ports — if your machine already runs services on those ports, change the host-side ports or stop the local service.
+- Healthchecks are included for key services, but you may still need to wait a minute for DBs and Judge0 workers to be fully ready.
+- After migrations run, restart the backend if it started before migrations applied so Prisma Client picks up any generated client changes.
+
+If you want, I can also:
+
+- Add explicit port variables to `docker-compose.yml` so host ports are configurable via `.env`.
+- Add a short script that waits for Postgres before starting the backend (useful to avoid race conditions).

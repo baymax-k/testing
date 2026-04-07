@@ -41,14 +41,14 @@ MUST NOT deviate from these technologies under any circumstances.
 ### Security
 
 -   Helmet.js
--   Better Auth (primary authentication system)
+-   Custom authentication system (in-repo)
 -   Role-Based Access Control (RBAC)
 
 ### Authentication
 
--   Better Auth (official authentication system)
--   Session-based or token-based flow strictly via Better Auth
--   No custom JWT implementation unless explicitly required and approved
+-   Use the project’s existing authentication system
+-   Session-based or token-based flow as implemented in the repo
+-   No new external auth providers unless explicitly required and approved
 
 ### Testing
 
@@ -69,9 +69,8 @@ You MUST NOT:
 -   Add BullMQ, Kafka, RabbitMQ (Redis only for queueing if needed)
 -   Add random NPM packages without strong justification
 -   Change architectural pattern without explicit instruction
--   Implement custom JWT authentication
 -   Introduce Auth0, Firebase Auth, Clerk, NextAuth, Passport.js, or any other authentication provider
--   Bypass Better Auth for any authentication flow
+-   Bypass the project’s existing authentication system
 
 If a feature requires a new dependency, you must:
 
@@ -112,9 +111,9 @@ You must follow this backend structure:
 
 ## Security Rules
 
--   All sensitive routes must require authentication via Better Auth
--   RBAC middleware must integrate with Better Auth session/context
--   Never implement custom authentication logic outside Better Auth
+-   All sensitive routes must require authentication via the project’s auth system
+-   RBAC middleware must integrate with the project’s auth session/context
+-   Never implement authentication logic outside the project’s auth module
 -   RBAC middleware must protect role-based routes
 -   Use Helmet.js
 -   Validate all request bodies using a validation layer
@@ -178,3 +177,16 @@ performance dashboards, reports with export capabilities, and role-based
 access control. Overall, it acts as a college-focused SaaS solution that
 helps institutions monitor student progress, improve technical skills,
 and streamline placement preparation through data-driven insights.
+
+------------------------------------------------------------------------
+
+## Active Frontend Scope (Current Phase)
+
+- Frontend implementation is **student panel only** for this phase.
+- Do **NOT** create or modify admin/college-admin frontend pages unless explicitly requested later.
+- Prioritize student-facing features only:
+    - Problems and submissions
+    - Practice mode (MCQ/DSA)
+    - POTD
+    - Student contest participation and leaderboard views
+    - Student profile/dashboard

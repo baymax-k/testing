@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>College Admin Test API Runner</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --accent: #22d3ee;
+      --accent-2: #a855f7;
+      --muted: #94a3b8;
+      --text: #e2e8f0;
+      --danger: #f87171;
+      --success: #34d399;
+      --border: #1f2937;
+      --mono: "Fira Code", "JetBrains Mono", Consolas, Menlo, monospace;
+      --sans: "Inter", "SF Pro Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(circle at 10% 20%, rgba(34,211,238,0.08), transparent 20%),
+                  radial-gradient(circle at 80% 0%, rgba(168,85,247,0.10), transparent 22%),
+                  linear-gradient(145deg, #0b1222 0%, #0f172a 40%, #0b1222 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 { margin: 0 0 16px; font-size: 24px; letter-spacing: 0.4px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    label { font-size: 13px; color: var(--muted); letter-spacing: 0.2px; }
+    input, textarea, select {
+      width: 100%;
+      background: #0b1020;
+      color: var(--text);
+      border: 1px solid #1f2937;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(34,211,238,0.15); }
+    textarea { min-height: 140px; resize: vertical; }
+    button {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0b1020;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(34,211,238,0.18); }
+    button:active { transform: translateY(0); box-shadow: none; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { flex: 1; }
+    .output {
+      background: #0b1020;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      white-space: pre-wrap;
+      min-height: 120px;
+    }
+    .muted { color: var(--muted); font-size: 12px; }
+    .status { font-weight: 700; }
+    .status.ok { color: var(--success); }
+    .status.err { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>College Admin Test API Runner</h1>
+    <p class="muted">Quickly exercise key test endpoints. Uses fetch with cookies; ensure you're signed in to the college-admin portal in the same browser (Better Auth session cookie required).</p>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="baseUrl">Base URL</label>
+          <input id="baseUrl" value="http://localhost:5000" />
+        </div>
+        <div>
+          <label for="departmentId">Department ID (optional)</label>
+          <input id="departmentId" placeholder="department id" />
+        </div>
+        <div>
+          <label for="batchId">Batch ID (optional)</label>
+          <input id="batchId" placeholder="batch id" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="testTitle">Test Title</label>
+          <input id="testTitle" value="Demo Test" />
+        </div>
+        <div>
+          <label for="duration">Duration (minutes)</label>
+          <input id="duration" type="number" value="60" />
+        </div>
+        <div>
+          <label for="maxAttempts">Max Attempts</label>
+          <input id="maxAttempts" type="number" value="1" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="scheduledStart">Scheduled Start (ISO, optional)</label>
+          <input id="scheduledStart" placeholder="2026-03-29T09:00:00Z" />
+        </div>
+        <div>
+          <label for="scheduledEnd">Scheduled End (ISO, optional)</label>
+          <input id="scheduledEnd" placeholder="2026-03-29T11:00:00Z" />
+        </div>
+      </div>
+      <div>
+        <label for="instructions">Instructions</label>
+        <textarea id="instructions" placeholder="Read all questions carefully..."></textarea>
+      </div>
+      <button id="btnCreate">Create Test (POST /api/college-admin/tests)</button>
+    </div>
+
+    <div class="grid" style="margin-top: 16px;">
+      <div class="card">
+        <label for="listQuery">List Query Params (JSON)</label>
+        <textarea id="listQuery">{
+  "page": 1,
+  "limit": 10
+}</textarea>
+        <button id="btnList">List Tests (GET /api/college-admin/tests)</button>
+      </div>
+
+      <div class="card">
+        <label for="testId">Test ID</label>
+        <input id="testId" placeholder="test id" />
+        <button id="btnGet">Get Test (GET /api/college-admin/tests/:id)</button>
+        <button id="btnDelete" style="background: linear-gradient(135deg, #f87171, #ef4444); color:#0b1020;">Delete Test (DELETE)</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="row">
+        <div>
+          <label for="updatePayload">Update Payload (JSON)</label>
+        </div>
+      </div>
+      <textarea id="updatePayload">{
+  "title": "Updated Title",
+  "durationMinutes": 75
+}</textarea>
+      <button id="btnUpdate">Update Test (PUT /api/college-admin/tests/:id)</button>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="row" style="align-items:flex-start;">
+        <div style="flex:2;">
+          <label for="questionPayload">Add Questions Payload (JSON)</label>
+          <textarea id="questionPayload">{
+  "questions": [
+    {
+      "title": "Sample MCQ",
+      "type": "multiple_choice",
+      "options": ["A", "B", "C", "D"],
+      "correctOptions": [0],
+      "marks": 2
+    }
+  ]
+}</textarea>
+        </div>
+        <div style="flex:1;">
+          <label for="testIdForQuestions">Test ID</label>
+          <input id="testIdForQuestions" placeholder="test id" />
+        </div>
+      </div>
+      <button id="btnAddQuestions">Add Questions (POST /api/college-admin/tests/:id/questions)</button>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="row">
+        <div><span class="status" id="status">Ready</span></div>
+        <div class="muted" id="latency">-</div>
+      </div>
+      <div class="output" id="output">Awaiting request...</div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const setStatus = (text, ok = true) => {
+      const el = $("status");
+      el.textContent = text;
+      el.className = `status ${ok ? "ok" : "err"}`;
+    };
+
+    const setOutput = (data) => {
+      $("output").textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    };
+
+    const setLatency = (ms) => {
+      $("latency").textContent = `${ms} ms`;
+    };
+
+    const doFetch = async (path, options = {}) => {
+      const base = $("baseUrl").value.replace(/\/$/, "");
+      const url = `${base}${path}`;
+      const start = performance.now();
+      try {
+        const res = await fetch(url, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          ...options,
+        });
+        const latency = Math.round(performance.now() - start);
+        setLatency(latency);
+        const text = await res.text();
+        let data;
+        try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
+        setStatus(`${res.status} ${res.statusText}`, res.ok);
+        setOutput(data);
+        return { res, data };
+      } catch (err) {
+        setLatency("-");
+        setStatus("Network error", false);
+        setOutput(err?.message || err);
+        throw err;
+      }
+    };
+
+    $("btnCreate").onclick = async () => {
+      const payload = {
+        title: $("testTitle").value,
+        description: "Test created via test runner",
+        instructions: $("instructions").value || undefined,
+        durationMinutes: Number($("duration").value) || 60,
+        maxAttempts: Number($("maxAttempts").value) || 1,
+        scheduledStartTime: $("scheduledStart").value || null,
+        scheduledEndTime: $("scheduledEnd").value || null,
+        departmentId: $("departmentId").value || null,
+        batchId: $("batchId").value || null,
+      };
+      await doFetch("/api/college-admin/tests", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    };
+
+    $("btnList").onclick = async () => {
+      let qp = {};
+      try { qp = JSON.parse($("listQuery").value || "{}"); } catch (e) { setStatus("Invalid JSON", false); setOutput(e.message); return; }
+      const params = new URLSearchParams();
+      Object.entries(qp).forEach(([k,v]) => v !== undefined && v !== null && params.set(k, v));
+      await doFetch(`/api/college-admin/tests?${params.toString()}`);
+    };
+
+    $("btnGet").onclick = async () => {
+      const id = $("testId").value.trim();
+      if (!id) { setStatus("Test ID required", false); return; }
+      await doFetch(`/api/college-admin/tests/${id}`);
+    };
+
+    $("btnDelete").onclick = async () => {
+      const id = $("testId").value.trim();
+      if (!id) { setStatus("Test ID required", false); return; }
+      await doFetch(`/api/college-admin/tests/${id}`, { method: "DELETE" });
+    };
+
+    $("btnUpdate").onclick = async () => {
+      const id = $("testId").value.trim();
+      if (!id) { setStatus("Test ID required", false); return; }
+      let payload;
+      try { payload = JSON.parse($("updatePayload").value || "{}"); } catch (e) { setStatus("Invalid JSON", false); setOutput(e.message); return; }
+      await doFetch(`/api/college-admin/tests/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    };
+
+    $("btnAddQuestions").onclick = async () => {
+      const id = $("testIdForQuestions").value.trim();
+      if (!id) { setStatus("Test ID required", false); return; }
+      let payload;
+      try { payload = JSON.parse($("questionPayload").value || "{}"); } catch (e) { setStatus("Invalid JSON", false); setOutput(e.message); return; }
+      await doFetch(`/api/college-admin/tests/${id}/questions`, { method: "POST", body: JSON.stringify(payload) });
+    };
+  </script>
+</body>
+</html>

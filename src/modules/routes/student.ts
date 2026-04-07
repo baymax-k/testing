@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type Router as RouterType } from "express";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
+import { getStudentProfileHandler } from "../controllers/student.controller.js";
 
 const router: RouterType = Router();
 
@@ -39,16 +40,7 @@ router.get(
   "/profile",
   requireAuth,
   requireRole("student"),
-  (req: Request, res: Response) => {
-    const user = (req as AuthRequest).user!;
-    res.json({
-      id: user.userId,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      emailVerified: user.emailVerified,
-    });
-  }
+  getStudentProfileHandler
 );
 
 export default router;

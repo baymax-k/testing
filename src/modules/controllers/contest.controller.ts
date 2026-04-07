@@ -15,6 +15,11 @@ const submitContestDsaSchema = z.object({
   language: z.string().min(1),
 });
 
+const submitContestMcqSchema = z.object({
+  contestId: z.string(),
+  answers: z.record(z.string(), z.number().int().min(0)),
+});
+
 // List contests with pagination and filters
 export const listContests = async (req: Request, res: Response) => {
   try {
@@ -276,6 +281,243 @@ export const submitContestDsa = async (req: Request, res: Response) => {
     }
     console.error("Error submitting contest DSA:", error);
     res.status(500).json({ error: "Failed to submit solution" });
+  }
+};
+
+// Get MCQ questions for a contest (only if joined and active)
+export const getContestMcqQuestions = async (req: Request, res: Response) => {
+  try {
+    const contestId = req.params.id as string;
+    const userId = (req as AuthRequest).user!.userId;
+
+    const participation = await prisma.contestParticipation.findUnique({
+      where: {
+        userId_contestId: {
+          userId,
+          contestId,
+        },
+      },
+    });
+
+    if (!participation) {
+      return res.status(403).json({ error: "You have not joined this contest" });
+    }
+
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        questions: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                type: true,
+                difficulty: true,
+                options: true,
+              },
+            },
+          },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    if (!contest) {
+      return res.status(404).json({ error: "Contest not found" });
+    }
+
+    const now = new Date();
+    if (contest.startTime && now < contest.startTime) {
+      return res.status(403).json({ error: "Contest has not started yet" });
+    }
+    if (contest.endTime && now > contest.endTime) {
+      return res.status(403).json({ error: "Contest has ended" });
+    }
+
+    const savedAnswersRaw = participation.mcqAnswers as Record<string, unknown> | null;
+    const savedAnswers = savedAnswersRaw && typeof savedAnswersRaw === "object"
+      ? savedAnswersRaw
+      : {};
+
+    const questions = contest.questions
+      .filter((cq) => cq.question.type === "mcq")
+      .map((cq) => {
+        const options = Array.isArray(cq.question.options)
+          ? (cq.question.options as string[])
+          : [];
+
+        return {
+          questionId: cq.question.id,
+          title: cq.question.title,
+          description: cq.question.description,
+          difficulty: cq.question.difficulty,
+          options,
+          order: cq.order,
+          points: cq.points,
+          selectedOptionIndex:
+            typeof savedAnswers[cq.question.id] === "number"
+              ? (savedAnswers[cq.question.id] as number)
+              : null,
+        };
+      });
+
+    const timeLeftMs = contest.endTime
+      ? Math.max(0, contest.endTime.getTime() - now.getTime())
+      : null;
+
+    res.json({
+      contest: {
+        id: contest.id,
+        title: contest.title,
+        startTime: contest.startTime,
+        endTime: contest.endTime,
+      },
+      questions,
+      participation: {
+        startedAt: participation.startedAt,
+        submittedAt: participation.submittedAt,
+      },
+      timeLeftMs,
+    });
+  } catch (error) {
+    console.error("Error getting contest MCQ questions:", error);
+    res.status(500).json({ error: "Failed to get contest MCQ questions" });
+  }
+};
+
+// Submit MCQ answers in contest context
+export const submitContestMcq = async (req: Request, res: Response) => {
+  try {
+    const { contestId, answers } = submitContestMcqSchema.parse(req.body);
+    const userId = (req as AuthRequest).user!.userId;
+
+    const participation = await prisma.contestParticipation.findUnique({
+      where: {
+        userId_contestId: {
+          userId,
+          contestId,
+        },
+      },
+    });
+
+    if (!participation) {
+      return res.status(403).json({ error: "You have not joined this contest" });
+    }
+
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        questions: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                type: true,
+                options: true,
+                correctAnswer: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!contest) {
+      return res.status(404).json({ error: "Contest not found" });
+    }
+
+    const now = new Date();
+    if (contest.startTime && now < contest.startTime) {
+      return res.status(403).json({ error: "Contest has not started yet" });
+    }
+    if (contest.endTime && now > contest.endTime) {
+      return res.status(403).json({ error: "Contest has ended" });
+    }
+
+    const mcqQuestions = contest.questions.filter((cq) => cq.question.type === "mcq");
+    const mcqQuestionIds = new Set(mcqQuestions.map((cq) => cq.question.id));
+
+    for (const questionId of Object.keys(answers)) {
+      if (!mcqQuestionIds.has(questionId)) {
+        return res.status(400).json({
+          error: `Invalid questionId in answers: ${questionId}`,
+        });
+      }
+    }
+
+    let attempted = 0;
+    let correct = 0;
+    let score = 0;
+    let maxScore = 0;
+
+    for (const cq of mcqQuestions) {
+      const questionId = cq.question.id;
+      const selectedOption = answers[questionId];
+
+      maxScore += cq.points;
+
+      if (selectedOption === undefined) continue;
+
+      const options = Array.isArray(cq.question.options)
+        ? (cq.question.options as unknown[])
+        : [];
+
+      if (selectedOption < 0 || selectedOption >= options.length) {
+        return res.status(400).json({
+          error: `Selected option index out of range for questionId: ${questionId}`,
+        });
+      }
+
+      attempted += 1;
+
+      if (
+        typeof cq.question.correctAnswer === "number" &&
+        selectedOption === cq.question.correctAnswer
+      ) {
+        correct += 1;
+        score += cq.points;
+      }
+    }
+
+    const updated = await prisma.contestParticipation.update({
+      where: {
+        userId_contestId: {
+          userId,
+          contestId,
+        },
+      },
+      data: {
+        mcqAnswers: answers,
+        score,
+        submittedAt: now,
+      },
+      select: {
+        id: true,
+        submittedAt: true,
+        score: true,
+      },
+    });
+
+    res.json({
+      message: "MCQ submission received",
+      result: {
+        participationId: updated.id,
+        attempted,
+        totalQuestions: mcqQuestions.length,
+        correct,
+        score: updated.score,
+        maxScore,
+        submittedAt: updated.submittedAt,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues });
+    }
+    console.error("Error submitting contest MCQ:", error);
+    res.status(500).json({ error: "Failed to submit MCQ answers" });
   }
 };
 

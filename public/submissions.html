@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Submissions</h2>
+        <div class="card" style="margin-bottom: 16px;">
+            <h3>Filters</h3>
+            <form id="filters" class="form-grid">
+                <label>
+                    Problem Slug
+                    <input type="text" name="problemId" placeholder="e.g. two-sum">
+                </label>
+                <label>
+                    Status
+                    <select name="status">
+                        <option value="">Any</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="wrong_answer">Wrong Answer</option>
+                        <option value="time_limit_exceeded">Time Limit</option>
+                        <option value="memory_limit_exceeded">Memory Limit</option>
+                        <option value="runtime_error">Runtime Error</option>
+                        <option value="compilation_error">Compilation Error</option>
+                        <option value="processing">Processing</option>
+                        <option value="internal_error">Internal Error</option>
+                    </select>
+                </label>
+                <label>
+                    Language
+                    <input type="text" name="language" placeholder="e.g. javascript">
+                </label>
+                <label>
+                    From
+                    <input type="date" name="from">
+                </label>
+                <label>
+                    To
+                    <input type="date" name="to">
+                </label>
+                <label>
+                    Limit
+                    <select name="limit">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                    </select>
+                </label>
+                <div class="actions">
+                    <button type="submit">Apply</button>
+                    <button type="button" id="reset-filters">Reset</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="submissions-list">Loading...</div>
+
+        <div id="pagination" class="pagination" style="display: none; margin-top: 12px;">
+            <button id="prev-page">Prev</button>
+            <span id="page-info"></span>
+            <button id="next-page">Next</button>
+        </div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        const state = { page: 1 };
+
+        function buildQuery() {
+            const form = document.getElementById('filters');
+            const params = new URLSearchParams();
+
+            const entries = new FormData(form);
+            entries.forEach((value, key) => {
+                if (value) params.append(key, value.toString());
+            });
+
+            params.set('page', String(state.page));
+            return params.toString();
+        }
+
+        function renderSubmissions(result) {
+            const container = document.getElementById('submissions-list');
+            if (!result || result.status !== 200) {
+                container.innerHTML = '<div class="error">Failed to load submissions</div>';
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
+
+            const items = result.data.submissions || [];
+            if (!items.length) {
+                container.innerHTML = '<div class="error">No submissions yet</div>';
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
+
+            const html = items.map((s) => {
+                const problemTitle = s.problem?.title || s.problemId;
+                const difficulty = s.problem?.difficulty ? getDifficultyBadge(s.problem.difficulty) : '';
+                const tags = (s.problem?.tags || []).slice(0, 3).join(', ');
+                return `
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>${problemTitle}</h3>
+                            <div>${difficulty}</div>
+                        </div>
+                        <p>${getStatusBadge(s.status)} | Language: ${s.language}</p>
+                        <p><small>Submitted: ${formatDate(s.createdAt)}</small></p>
+                        ${tags ? `<p><small>Tags: ${tags}</small></p>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+
+            const pagination = result.data.pagination;
+            if (pagination) {
+                document.getElementById('pagination').style.display = 'flex';
+                document.getElementById('page-info').textContent = `Page ${pagination.page} of ${pagination.pages}`;
+                document.getElementById('prev-page').disabled = pagination.page <= 1;
+                document.getElementById('next-page').disabled = pagination.page >= pagination.pages;
+            } else {
+                document.getElementById('pagination').style.display = 'none';
+            }
+        }
+
+        async function loadSubmissions() {
+            if (!await checkAuth()) return;
+            const query = buildQuery();
+            const result = await fetchAPI(`/submissions?${query}`);
+            renderSubmissions(result);
+        }
+
+        document.getElementById('filters').addEventListener('submit', (e) => {
+            e.preventDefault();
+            state.page = 1;
+            loadSubmissions();
+        });
+
+        document.getElementById('reset-filters').addEventListener('click', () => {
+            const form = document.getElementById('filters');
+            form.reset();
+            state.page = 1;
+            loadSubmissions();
+        });
+
+        document.getElementById('prev-page').addEventListener('click', () => {
+            if (state.page > 1) {
+                state.page -= 1;
+                loadSubmissions();
+            }
+        });
+
+        document.getElementById('next-page').addEventListener('click', () => {
+            state.page += 1;
+            loadSubmissions();
+        });
+
+        loadSubmissions();
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-// ─── OpenAPI / Swagger Specification ────────────────────────────────────────────
+// G��G��G�� OpenAPI / Swagger Specification G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
 // Reflects the current JWT cookie-based auth, all route modules, and Prisma schema.
 
 import swaggerJsdoc from "swagger-jsdoc";
@@ -11,12 +11,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
       version: "4.0.0",
       description:
         "Backend API for the CodeEthnics institutional coding platform.\n\n" +
-        "**Authentication** — JWT cookie-based (access_token + refresh_token), email/username sign-in, OTP verification, RBAC\n" +
-        "**Problems** — Browse coding problems (JSON-defined) with sample test cases\n" +
-        "**Practice** — Filter problems by difficulty/tag/type, submit MCQ answers\n" +
-        "**Contests** — Join contests, submit DSA solutions, view leaderboards\n" +
-        "**Code Execution** — Run code in a sandbox (playground) or submit against test cases via Judge0\n" +
-        "**Submissions** — Track submission history and verdicts\n\n" +
+        "**Authentication** G�� JWT cookie-based (access_token + refresh_token), email/username sign-in, OTP verification, RBAC\n" +
+        "**Problems** G�� Browse coding problems (JSON-defined) with sample test cases\n" +
+        "**Practice** G�� Filter problems by difficulty/tag/type, submit MCQ answers\n" +
+        "**Contests** G�� Join contests, submit DSA solutions, view leaderboards\n" +
+        "**Code Execution** G�� Run code in a sandbox (playground) or submit against test cases via Judge0\n" +
+        "**Submissions** G�� Track submission history and verdicts\n\n" +
         "Rate limits: 15 submissions/min, 15 sign-in attempts/min, 100 auth requests/15min per IP.",
     },
     servers: [
@@ -25,8 +25,38 @@ const swaggerOptions: swaggerJsdoc.Options = {
         description: "Development server",
       },
     ],
+    tags: [
+      {
+        name: "College Admin - Auth",
+        description: "Authentication and session endpoints for college-admin portal access.",
+      },
+      {
+        name: "College Admin - Tests",
+        description: "Test lifecycle management, question management, and test operations.",
+      },
+      {
+        name: "College Admin - Batches",
+        description: "Batch creation, assignment, and batch-level management operations.",
+      },
+      {
+        name: "College Admin - Departments",
+        description: "Department creation and administration endpoints.",
+      },
+      {
+        name: "College Admin - Students",
+        description: "Student and user-management endpoints within the college-admin domain.",
+      },
+      {
+        name: "College Admin - Reports",
+        description: "Reporting endpoints across student, batch, test, and department views.",
+      },
+      {
+        name: "College Admin - Performance",
+        description: "Performance analytics, status, leaderboards, and skill insights.",
+      },
+    ],
 
-    // ── Reusable components ──────────────────────────────────────────────────
+    // G��G�� Reusable components G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
     components: {
       securitySchemes: {
         cookieAuth: {
@@ -188,6 +218,68 @@ const swaggerOptions: swaggerJsdoc.Options = {
             runtime: { type: "string", nullable: true },
             memory: { type: "number", nullable: true },
             createdAt: { type: "string", format: "date-time" },
+            problem: {
+              type: "object",
+              nullable: true,
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+                slug: { type: "string" },
+                difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                tags: { type: "array", items: { type: "string" } },
+              },
+            },
+          },
+        },
+        StudentProfileResponse: {
+          type: "object",
+          properties: {
+            profile: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                name: { type: "string" },
+                username: { type: "string" },
+                email: { type: "string" },
+                image: { type: "string", nullable: true },
+                phone: { type: "string", nullable: true },
+                role: { type: "string" },
+                emailVerified: { type: "boolean" },
+                createdAt: { type: "string", format: "date-time" },
+                updatedAt: { type: "string", format: "date-time" },
+              },
+            },
+            stats: {
+              type: "object",
+              properties: {
+                problemsSolvedCount: { type: "integer" },
+                difficultyBreakdown: {
+                  type: "object",
+                  properties: {
+                    easy: { type: "integer" },
+                    medium: { type: "integer" },
+                    hard: { type: "integer" },
+                  },
+                },
+                topicMastery: {
+                  type: "object",
+                  additionalProperties: { type: "integer" },
+                  description: "Count of solved problems grouped by tag/topic",
+                },
+                mcqSessionsSolvedCount: { type: "integer" },
+                totalSubmissions: { type: "integer" },
+                acceptedSubmissions: { type: "integer" },
+              },
+            },
+            streak: {
+              type: "object",
+              nullable: true,
+              properties: {
+                currentStreak: { type: "integer" },
+                longestStreak: { type: "integer" },
+                lastSolveDate: { type: "string", format: "date", nullable: true },
+              },
+            },
           },
         },
         Question: {
@@ -206,6 +298,37 @@ const swaggerOptions: swaggerJsdoc.Options = {
             sampleTestCases: { type: "array", items: { type: "object" }, description: "DSA only", nullable: true },
           },
         },
+        QuestionSummary: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            title: { type: "string" },
+            statement: { type: "string" },
+            options: { type: "array", items: { type: "string" } },
+            topic: { type: "string", nullable: true },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+          },
+        },
+        RandomPracticeRequest: {
+          type: "object",
+          properties: {
+            count: { type: "integer", default: 10, maximum: 25 },
+            topics: { type: "array", items: { type: "string" } },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+            seed: { type: "string" },
+            excludeIds: { type: "array", items: { type: "string" } },
+          },
+          required: ["topics"],
+        },
+        RandomPracticeResponse: {
+          type: "object",
+          properties: {
+            seed: { type: "string" },
+            poolSize: { type: "integer" },
+            reset: { type: "boolean" },
+            questions: { type: "array", items: { $ref: "#/components/schemas/QuestionSummary" } },
+          },
+        },
         Contest: {
           type: "object",
           properties: {
@@ -221,9 +344,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
     },
 
-    // ── Paths ────────────────────────────────────────────────────────────────
+    // G��G�� Paths G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
     paths: {
-      // ── Authentication ─────────────────────────────────────────────────────
+      // G��G�� Authentication G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/sign-up": {
         post: {
           summary: "Register a new student",
@@ -296,7 +419,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Signed in — cookies set",
+              description: "Signed in G�� cookies set",
               content: {
                 "application/json": {
                   schema: {
@@ -360,7 +483,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Signed in with Google — cookies set",
+              description: "Signed in with Google G�� cookies set",
               content: {
                 "application/json": {
                   schema: {
@@ -416,7 +539,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           security: [],
           responses: {
             "200": {
-              description: "Tokens refreshed — new cookies set",
+              description: "Tokens refreshed G�� new cookies set",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
             "401": {
@@ -427,7 +550,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Email Verification ─────────────────────────────────────────────────
+      // G��G�� Email Verification G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/verify-email": {
         post: {
           summary: "Verify email with OTP",
@@ -453,7 +576,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Email verified — auto signed in, cookies set",
+              description: "Email verified G�� auto signed in, cookies set",
               content: {
                 "application/json": {
                   schema: {
@@ -512,7 +635,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Password Reset ─────────────────────────────────────────────────────
+      // G��G�� Password Reset G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/forgot-password": {
         post: {
           summary: "Request password reset OTP",
@@ -569,7 +692,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": {
-              description: "Password reset — all sessions revoked",
+              description: "Password reset G�� all sessions revoked",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
             },
             "400": {
@@ -584,7 +707,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Change Password (authenticated) ─────────────────────────────────────
+      // G��G�� Change Password (authenticated) G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/auth/change-password": {
         post: {
           summary: "Change password (logged-in user)",
@@ -623,7 +746,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Common ─────────────────────────────────────────────────────────────
+      // G��G�� Common G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/": {
         get: {
           summary: "Health check",
@@ -688,7 +811,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Admin ──────────────────────────────────────────────────────────────
+      // G��G�� Admin G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/admin/dashboard": {
         get: {
           summary: "Admin dashboard",
@@ -728,7 +851,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a product_admin" },
+            "403": { description: "Forbidden G�� not a product_admin" },
           },
         },
       },
@@ -768,7 +891,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
             "400": { description: "Validation error" },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — insufficient role" },
+            "403": { description: "Forbidden G�� insufficient role" },
             "409": { description: "Email or username already exists" },
           },
         },
@@ -789,12 +912,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a product_admin" },
+            "403": { description: "Forbidden G�� not a product_admin" },
           },
         },
       },
 
-      // ── Student ────────────────────────────────────────────────────────────
+      // G��G�� Student G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/student/dashboard": {
         get: {
           summary: "Student dashboard",
@@ -818,7 +941,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a student" },
+            "403": { description: "Forbidden G�� not a student" },
           },
         },
       },
@@ -830,16 +953,16 @@ const swaggerOptions: swaggerJsdoc.Options = {
           security: [{ cookieAuth: [] }],
           responses: {
             "200": {
-              description: "Student profile",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } },
+              description: "Student profile with stats and streak",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/StudentProfileResponse" } } },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden — not a student" },
+            "403": { description: "Forbidden G�� not a student" },
           },
         },
       },
 
-      // ── Practice ───────────────────────────────────────────────────────────
+      // G��G�� Practice G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/student/practice": {
         get: {
           summary: "List practice problems",
@@ -861,14 +984,330 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   schema: {
                     type: "object",
                     properties: {
-                      questions: { type: "array", items: { $ref: "#/components/schemas/Question" } },
-                      total: { type: "integer" },
+                      problems: { type: "array", items: { $ref: "#/components/schemas/Question" } },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
                     },
                   },
                 },
               },
             },
             "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/topics": {
+        get: {
+          summary: "List MCQ practice topics",
+          description: "Returns all available MCQ tag topics for topic-based session creation.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "MCQ topic list",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      topics: {
+                        type: "array",
+                        items: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/session": {
+        post: {
+          summary: "Create topic-based MCQ session (POST only)",
+          description:
+            "Creates and persists an MCQ practice session based on selected topics with 10-15 questions. " +
+            "Use POST from Swagger Try it out — opening this URL in browser tab (GET) will not work.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                example: {
+                    topics: ["arrays", "sql"],
+                    difficulty: "easy",
+                  },
+                  schema: {
+                    type: "object",
+                    properties: {
+                      topics: {
+                        type: "array",
+                        minItems: 1,
+                        items: { type: "string" },
+                      },
+                      difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                    },
+                    required: ["topics"],
+                  },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Session created",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      session: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          topics: { type: "array", items: { type: "string" } },
+                          requestedCount: { type: "integer" },
+                          returnedCount: { type: "integer" },
+                          status: { type: "string", enum: ["in_progress", "submitted"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      questions: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Question" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation failed / insufficient questions" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "No questions found" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/session/submit": {
+        post: {
+          summary: "Submit full MCQ session (POST only)",
+          description: "Submits all answers for a persisted MCQ session and calculates score on backend.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                example: {
+                  sessionId: "cmmxgd7ql000psb4z4ne8jnt3",
+                  answers: [
+                    { questionId: "mcq-practice-020", selectedOption: 0 },
+                    { questionId: "mcq-practice-019", selectedOption: 0 },
+                  ],
+                },
+                schema: {
+                  type: "object",
+                  properties: {
+                    sessionId: { type: "string" },
+                    answers: {
+                      type: "array",
+                      minItems: 1,
+                      items: {
+                        type: "object",
+                        properties: {
+                          questionId: { type: "string" },
+                          selectedOption: { type: "integer", minimum: 0 },
+                        },
+                        required: ["questionId", "selectedOption"],
+                      },
+                    },
+                  },
+                  required: ["sessionId", "answers"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Session submitted with review",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      session: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          status: { type: "string", enum: ["submitted"] },
+                          topics: { type: "array", items: { type: "string" } },
+                          totalQuestions: { type: "integer" },
+                          correctCount: { type: "integer" },
+                          score: { type: "integer" },
+                          submittedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      review: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            questionId: { type: "string" },
+                            title: { type: "string" },
+                            selectedOption: { type: "integer" },
+                            selectedOptionText: { type: "string" },
+                            correctAnswer: { type: "integer" },
+                            correctOptionText: { type: "string" },
+                            isCorrect: { type: "boolean" },
+                            points: { type: "integer" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation failed / already submitted / incomplete payload" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Session not found" },
+          },
+        },
+      },
+      "/api/v1/student/practice/activity": {
+        post: {
+          summary: "Record practice activity",
+          description: "Record a practice activity for the authenticated user. Use `type` to indicate action: `mcq`, `dsa`, `visit`, or `solve`.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["type"],
+                  properties: {
+                    type: { type: "string", enum: ["mcq", "dsa", "visit", "solve"] },
+                  },
+                },
+                example: { type: "mcq" },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Activity recorded",
+              content: {
+                "application/json": {
+                  schema: { type: "object", properties: { activity: { $ref: "#/components/schemas/DailyPracticeActivity" } } },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "400": { description: "Validation failed" },
+          },
+        },
+        get: {
+          summary: "Get today's activity or recent range",
+          description: "Returns today's activity by default. Use `?days=N` to fetch the last N days (max 365).",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "days", in: "query", schema: { type: "integer", minimum: 1, maximum: 365 }, description: "Optional range length in days" },
+          ],
+          responses: {
+            "200": {
+              description: "Activity data",
+              content: {
+                "application/json": {
+                  schema: { type: "object", properties: { activity: { oneOf: [ { $ref: "#/components/schemas/DailyPracticeActivity" }, { type: "array", items: { $ref: "#/components/schemas/DailyPracticeActivity" } } ] } } },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/history": {
+        get: {
+          summary: "Get MCQ practice history",
+          description: "Returns paginated MCQ session history for the authenticated user.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+            { name: "limit", in: "query", schema: { type: "integer", default: 10, minimum: 1, maximum: 50 } },
+          ],
+          responses: {
+            "200": {
+              description: "MCQ session history",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      history: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            topics: { type: "array", items: { type: "string" } },
+                            status: { type: "string", enum: ["in_progress", "submitted"] },
+                            requestedCount: { type: "integer" },
+                            totalQuestions: { type: "integer" },
+                            answeredCount: { type: "integer" },
+                            correctCount: { type: "integer" },
+                            score: { type: "integer" },
+                            submittedAt: { type: "string", format: "date-time", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/history/{sessionId}": {
+        get: {
+          summary: "Get MCQ session history detail",
+          description: "Returns per-question review for a specific MCQ session owned by the authenticated user.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "sessionId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": { description: "MCQ session detail" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Session not found" },
           },
         },
       },
@@ -896,7 +1335,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       "/api/v1/student/practice/mcq": {
         post: {
           summary: "Submit MCQ answer (instant feedback)",
-          description: "Submit an MCQ answer for instant feedback. No database record is created.",
+          description: "Submit an MCQ answer for instant feedback (single-question check).",
           tags: ["Practice"],
           security: [{ cookieAuth: [] }],
           requestBody: {
@@ -922,8 +1361,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   schema: {
                     type: "object",
                     properties: {
-                      correct: { type: "boolean" },
+                        isCorrect: { type: "boolean" },
                       correctAnswer: { type: "integer" },
+                        points: { type: "integer" },
+                        explanation: { type: "string" },
                     },
                   },
                 },
@@ -935,7 +1376,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Contests ───────────────────────────────────────────────────────────
+      // G��G�� Contests G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/student/contest": {
         get: {
           summary: "List contests",
@@ -1081,7 +1522,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Problems ───────────────────────────────────────────────────────────
+      // G��G�� Problems G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/problems": {
         get: {
           summary: "List all problems",
@@ -1186,7 +1627,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Code Execution ─────────────────────────────────────────────────────
+      // G��G�� Code Execution G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/submissions/run": {
         post: {
           summary: "Run code (playground)",
@@ -1317,7 +1758,9 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
         get: {
           summary: "List user's submissions",
-          description: "Returns the authenticated user's submission history, optionally filtered by problem.",
+          description:
+            "Returns the authenticated user's submission history with filtering and pagination. " +
+            "Submissions include basic problem metadata when available.",
           tags: ["Submissions"],
           security: [{ cookieAuth: [] }],
           parameters: [
@@ -1329,16 +1772,58 @@ const swaggerOptions: swaggerJsdoc.Options = {
               description: "Filter by problem slug",
             },
             {
+              name: "status",
+              in: "query",
+              required: false,
+              schema: {
+                type: "string",
+                enum: [
+                  "processing",
+                  "accepted",
+                  "wrong_answer",
+                  "time_limit_exceeded",
+                  "memory_limit_exceeded",
+                  "runtime_error",
+                  "compilation_error",
+                  "internal_error",
+                ],
+              },
+              description: "Filter by submission status",
+            },
+            {
+              name: "language",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Filter by language",
+            },
+            {
+              name: "from",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "Filter submissions created on/after this date (YYYY-MM-DD)",
+            },
+            {
+              name: "to",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "Filter submissions created on/before this date (YYYY-MM-DD)",
+            },
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              schema: { type: "integer", default: 1, minimum: 1 },
+              description: "Page number (1-indexed)",
+            },
+            {
               name: "limit",
               in: "query",
               required: false,
               schema: { type: "integer", default: 20, minimum: 1, maximum: 100 },
-            },
-            {
-              name: "offset",
-              in: "query",
-              required: false,
-              schema: { type: "integer", default: 0, minimum: 0 },
+              description: "Items per page",
             },
           ],
           responses: {
@@ -1353,7 +1838,15 @@ const swaggerOptions: swaggerJsdoc.Options = {
                         type: "array",
                         items: { $ref: "#/components/schemas/SubmissionSummary" },
                       },
-                      total: { type: "integer" },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
                     },
                   },
                 },
@@ -1409,7 +1902,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      // ── Judge0 Health ──────────────────────────────────────────────────────
+      // G��G�� Judge0 Health G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/judge0/health": {
         get: {
           summary: "Judge0 health check",
@@ -1448,9 +1941,827 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
         },
       },
+
+      // ── Problem of the Day (POTD) ─────────────────────────────────────────────
+      "/api/v1/student/potd": {
+        get: {
+          summary: "Get today's Problem of the Day",
+          description:
+            "Returns the current day's challenge question, solve status, and the user's streak summary. " +
+            "If no challenge has been scheduled for today, one is auto-selected from the MCQ question pool.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Today's daily challenge",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/PotdResponse" },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "404": { description: "No MCQ questions available in the database" },
+          },
+        },
+      },
+
+      "/api/v1/student/potd/solve": {
+        post: {
+          summary: "Submit POTD answer",
+          description:
+            "Submit an answer for the daily challenge. For MCQ provide `selectedOption`. For DSA provide `languageId` and `sourceCode`. " +
+            "Once submitted, the answer is locked and cannot be changed. Streak is updated on successful solves.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["dailyChallengeId"],
+                  properties: {
+                    dailyChallengeId: {
+                      type: "string",
+                      description: "ID of the DailyChallenge (from GET /potd)",
+                    },
+                    // MCQ
+                    selectedOption: {
+                      type: "integer",
+                      minimum: 0,
+                      description: "0-indexed option chosen by the student (MCQ)",
+                    },
+                    // DSA
+                    languageId: { type: "integer", description: "Judge0 language id for code execution (DSA)" },
+                    sourceCode: { type: "string", description: "Source code to run against the problem's test cases (DSA)" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Solve result with streak update",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      // Common
+                      isCorrect: { type: "boolean" },
+                      streak: { $ref: "#/components/schemas/UserStreak" },
+                      // MCQ-specific
+                      correctAnswer: { type: "integer", nullable: true },
+                      selectedOption: { type: "integer", nullable: true },
+                      // DSA-specific
+                      languageId: { type: "integer", nullable: true },
+                      testCaseResults: { type: "array", items: { $ref: "#/components/schemas/TestCaseDetail" }, nullable: true },
+                      firstFailure: { type: "object", nullable: true },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Already solved, invalid option, or validation error" },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Daily challenge not found" },
+          },
+        },
+      },
+
+      "/api/v1/student/potd/streak": {
+        get: {
+          summary: "Get user's streak info",
+          description: "Returns the current streak, longest streak, and last solve date.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Streak data",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      streak: { $ref: "#/components/schemas/UserStreak" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/potd/history": {
+        get: {
+          summary: "POTD history with solve status",
+          description: "Paginated list of past daily challenges with whether the student solved them.",
+          tags: ["POTD"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", default: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", default: 10, maximum: 50 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Paginated POTD history",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      history: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            date: { type: "string", format: "date" },
+                            question: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                title: { type: "string" },
+                                difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                                type: { type: "string", enum: ["mcq", "dsa"] },
+                                tags: { type: "array", items: { type: "string" } },
+                              },
+                            },
+                            solved: { type: "boolean" },
+                            isCorrect: { type: "boolean", nullable: true },
+                            solvedAt: { type: "string", format: "date-time", nullable: true },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      // ── MCQ Stats & Session Resume ─────────────────────────────────────────────
+      "/api/v1/student/practice/mcq/stats": {
+        get: {
+          summary: "Get MCQ practice statistics",
+          description:
+            "Returns overall accuracy, total sessions, total questions answered, and topic-wise performance breakdown.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "MCQ statistics",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      stats: { $ref: "#/components/schemas/McqStats" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/mcq/session/{sessionId}": {
+        get: {
+          summary: "Resume an MCQ session",
+          description:
+            "Fetches an in-progress or submitted MCQ session by ID with all questions and any already-saved answers.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "sessionId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Session with questions and answered map",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      session: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          topics: { type: "array", items: { type: "string" } },
+                          difficulty: { type: "string", nullable: true },
+                          requestedCount: { type: "integer" },
+                          totalQuestions: { type: "integer" },
+                          status: { type: "string", enum: ["in_progress", "submitted"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      questions: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Question" },
+                      },
+                      answeredQuestions: {
+                        type: "object",
+                        description: "Map of questionId → selectedOption for already-answered questions",
+                        additionalProperties: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "404": { description: "Session not found" },
+          },
+        },
+      },
+
+      "/api/college-admin/mentors/{mentorId}/students": {
+        get: {
+          summary: "List students assigned to a mentor",
+          description:
+            "Returns students whose batch is assigned to the specified mentor. Supports pagination and role-based scoping.",
+          tags: ["College Admin - Students"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "mentorId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Mentor user ID",
+            },
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1 },
+              description: "Page number (default 1)",
+            },
+            {
+              name: "limit",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+              description: "Page size (default 20, max 100)",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Students assigned to mentor",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      mentor: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          role: { type: "string", example: "mentor" },
+                          departmentId: { type: "string", nullable: true },
+                        },
+                      },
+                      students: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string", nullable: true },
+                            batch: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                code: { type: "string" },
+                                year: { type: "integer" },
+                              },
+                            },
+                            department: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                code: { type: "string" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          total: { type: "integer", example: 42 },
+                          page: { type: "integer", example: 1 },
+                          limit: { type: "integer", example: 20 },
+                          totalPages: { type: "integer", example: 3 },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation error or mentor missing department" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden" },
+            "404": { description: "Mentor not found" },
+          },
+        },
+      },
+
+      "/api/college-admin/tests": {
+        post: {
+          summary: "Create a test (college admin portal)",
+          description:
+            "Creates a test with scheduling, attempt limits, and optional maximum marks. Role restrictions mirror the portal (super_admin, college_admin, principal, hod, dept_admin, mentor).",
+          tags: ["College Admin - Tests"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string", maxLength: 200 },
+                    description: { type: "string", maxLength: 1000 },
+                    instructions: { type: "string", maxLength: 2000 },
+                    durationMinutes: { type: "integer", minimum: 1, maximum: 600, default: 60 },
+                    maxAttempts: { type: "integer", minimum: 1, maximum: 10, default: 1 },
+                    maximumMarks: { type: "integer", minimum: 0, description: "Cap/total marks for the test" },
+                    passingMarks: { type: "integer", minimum: 0 },
+                    scheduledStartTime: { type: "string", format: "date-time" },
+                    scheduledEndTime: { type: "string", format: "date-time" },
+                    departmentId: { type: "string" },
+                    batchId: { type: "string" },
+                  },
+                  required: ["title"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Test created",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Test created successfully" },
+                      test: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation or scheduling error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden" },
+          },
+        },
+      },
     },
   },
-  apis: [],
+  apis: ["src/modules/routes/*.ts", "dist/modules/routes/*.js"],
 };
 
-export const swaggerSpec = swaggerJsdoc(swaggerOptions);
+// ── Response Examples Helper -------------------------------------------------
+// Adds a concrete example body to every response so Swagger UI always shows a
+// sample JSON payload. Examples are resolved from schema references where
+// possible, otherwise sensible defaults are used.
+const schemaExamples: Record<string, unknown> = {
+  "#/components/schemas/Message": { message: "Request completed successfully" },
+  "#/components/schemas/Error": {
+    error: "Validation error",
+    details: [{ path: ["email"], message: "Email is required" }],
+  },
+  "#/components/schemas/User": {
+    id: "usr_123",
+    email: "student@example.com",
+    username: "student01",
+    name: "Student One",
+    role: "student",
+    emailVerified: true,
+  },
+  "#/components/schemas/ProblemSummary": {
+    id: "two-sum",
+    title: "Two Sum",
+    slug: "two-sum",
+    difficulty: "easy",
+    tags: ["arrays", "hash-map"],
+  },
+  "#/components/schemas/ProblemDetail": {
+    id: "two-sum",
+    title: "Two Sum",
+    slug: "two-sum",
+    difficulty: "easy",
+    tags: ["arrays", "hash-map"],
+    description: "Find two numbers that add up to target.",
+    constraints: "1 <= nums.length <= 1e4",
+    timeLimits: {
+      javascript: 2,
+      python: 2,
+      java: 1,
+    },
+    memoryLimit: 256,
+    sampleTestCases: [
+      { input: "[2,7,11,15], target=9", output: "[0,1]", explanation: "2 + 7 = 9" },
+    ],
+  },
+  "#/components/schemas/RunResult": {
+    status: "Accepted",
+    stdout: "Hello, World!\n",
+    stderr: "",
+    compileOutput: "",
+    time: "0.012",
+    memory: 3200,
+  },
+  "#/components/schemas/TestCaseDetail": {
+    index: 1,
+    visibility: "sample",
+    passed: true,
+    status: "accepted",
+    input: "2 7 11 15\n9",
+    expectedOutput: "0 1",
+    actualOutput: "0 1",
+    errorOutput: null,
+  },
+  "#/components/schemas/SubmitResult": {
+    submissionId: "sub_123",
+    status: "accepted",
+    testCasesPassed: 4,
+    totalTestCases: 4,
+    failedAt: null,
+    runtime: "0.045",
+    memory: 2800,
+    errorOutput: null,
+    testCaseResults: [
+      { index: 1, visibility: "sample", passed: true, status: "accepted" },
+      { index: 2, visibility: "public", passed: true, status: "accepted" },
+    ],
+  },
+  "#/components/schemas/PreSubmitResult": {
+    status: "accepted",
+    testCasesPassed: 2,
+    totalTestCases: 2,
+    failedAt: null,
+    runtime: "0.030",
+    memory: 2500,
+    errorOutput: null,
+    testCaseResults: [
+      { index: 1, visibility: "sample", passed: true, status: "accepted" },
+    ],
+  },
+  "#/components/schemas/SubmissionSummary": {
+    id: "sub_123",
+    problemId: "two-sum",
+    language: "javascript",
+    status: "accepted",
+    testCasesPassed: 4,
+    totalTestCases: 4,
+    runtime: "0.045",
+    memory: 2800,
+    createdAt: "2026-03-19T10:00:00.000Z",
+  },
+  "#/components/schemas/Question": {
+    id: "mcq-101",
+    type: "mcq",
+    title: "What is the output of console.log(typeof null)?",
+    description: "Check JavaScript typeof behavior.",
+    difficulty: "easy",
+    tags: ["javascript", "basics"],
+    company: null,
+    options: ["object", "null", "undefined", "boolean"],
+    timeLimit: null,
+    memoryLimit: null,
+    sampleTestCases: null,
+  },
+  "#/components/schemas/QuestionSummary": {
+    id: "mcq-101",
+    title: "What is the output of console.log(typeof null)?",
+    statement: "Evaluate typeof null.",
+    options: ["object", "null", "undefined", "boolean"],
+    topic: "javascript",
+    difficulty: "easy",
+  },
+  "#/components/schemas/RandomPracticeResponse": {
+    seed: "abc123",
+    poolSize: 120,
+    reset: false,
+    questions: [
+      {
+        id: "mcq-101",
+        title: "What is the output of console.log(typeof null)?",
+        statement: "Evaluate typeof null.",
+        options: ["object", "null", "undefined", "boolean"],
+        topic: "javascript",
+        difficulty: "easy",
+      },
+    ],
+  },
+  "#/components/schemas/Contest": {
+    id: "contest_1",
+    title: "Weekly DSA Challenge",
+    description: "Solve 5 medium problems in 90 minutes",
+    type: "contest",
+    startTime: "2026-03-19T09:00:00.000Z",
+    endTime: "2026-03-19T10:30:00.000Z",
+    duration: 90,
+  },
+  "#/components/schemas/DailyChallenge": {
+    id: "potd_2026_03_19",
+    date: "2026-03-19",
+    question: {
+      id: "mcq-101",
+      type: "mcq",
+      title: "What is the output of console.log(typeof null)?",
+      description: "Check JavaScript typeof behavior.",
+      difficulty: "easy",
+      tags: ["javascript", "basics"],
+      company: null,
+      options: ["object", "null", "undefined", "boolean"],
+      timeLimit: null,
+      memoryLimit: null,
+      sampleTestCases: null,
+    },
+  },
+  "#/components/schemas/UserStreak": {
+    currentStreak: 5,
+    longestStreak: 14,
+    lastSolveDate: "2026-03-19",
+  },
+  "#/components/schemas/PotdResponse": {
+    challenge: {
+      id: "potd_2026_03_19",
+      date: "2026-03-19",
+      question: {
+        id: "mcq-101",
+        title: "What is the output of console.log(typeof null)?",
+        difficulty: "easy",
+        type: "mcq",
+        tags: ["javascript", "basics"],
+        options: ["object", "null", "undefined", "boolean"],
+      },
+    },
+    solved: true,
+    solveResult: {
+      isCorrect: true,
+      selectedOption: 0,
+      solvedAt: "2026-03-19T10:00:00.000Z",
+    },
+    streak: { currentStreak: 5, longestStreak: 14, lastSolveDate: "2026-03-19" },
+  },
+  "#/components/schemas/McqStats": {
+    totalSessions: 12,
+    totalQuestions: 180,
+    totalCorrect: 142,
+    totalScore: 1420,
+    overallAccuracy: 78.9,
+    topicBreakdown: [
+      { topic: "arrays", total: 30, correct: 25, accuracy: 83.3 },
+      { topic: "sql", total: 20, correct: 14, accuracy: 70 },
+    ],
+  },
+  "#/components/schemas/DailyPracticeActivity": {
+    id: "activity_1",
+    userId: "usr_123",
+    date: "2026-03-19",
+    problemsSolved: 2,
+    mcqSolved: 1,
+    dsaSolved: 1,
+    createdAt: "2026-03-19T10:00:00.000Z",
+    updatedAt: "2026-03-19T10:00:00.000Z",
+  },
+};
+
+const defaultResponseExamples: Record<string, unknown> = {
+  "200": { message: "Request succeeded" },
+  "201": { message: "Resource created" },
+  "204": {},
+  "400": { error: "Bad request" },
+  "401": { error: "Unauthorized" },
+  "403": { error: "Forbidden" },
+  "404": { error: "Not found" },
+  "409": { error: "Conflict" },
+  "422": { error: "Unprocessable entity" },
+  "429": { error: "Too many requests", retryAfterSeconds: 60 },
+  "500": { error: "Internal server error" },
+  "2xx": { message: "Request succeeded" },
+  "4xx": { error: "Client error" },
+  "5xx": { error: "Server error" },
+};
+
+type SchemaObject = { $ref?: string; type?: string; items?: SchemaObject; properties?: Record<string, SchemaObject & { example?: unknown }>; example?: unknown };
+
+const getStatusFamily = (status: string): string | undefined => {
+  const numeric = Number(status);
+  if (Number.isFinite(numeric)) {
+    return `${Math.floor(numeric / 100)}xx`;
+  }
+  return undefined;
+};
+
+const buildExampleFromSchema = (schema: SchemaObject | undefined): unknown => {
+  if (!schema) return undefined;
+  if (schema.example !== undefined) return schema.example;
+  if (schema.$ref && schemaExamples[schema.$ref]) return schemaExamples[schema.$ref];
+
+  if (schema.type === "array" && schema.items) {
+    const itemExample = buildExampleFromSchema(schema.items);
+    if (itemExample !== undefined) return [itemExample];
+  }
+
+  if (schema.type === "object" && schema.properties) {
+    const example: Record<string, unknown> = {};
+    Object.entries(schema.properties).forEach(([key, propertySchema]) => {
+      const propertyExample = buildExampleFromSchema(propertySchema) ?? inferPrimitiveExample(propertySchema.type);
+      example[key] = propertyExample;
+    });
+    return example;
+  }
+
+  return inferPrimitiveExample(schema.type);
+};
+
+const inferPrimitiveExample = (type?: string): unknown => {
+  switch (type) {
+    case "string":
+      return "example";
+    case "number":
+    case "integer":
+      return 1;
+    case "boolean":
+      return true;
+    default:
+      return "sample";
+  }
+};
+
+const addResponseExamples = (paths: Record<string, unknown>): void => {
+  const methods = ["get", "post", "put", "patch", "delete"];
+
+  Object.values(paths).forEach((pathItem) => {
+    if (!pathItem || typeof pathItem !== "object") return;
+
+    methods.forEach((method) => {
+      const operation = (pathItem as Record<string, unknown>)[method] as
+        | { responses?: Record<string, { content?: Record<string, { schema?: SchemaObject; example?: unknown; examples?: unknown }> }> }
+        | undefined;
+
+      if (!operation?.responses) return;
+
+      Object.entries(operation.responses).forEach(([status, response]) => {
+        if (!response || typeof response !== "object") return;
+
+        const responseObj = response as {
+          content?: Record<string, { schema?: SchemaObject; example?: unknown; examples?: unknown }>;
+        };
+
+        if (!responseObj.content) {
+          responseObj.content = { "application/json": {} };
+        }
+
+        const jsonContent =
+          responseObj.content["application/json"] ?? (responseObj.content["application/json"] = {});
+
+        if (jsonContent.example || jsonContent.examples) {
+          return;
+        }
+
+        const schemaExample = buildExampleFromSchema(jsonContent.schema);
+        const statusExample = defaultResponseExamples[status];
+        const familyExample = getStatusFamily(status)
+          ? defaultResponseExamples[getStatusFamily(status) as string]
+          : undefined;
+
+        jsonContent.example = schemaExample ?? statusExample ?? familyExample ?? { message: "Sample response" };
+      });
+    });
+  });
+};
+
+addResponseExamples((swaggerOptions.definition?.paths ?? {}) as Record<string, unknown>);
+
+// ── Supplementary Schemas ──────────────────────────────────────────────────────
+// Injected after swaggerOptions so we can reference them cleanly.
+const potdSchemas = {
+  DailyChallenge: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      date: { type: "string", format: "date", example: "2026-03-19" },
+      question: { $ref: "#/components/schemas/Question" },
+    },
+  },
+  UserStreak: {
+    type: "object",
+    properties: {
+      currentStreak: { type: "integer", example: 5 },
+      longestStreak: { type: "integer", example: 14 },
+      lastSolveDate: { type: "string", format: "date", nullable: true, example: "2026-03-19" },
+    },
+  },
+  PotdResponse: {
+    type: "object",
+    properties: {
+      challenge: { $ref: "#/components/schemas/DailyChallenge" },
+      solved: { type: "boolean" },
+      solveResult: {
+        nullable: true,
+        type: "object",
+        properties: {
+          isCorrect: { type: "boolean" },
+          selectedOption: { type: "integer" },
+          solvedAt: { type: "string", format: "date-time" },
+        },
+      },
+      streak: { $ref: "#/components/schemas/UserStreak" },
+    },
+  },
+  McqStats: {
+    type: "object",
+    properties: {
+      totalSessions: { type: "integer" },
+      totalQuestions: { type: "integer" },
+      totalCorrect: { type: "integer" },
+      totalScore: { type: "integer" },
+      overallAccuracy: { type: "number", description: "0–100 percentage", example: 73.5 },
+      topicBreakdown: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            topic: { type: "string" },
+            total: { type: "integer" },
+            correct: { type: "integer" },
+            accuracy: { type: "number" },
+          },
+        },
+      },
+    },
+  },
+  DailyPracticeActivity: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      userId: { type: "string" },
+      date: { type: "string", format: "date", example: "2026-03-19" },
+      problemsSolved: { type: "integer", example: 2 },
+      mcqSolved: { type: "integer", example: 1 },
+      dsaSolved: { type: "integer", example: 1 },
+      createdAt: { type: "string", format: "date-time" },
+      updatedAt: { type: "string", format: "date-time" },
+    },
+  },
+};
+
+export const swaggerSpec = (() => {
+  const spec = swaggerJsdoc(swaggerOptions) as {
+    components?: { schemas?: Record<string, unknown> };
+  };
+  if (spec.components?.schemas) {
+    Object.assign(spec.components.schemas, potdSchemas);
+  }
+  return spec;
+})();
+

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problems - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/practice.html">Practice</a>
+            <a href="/test/potd.html">POTD</a>
+            <a href="/test/contests.html">Contests</a>
+            <a href="/test/submissions.html">Submissions</a>
+            <a href="/test/profile.html">Profile</a>
+            <a href="#" onclick="signOut()">Sign Out</a>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Problems</h2>
+        <div id="problems-list">Loading...</div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        async function loadProblems() {
+            if (!await checkAuth()) return;
+
+            let result = await fetchAPI('/problems');
+            if (result && result.status === 200) {
+                const html = result.data.problems.map(p => `
+                    <div class="card">
+                        <h3><a href="/test/problem.html?slug=${p.slug}">${p.title}</a></h3>
+                        <p>Tags: ${p.tags.join(', ')}</p>
+                        <p>${getDifficultyBadge(p.difficulty)}</p>
+                    </div>
+                `).join('');
+                document.getElementById('problems-list').innerHTML = html;
+            } else {
+                document.getElementById('problems-list').innerHTML = '<div class="error">Failed to load problems</div>';
+            }
+        }
+
+        loadProblems();
+    </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>College Admin Test API Tester</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 16px; background: #0b1021; color: #e6e9f5; }
+    h1, h2 { margin: 0 0 12px; }
+    .card { background: #121833; border: 1px solid #1f2a4d; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    label { display: block; margin: 0 0 6px; font-weight: 600; }
+    input, textarea, button { width: 100%; box-sizing: border-box; }
+    input, textarea { background: #0e142b; color: #e6e9f5; border: 1px solid #28345a; border-radius: 6px; padding: 10px; font-family: monospace; }
+    input:focus, textarea:focus { outline: 1px solid #4ea3ff; }
+    textarea { min-height: 120px; resize: vertical; }
+    button { margin-top: 8px; padding: 10px; border: none; border-radius: 6px; background: linear-gradient(135deg, #4ea3ff, #8a5dff); color: #0b1021; font-weight: 700; cursor: pointer; }
+    button:hover { opacity: 0.9; }
+    .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .small { font-size: 12px; opacity: 0.8; }
+    pre { background: #0e142b; border: 1px solid #28345a; border-radius: 6px; padding: 12px; white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h1>College Admin Test API Tester</h1>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="baseUrl">Base URL</label>
+        <input id="baseUrl" value="http://localhost:5000" />
+      </div>
+      <div>
+        <label for="sessionToken">better-auth.session_token</label>
+        <input id="sessionToken" placeholder="Paste session token" />
+        <button id="setCookie">Set Session Cookie</button>
+        <div class="small">Uses document.cookie so requests include the session. Needs same-site access.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Create Test (POST /api/college-admin/tests)</h2>
+    <textarea id="createPayload">{
+  "title": "Midterm Practice",
+  "description": "DSA and MCQ mix",
+  "instructions": "No external help",
+  "durationMinutes": 90,
+  "maxAttempts": 2,
+  "maximumMarks": 100,
+  "passingMarks": 40,
+  "scheduledStartTime": "2026-03-28T09:00:00.000Z",
+  "scheduledEndTime": "2026-03-28T11:00:00.000Z",
+  "departmentId": null,
+  "batchId": null
+}</textarea>
+    <button id="createBtn">Create Test</button>
+  </div>
+
+  <div class="card">
+    <h2>List Tests (GET /api/college-admin/tests)</h2>
+    <div class="row">
+      <div>
+        <label for="listDepartment">departmentId (optional)</label>
+        <input id="listDepartment" placeholder="department id" />
+      </div>
+      <div>
+        <label for="listBatch">batchId (optional)</label>
+        <input id="listBatch" placeholder="batch id" />
+      </div>
+    </div>
+    <button id="listBtn">List Tests</button>
+  </div>
+
+  <div class="card">
+    <h2>Get / Delete Test</h2>
+    <div class="row">
+      <div>
+        <label for="testId">Test ID</label>
+        <input id="testId" placeholder="test id" />
+      </div>
+    </div>
+    <button id="getBtn">Get Test (GET /api/college-admin/tests/{id})</button>
+    <button id="deleteBtn">Delete Test (DELETE /api/college-admin/tests/{id})</button>
+  </div>
+
+  <div class="card">
+    <h2>Response</h2>
+    <pre id="output">Waiting...</pre>
+  </div>
+
+  <script>
+    const baseUrlEl = document.getElementById("baseUrl");
+    const outputEl = document.getElementById("output");
+
+    const setOutput = (data) => {
+      outputEl.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    };
+
+    document.getElementById("setCookie").onclick = () => {
+      const token = document.getElementById("sessionToken").value.trim();
+      if (!token) {
+        setOutput("No session token provided");
+        return;
+      }
+      document.cookie = `better-auth.session_token=${token}; path=/`;
+      setOutput("Session cookie set. Requests will include it.");
+    };
+
+    const safeFetch = async (path, options = {}) => {
+      const url = `${baseUrlEl.value}${path}`;
+      try {
+        const res = await fetch(url, { credentials: "include", ...options });
+        const text = await res.text();
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { parsed = text || `${res.status} ${res.statusText}`; }
+        if (!res.ok) throw parsed;
+        return parsed;
+      } catch (err) {
+        throw err;
+      }
+    };
+
+    document.getElementById("createBtn").onclick = async () => {
+      try {
+        const body = JSON.parse(document.getElementById("createPayload").value);
+        const data = await safeFetch("/api/college-admin/tests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        setOutput(data);
+      } catch (err) {
+        setOutput(err);
+      }
+    };
+
+    document.getElementById("listBtn").onclick = async () => {
+      try {
+        const params = new URLSearchParams();
+        const dept = document.getElementById("listDepartment").value.trim();
+        const batch = document.getElementById("listBatch").value.trim();
+        if (dept) params.set("departmentId", dept);
+        if (batch) params.set("batchId", batch);
+        const query = params.toString() ? `?${params.toString()}` : "";
+        const data = await safeFetch(`/api/college-admin/tests${query}`);
+        setOutput(data);
+      } catch (err) {
+        setOutput(err);
+      }
+    };
+
+    document.getElementById("getBtn").onclick = async () => {
+      try {
+        const id = document.getElementById("testId").value.trim();
+        if (!id) return setOutput("Test ID required");
+        const data = await safeFetch(`/api/college-admin/tests/${id}`);
+        setOutput(data);
+      } catch (err) {
+        setOutput(err);
+      }
+    };
+
+    document.getElementById("deleteBtn").onclick = async () => {
+      try {
+        const id = document.getElementById("testId").value.trim();
+        if (!id) return setOutput("Test ID required");
+        const data = await safeFetch(`/api/college-admin/tests/${id}`, { method: "DELETE" });
+        setOutput(data);
+      } catch (err) {
+        setOutput(err);
+      }
+    };
+  </script>
+</body>
+</html>
