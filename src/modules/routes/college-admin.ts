@@ -13,7 +13,7 @@ import { BatchService } from "../services/batchService.js";
 import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
-import type { Role, TestStatus } from "../../generated/prisma/client.js";
+import type { Role, TestStatus } from "@prisma/client";
 
 const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;

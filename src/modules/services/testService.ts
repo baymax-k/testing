@@ -1,5 +1,5 @@
 import { prisma } from "../../config/auth.js";
-import { TestStatus, QuestionType } from "../../generated/prisma/client.js";
+import { TestStatus, QuestionType } from "@prisma/client";
 
 export interface CreateTestInput {
   title: string;
