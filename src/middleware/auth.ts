@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
-import { verifyAccessToken, ACCESS_TOKEN_COOKIE } from "../modules/auth/auth.service";
-import type { AccessTokenPayload } from "../modules/auth/auth.service";
-import { prisma } from "../config/prisma";
+import { verifyAccessToken, ACCESS_TOKEN_COOKIE } from "../modules/auth/auth.service.js";
+import type { AccessTokenPayload } from "../modules/auth/auth.service.js";
+import { prisma } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 
 export interface AuthRequest extends Request {
