@@ -292,12 +292,20 @@ export async function submitMcqPractice(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const isCorrect = selectedOption === question.correctAnswer;
+    const correctAnswer = Number(question.correctAnswer);
+    if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
+      res.status(400).json({
+        error: "MCQ question has invalid correctAnswer configuration",
+      });
+      return;
+    }
+
+    const isCorrect = selectedOption === correctAnswer;
     const points = isCorrect ? 10 : 0; // Simple scoring
 
     res.json({
       isCorrect,
-      correctAnswer: question.correctAnswer, // Show correct answer
+      correctAnswer, // Show correct answer index
       points,
       explanation: isCorrect ? "Correct!" : "Incorrect.",
     });
@@ -412,19 +420,20 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
         return;
       }
 
-      if (typeof question.correctAnswer !== "number") {
+      const correctAnswer = Number(question.correctAnswer);
+      if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
         res.status(400).json({ error: `MCQ correct answer missing for questionId: ${questionId}` });
         return;
       }
 
-      const isCorrect = selectedOption === question.correctAnswer;
+      const isCorrect = selectedOption === correctAnswer;
       reviewRows.push({
         questionId,
-        title: question.title,
+        title: question.title ?? "Untitled question",
         selectedOption,
         selectedOptionText: options[selectedOption] ?? `Option ${selectedOption}`,
-        correctAnswer: question.correctAnswer,
-        correctOptionText: options[question.correctAnswer] ?? `Option ${question.correctAnswer}`,
+        correctAnswer,
+        correctOptionText: options[correctAnswer] ?? `Option ${correctAnswer}`,
         isCorrect,
         points: isCorrect ? 10 : 0,
       });

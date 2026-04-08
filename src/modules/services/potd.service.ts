@@ -133,7 +133,12 @@ export async function solveDailyChallenge(
       throw new ValidationError("Selected option out of range");
     }
 
-    const isCorrect = selectedOption === challenge.question.correctAnswer;
+    const correctAnswer = Number(challenge.question.correctAnswer);
+    if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
+      throw new ValidationError("Challenge has invalid correct answer configuration");
+    }
+
+    const isCorrect = selectedOption === correctAnswer;
 
     await prisma.dailyChallengeSolve.create({
       data: {
@@ -149,7 +154,7 @@ export async function solveDailyChallenge(
 
     return {
       isCorrect,
-      correctAnswer: challenge.question.correctAnswer,
+      correctAnswer,
       selectedOption,
       streak,
     };
