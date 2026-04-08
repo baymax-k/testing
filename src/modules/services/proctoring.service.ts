@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { Prisma, ProctoringReviewStatus, ProctoringViolationType } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
 import type {
   CreateUploadUrlInput,
@@ -27,17 +28,7 @@ export class ProctoringServiceError extends Error {
   }
 }
 
-type ListWhere = {
-  testId: string;
-  attemptId?: string;
-  studentId?: string;
-  violationType?: string;
-  reviewStatus?: string;
-  createdAt?: {
-    gte?: Date;
-    lte?: Date;
-  };
-};
+type ListWhere = Prisma.ProctoringVideoWhereInput;
 
 function getS3Bucket(): string {
   const bucket = process.env.AWS_S3_BUCKET_PROCTORING;
@@ -147,7 +138,7 @@ export async function createProctoringVideoRecord(studentId: string, input: Crea
         startedAt: input.startedAt,
         endedAt: input.endedAt,
         durationMs,
-        meta: input.meta,
+        meta: input.meta as Prisma.InputJsonValue | undefined,
         clientEventId: input.clientEventId,
       },
       select: {
@@ -187,11 +178,11 @@ export async function listProctoringVideosForTest(testId: string, query: ListTes
   }
 
   if (query.violationType) {
-    where.violationType = query.violationType;
+    where.violationType = query.violationType as ProctoringViolationType;
   }
 
   if (query.reviewStatus) {
-    where.reviewStatus = query.reviewStatus;
+    where.reviewStatus = query.reviewStatus as ProctoringReviewStatus;
   }
 
   if (query.from || query.to) {
