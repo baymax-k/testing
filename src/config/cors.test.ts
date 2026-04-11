@@ -9,6 +9,7 @@ describe("CORS origin configuration", () => {
     delete process.env.CORS_ORIGINS;
     delete process.env.FRONTEND_URL;
     delete process.env.APP_URL;
+    delete process.env.NODE_ENV;
   });
 
   afterEach(() => {
@@ -36,5 +37,24 @@ describe("CORS origin configuration", () => {
     expect(isAllowedOrigin("https://admin.example.com")).toBe(true);
     expect(isAllowedOrigin("https://admin.example.com/")).toBe(true);
     expect(isAllowedOrigin("https://unknown.example.com")).toBe(false);
+  });
+
+  it("keeps localhost defaults in non-production fallback", async () => {
+    process.env.FRONTEND_URL = "https://app.codeethnics.dnyx.in/";
+
+    const { isAllowedOrigin } = await import("./cors.js");
+
+    expect(isAllowedOrigin("http://localhost:3000")).toBe(true);
+    expect(isAllowedOrigin("http://localhost:5000")).toBe(true);
+  });
+
+  it("does not include localhost defaults in production fallback", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.FRONTEND_URL = "https://app.codeethnics.dnyx.in/";
+
+    const { isAllowedOrigin } = await import("./cors.js");
+
+    expect(isAllowedOrigin("https://app.codeethnics.dnyx.in")).toBe(true);
+    expect(isAllowedOrigin("http://localhost:3000")).toBe(false);
   });
 });

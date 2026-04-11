@@ -26,6 +26,7 @@ export const getConfiguredOrigins = (): string[] => {
     process.env.PRODUCT_ADMIN_URL,
     process.env.ADMIN_URL,
     process.env.COLLEGE_ADMIN_URL,
+    ...(process.env.NODE_ENV === "production" ? [] : DEFAULT_ORIGINS),
   ]);
 
   if (fallbackOrigins.length > 0) {
