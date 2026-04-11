@@ -87,12 +87,18 @@ const updateSettingsSchema = z.object({
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
   res.cookie(ACCESS_TOKEN_COOKIE, accessToken, accessCookieOptions);
-  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, refreshCookieOptions);
+  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+    ...refreshCookieOptions,
+    path: "/api/product-admin/auth/refresh",
+  });
 }
 
 function clearAuthCookies(res: Response): void {
   res.clearCookie(ACCESS_TOKEN_COOKIE, clearCookieOptions);
-  res.clearCookie(REFRESH_TOKEN_COOKIE, { ...clearCookieOptions, path: "/api/v1/auth/refresh" });
+  res.clearCookie(REFRESH_TOKEN_COOKIE, {
+    ...clearCookieOptions,
+    path: "/api/product-admin/auth/refresh",
+  });
 }
 
 function safeUser(user: {
@@ -225,6 +231,11 @@ export async function signIn(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    if (!user.passwordHash) {
+      res.status(401).json({ error: "Invalid email/username or password" });
+      return;
+    }
+
     const isValid = await verifyPassword(data.password, user.passwordHash);
     if (!isValid) {
       res.status(401).json({ error: "Invalid email/username or password" });
@@ -236,7 +247,13 @@ export async function signIn(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { accessToken, refreshToken } = await issueTokens(user.id, user.email, user.name, user.role);
+    const { accessToken, refreshToken } = await issueTokens({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+    });
     setAuthCookies(res, accessToken, refreshToken);
 
     res.status(200).json({
@@ -281,7 +298,8 @@ export async function verifyEmail(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const isOtpValid = await verifyOTP(data.email, data.otp, "email-verification");
+    const otpResult = await verifyOTP(data.email, "email-verification", data.otp);
+    const isOtpValid = typeof otpResult === "boolean" ? otpResult : otpResult.valid;
     if (!isOtpValid) {
       res.status(400).json({ error: "Invalid or expired OTP" });
       return;
@@ -409,7 +427,8 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const isOtpValid = await verifyOTP(data.email, data.otp, "forget-password");
+    const otpResult = await verifyOTP(data.email, "forget-password", data.otp);
+    const isOtpValid = typeof otpResult === "boolean" ? otpResult : otpResult.valid;
     if (!isOtpValid) {
       res.status(400).json({ error: "Invalid or expired OTP" });
       return;
@@ -522,7 +541,8 @@ export async function refresh(req: Request, res: Response): Promise<void> {
     }
 
     try {
-      const userId = verifyRefreshToken(refreshToken);
+      const refreshPayload = verifyRefreshToken(refreshToken);
+      const userId = typeof refreshPayload === "string" ? refreshPayload : refreshPayload.userId;
       const user = await prisma.user.findUnique({ where: { id: userId } });
 
       if (!user) {
@@ -535,7 +555,13 @@ export async function refresh(req: Request, res: Response): Promise<void> {
         return;
       }
 
-      const newAccessToken = await generateAccessToken(user.id, user.email, user.name, user.role);
+      const newAccessToken = generateAccessToken({
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerified: user.emailVerified,
+      });
       res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, accessCookieOptions);
 
       res.status(200).json({

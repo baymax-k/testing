@@ -3,12 +3,14 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 import { PrismaClient } from "../generated/prisma/client";
 import nodemailer from "nodemailer";
+import { getConfiguredOrigins, normalizeOrigin } from "./origins.js";
 
 export const prisma = new PrismaClient();
+const trustedOrigins = getConfiguredOrigins();
 
 const mailTransporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || "2525", 10),
+  port: Number.parseInt(process.env.EMAIL_PORT || "2525", 10),
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -16,15 +18,12 @@ const mailTransporter = nodemailer.createTransport({
 });
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:5000",
+  baseURL: normalizeOrigin(process.env.BETTER_AUTH_URL || "http://localhost:5000"),
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   basePath: "/api/v1/auth",
-  trustedOrigins: [
-    process.env.BETTER_AUTH_URL || "http://localhost:5000",
-    process.env.FRONTEND_URL || "http://localhost:3000",
-  ],
+  trustedOrigins,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
