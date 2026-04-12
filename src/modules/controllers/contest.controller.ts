@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../../config/prisma.js";
 import { z } from "zod";
 import type { AuthRequest } from "../../middleware/auth.js";
+import { submitCode } from "../services/submission.service.js";
 
 // Zod schemas for validation
 const joinContestSchema = z.object({
@@ -265,16 +266,69 @@ export const submitContestDsa = async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: Send to Judge0 service
+    try {
+      // Execute Judge0 submission for contest
+      const submissionResult = await submitCode(userId, problemId, language, code);
+      
+      // Update the contest submission with results
+      await prisma.submission.update({
+        where: { id: submission.id },
+        data: {
+          status: submissionResult.status,
+          testCasesPassed: submissionResult.testCasesPassed,
+          totalTestCases: submissionResult.totalTestCases,
+          failedAt: submissionResult.failedAt,
+          runtime: submissionResult.runtime,
+          memory: submissionResult.memory,
+          errorOutput: submissionResult.errorOutput
+        }
+      });
 
-    res.json({
-      message: "Submission received",
-      submission: {
-        id: submission.id,
-        status: submission.status,
-        submittedAt: submission.createdAt,
-      },
-    });
+      // Update contest participation score if submission is accepted
+      if (submissionResult.status === 'accepted') {
+        const pointsEarned = contestQuestion.points;
+        await prisma.contestParticipation.update({
+          where: { id: participation.id },
+          data: {
+            score: {
+              increment: pointsEarned
+            }
+          }
+        });
+      }
+
+      res.json({
+        message: "Submission processed",
+        submission: {
+          id: submission.id,
+          status: submissionResult.status,
+          testCasesPassed: submissionResult.testCasesPassed,
+          totalTestCases: submissionResult.totalTestCases,
+          pointsEarned: submissionResult.status === 'accepted' ? contestQuestion.points : 0,
+          submittedAt: submission.createdAt,
+        },
+      });
+    } catch (judgeError) {
+      console.error("Judge0 execution error:", judgeError);
+      
+      // Update submission with error status
+      await prisma.submission.update({
+        where: { id: submission.id },
+        data: {
+          status: "internal_error",
+          errorOutput: "Failed to execute submission"
+        }
+      });
+
+      res.status(500).json({
+        error: "Failed to process submission",
+        submission: {
+          id: submission.id,
+          status: "internal_error",
+          submittedAt: submission.createdAt,
+        }
+      });
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.issues });
@@ -341,7 +395,7 @@ export const getContestMcqQuestions = async (req: Request, res: Response) => {
       ? savedAnswersRaw
       : {};
 
-    const questions = contest.questions
+    const mcqQuestions = contest.questions
       .filter((cq) => cq.question.type === "mcq")
       .map((cq) => {
         const options = Array.isArray(cq.question.options)
@@ -352,6 +406,7 @@ export const getContestMcqQuestions = async (req: Request, res: Response) => {
           questionId: cq.question.id,
           title: cq.question.title,
           description: cq.question.description,
+          type: cq.question.type,
           difficulty: cq.question.difficulty,
           options,
           order: cq.order,
@@ -362,6 +417,23 @@ export const getContestMcqQuestions = async (req: Request, res: Response) => {
               : null,
         };
       });
+
+    // Include Arduino questions in contest
+    const arduinoQuestions = contest.questions
+      .filter((cq) => cq.question.type === "arduino")
+      .map((cq) => ({
+        questionId: cq.question.id,
+        title: cq.question.title,
+        description: cq.question.description,
+        type: cq.question.type,
+        difficulty: cq.question.difficulty,
+        order: cq.order,
+        points: cq.points,
+        // Arduino questions don't have pre-selected answers
+        hasSubmission: false // Will be populated later if needed
+      }));
+
+    const questions = [...mcqQuestions, ...arduinoQuestions].sort((a, b) => a.order - b.order);
 
     const timeLeftMs = contest.endTime
       ? Math.max(0, contest.endTime.getTime() - now.getTime())

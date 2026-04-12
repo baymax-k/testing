@@ -8,17 +8,26 @@ const swaggerOptions: swaggerJsdoc.Options = {
     openapi: "3.0.0",
     info: {
       title: "CodeEthnics Backend API",
-      version: "4.0.0",
+      version: "4.1.0",
       description:
-        "Backend API for the CodeEthnics institutional coding platform.\n\n" +
-        "**Authentication** G�� JWT cookie-based (access_token + refresh_token), email/username sign-in, OTP verification, RBAC\n" +
-        "**Problems** G�� Browse coding problems (JSON-defined) with sample test cases\n" +
-        "**Practice** G�� Filter problems by difficulty/tag/type, submit MCQ answers\n" +
-        "**Contests** G�� Join contests, submit DSA solutions, view leaderboards\n" +
-        "**Code Execution** G�� Run code in a sandbox (playground) or submit against test cases via Judge0\n" +
-        "**Arduino Platform** G�� Submit Arduino sketches for compilation, hardware-based programming problems\n" +
-        "**Submissions** G�� Track submission history and verdicts\n\n" +
-        "Rate limits: 15 submissions/min, 15 sign-in attempts/min, 100 auth requests/15min per IP, 5 Arduino compilations/min per user.",
+        "Complete Backend API for the CodeEthnics institutional coding and learning platform.\n\n" +
+        "🎓 **Student Learning Platform Features:**\n" +
+        "• **Authentication** — JWT cookie-based auth with email verification, password reset, RBAC\n" +
+        "• **Problem Solving** — 847+ DSA problems with Judge0 execution, multi-language support\n" +
+        "• **Arduino Programming** — Hardware-level compilation, simulation, HEX generation, real board deployment\n" +
+        "• **MCQ Practice** — Topic-wise practice sessions, instant feedback, progress tracking\n" +
+        "• **Contest System** — Real-time competitions with leaderboards, DSA+MCQ+Arduino problems\n" +
+        "• **POTD System** — Daily challenges with streak tracking and community features\n" +
+        "• **Student Dashboard** — Real-time analytics, recent activity, progress tracking, insights\n" +
+        "• **Code Management** — Auto-save drafts, submission history, performance analysis\n\n" +
+        "🛠️ **Technical Architecture:**\n" +
+        "• **Database**: PostgreSQL with Prisma ORM for type-safe operations\n" +
+        "• **Code Execution**: Judge0 API for secure sandboxed execution\n" +
+        "• **Arduino Compilation**: Arduino-CLI with BullMQ queue system\n" +
+        "• **File Storage**: ImageKit CDN for HEX files and media\n" +
+        "• **Authentication**: JWT tokens with refresh mechanism\n" +
+        "• **Rate Limiting**: 15 submissions/min, 100 requests/15min per IP\n\n" +
+        "📊 **Production Ready**: Load tested, security hardened, comprehensive API documentation",
     },
     servers: [
       {
@@ -530,6 +539,66 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      "/api/v1/auth/google-client-id": {
+        get: {
+          summary: "Get Google OAuth client ID",
+          description: "Returns frontend-safe Google client id configured on server.",
+          tags: ["Authentication"],
+          security: [],
+          responses: {
+            "200": {
+              description: "Google client id payload",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      clientId: { type: "string", nullable: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/v1/auth/status": {
+        get: {
+          summary: "Check authentication status",
+          description: "Returns whether current request is authenticated and user details if logged in.",
+          tags: ["Authentication"],
+          security: [],
+          responses: {
+            "200": {
+              description: "Authentication status",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      authenticated: { type: "boolean" },
+                      user: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string" },
+                          role: { type: "string" },
+                          name: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "500": { description: "Failed to check authentication status" },
+          },
+        },
+      },
+
       "/api/v1/auth/sign-out": {
         post: {
           summary: "Sign out (revoke refresh token, clear cookies)",
@@ -937,30 +1006,108 @@ const swaggerOptions: swaggerJsdoc.Options = {
       // G��G�� Student G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/student/dashboard": {
         get: {
-          summary: "Student dashboard",
+          summary: "Student dashboard with real-time analytics",
+          description: "Comprehensive dashboard showing student statistics, recent activity, contest notifications, and progress tracking.",
           tags: ["Student"],
           security: [{ cookieAuth: [] }],
           responses: {
             "200": {
-              description: "Student dashboard with panel sections",
+              description: "Student dashboard with complete analytics data",
               content: {
                 "application/json": {
                   schema: {
                     type: "object",
                     properties: {
-                      panel: { type: "string", example: "student" },
-                      message: { type: "string" },
-                      dashboard: { type: "object" },
-                      user: { $ref: "#/components/schemas/User" },
-                    },
-                  },
-                },
-              },
+                      success: { type: "boolean", example: true },
+                      data: {
+                        type: "object",
+                        properties: {
+                          panel: { type: "string", example: "student" },
+                          message: { type: "string", example: "Welcome back, John Doe!" },
+                          stats: {
+                            type: "object",
+                            properties: {
+                              totalProblems: { type: "integer", example: 847, description: "Total problems available on platform" },
+                              solvedProblems: { type: "integer", example: 156, description: "Problems solved by student" },
+                              totalSubmissions: { type: "integer", example: 324, description: "Total code submissions" },
+                              acceptedSubmissions: { type: "integer", example: 245, description: "Successful submissions" },
+                              acceptanceRate: { type: "integer", example: 78, description: "Success rate percentage" },
+                              currentStreak: { type: "integer", example: 12, description: "Current POTD streak" },
+                              longestStreak: { type: "integer", example: 28, description: "Longest POTD streak achieved" },
+                              lastSolveDate: { type: "string", format: "date", nullable: true, description: "Last problem solve date" }
+                            }
+                          },
+                          recentActivity: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                type: { type: "string", enum: ["dsa_solved", "arduino_solved", "mcq_practice", "contest_joined"] },
+                                title: { type: "string", example: "Solved Two Sum Problem" },
+                                description: { type: "string", example: "DSA problem solved successfully" },
+                                timestamp: { type: "string", format: "date-time" },
+                                points: { type: "integer", nullable: true },
+                                difficulty: { type: "string", enum: ["easy", "medium", "hard"], nullable: true }
+                              }
+                            },
+                            description: "Recent student activities (last 10)"
+                          },
+                          upcomingContests: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                title: { type: "string", example: "Weekly Contest #47" },
+                                startTime: { type: "string", format: "date-time" },
+                                duration: { type: "integer", example: 120, description: "Duration in minutes" },
+                                type: { type: "string", example: "contest" },
+                                participantCount: { type: "integer", example: 245 }
+                              }
+                            },
+                            description: "Next 5 upcoming contests"
+                          },
+                          potdStreak: {
+                            type: "object",
+                            properties: {
+                              current: { type: "integer", example: 12 },
+                              longest: { type: "integer", example: 28 },
+                              todaySolved: { type: "boolean", example: false }
+                            }
+                          },
+                          progressToday: {
+                            type: "object",
+                            properties: {
+                              problemsSolved: { type: "integer", example: 2 },
+                              mcqSolved: { type: "integer", example: 15 },
+                              practiceMinutes: { type: "integer", example: 0 }
+                            }
+                          },
+                          weeklyProgress: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                date: { type: "string", format: "date" },
+                                problems: { type: "integer" },
+                                mcq: { type: "integer" }
+                              }
+                            },
+                            description: "Last 7 days activity"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden G�� not a student" },
-          },
-        },
+            "403": { description: "Forbidden — not a student" },
+            "500": { description: "Failed to fetch dashboard data" }
+          }
+        }
       },
 
       "/api/v1/student/profile": {
@@ -1111,6 +1258,41 @@ const swaggerOptions: swaggerJsdoc.Options = {
             "400": { description: "Validation failed / insufficient questions" },
             "401": { description: "Not authenticated" },
             "404": { description: "No questions found" },
+          },
+        },
+      },
+
+      "/api/v1/student/practice/random": {
+        post: {
+          summary: "Generate random MCQ practice set",
+          description: "Generates a non-persistent random MCQ set based on filters. This does not create a stored session.",
+          tags: ["Practice"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/RandomPracticeRequest" },
+                example: {
+                  count: 5,
+                  topics: ["arrays", "strings"],
+                  difficulty: "easy",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Random MCQ set generated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/RandomPracticeResponse" },
+                },
+              },
+            },
+            "400": { description: "Validation failed" },
+            "401": { description: "Not authenticated" },
+            "500": { description: "Failed to generate random MCQ set" },
           },
         },
       },
@@ -1443,6 +1625,53 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      "/api/v1/student/contest/{id}/mcq": {
+        get: {
+          summary: "Get contest MCQ/Arduino question set",
+          description: "Returns contest question set for joined user, including current selected MCQ answers and remaining time.",
+          tags: ["Contests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": {
+              description: "Contest question payload",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      contest: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          title: { type: "string" },
+                          startTime: { type: "string", format: "date-time", nullable: true },
+                          endTime: { type: "string", format: "date-time", nullable: true },
+                        },
+                      },
+                      questions: { type: "array", items: { type: "object" } },
+                      participation: {
+                        type: "object",
+                        properties: {
+                          startedAt: { type: "string", format: "date-time" },
+                          submittedAt: { type: "string", format: "date-time", nullable: true },
+                        },
+                      },
+                      timeLeftMs: { type: "number", nullable: true },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Not joined or contest not active" },
+            "404": { description: "Contest not found" },
+          },
+        },
+      },
+
       "/api/v1/student/contest/join": {
         post: {
           summary: "Join a contest",
@@ -1484,11 +1713,11 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   type: "object",
                   properties: {
                     contestId: { type: "string" },
-                    questionId: { type: "string" },
+                    problemId: { type: "string" },
                     language: { type: "string", enum: ["c", "cpp", "java", "javascript", "python", "go", "rust"] },
-                    sourceCode: { type: "string" },
+                    code: { type: "string" },
                   },
-                  required: ["contestId", "questionId", "language", "sourceCode"],
+                  required: ["contestId", "problemId", "language", "code"],
                 },
               },
             },
@@ -1501,6 +1730,64 @@ const swaggerOptions: swaggerJsdoc.Options = {
             "400": { description: "Validation error" },
             "401": { description: "Not authenticated" },
             "403": { description: "Not participating or contest ended" },
+          },
+        },
+      },
+
+      "/api/v1/student/contest/submit-mcq": {
+        post: {
+          summary: "Submit MCQ answers in contest",
+          tags: ["Contests"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    contestId: { type: "string" },
+                    answers: {
+                      type: "object",
+                      additionalProperties: { type: "integer", minimum: 0 },
+                      description: "Map of questionId -> selectedOption",
+                    },
+                  },
+                  required: ["contestId", "answers"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "MCQ submission result",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      result: {
+                        type: "object",
+                        properties: {
+                          participationId: { type: "string" },
+                          attempted: { type: "integer" },
+                          totalQuestions: { type: "integer" },
+                          correct: { type: "integer" },
+                          score: { type: "integer" },
+                          maxScore: { type: "integer" },
+                          submittedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Not participating or contest ended" },
+            "404": { description: "Contest not found" },
           },
         },
       },
@@ -1519,14 +1806,19 @@ const swaggerOptions: swaggerJsdoc.Options = {
               content: {
                 "application/json": {
                   schema: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        rank: { type: "integer" },
-                        userId: { type: "string" },
-                        userName: { type: "string" },
-                        score: { type: "integer" },
+                    type: "object",
+                    properties: {
+                      leaderboard: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            rank: { type: "integer" },
+                            user: { type: "object" },
+                            score: { type: "integer" },
+                            startedAt: { type: "string", format: "date-time", nullable: true },
+                          },
+                        },
                       },
                     },
                   },
@@ -2223,6 +2515,76 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
 
       // ═══ Arduino Platform API ═══════════════════════════════════════════════════
+      "/api/v1/arduino/health": {
+        get: {
+          tags: ["Arduino Platform"],
+          summary: "Arduino API health check",
+          description: "Public health endpoint for Arduino subsystem monitoring.",
+          security: [],
+          responses: {
+            "200": {
+              description: "Arduino API is healthy",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      status: { type: "string", example: "healthy" },
+                      service: { type: "string", example: "arduino-api" },
+                      timestamp: { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/v1/arduino/boards": {
+        get: {
+          tags: ["Arduino Platform"],
+          summary: "Get supported Arduino boards",
+          description: "Returns supported boards and board metadata.",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Supported boards list",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: {
+                        type: "object",
+                        properties: {
+                          boards: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                fqbn: { type: "string" },
+                                description: { type: "string" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authentication required" },
+            "500": { description: "Failed to get boards" },
+          },
+        },
+      },
+
       "/api/v1/arduino/problems": {
         get: {
           tags: ["Arduino Problems"],
@@ -2469,6 +2831,61 @@ const swaggerOptions: swaggerJsdoc.Options = {
             "401": { description: "Authentication required" }
           }
         }
+      },
+      "/api/v1/arduino/validate": {
+        post: {
+          tags: ["Arduino Jobs"],
+          summary: "Validate a compiled Arduino submission",
+          description: "Runs submission validation against configured Arduino test cases and updates status if solved.",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    submissionId: { type: "string", format: "uuid" },
+                  },
+                  required: ["submissionId"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Validation result returned" },
+            "400": { description: "Submission cannot be validated in current state" },
+            "401": { description: "Authentication required" },
+            "403": { description: "Submission not owned by user" },
+            "404": { description: "Submission not found" },
+            "500": { description: "Validation failed" },
+          },
+        },
+      },
+      "/api/v1/arduino/hardware/upload-guide": {
+        get: {
+          tags: ["Arduino Platform"],
+          summary: "Get hardware upload instructions",
+          description: "Returns detailed instructions for uploading generated HEX files to physical Arduino boards.",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Hardware upload guide",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authentication required" },
+          },
+        },
       },
       "/api/v1/arduino/admin/queue/stats": {
         get: {
@@ -2760,4 +3177,3 @@ export const swaggerSpec = (() => {
   }
   return spec;
 })();
-

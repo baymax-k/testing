@@ -8,8 +8,9 @@ services:
   # The backend service has been intentionally removed from the compose
   # stack. Run the API server locally with `pnpm run dev` so you can
   # develop without rebuilding containers. The compose stack below
-  # contains only the application DB and Judge0 infrastructure.
+  # contains all dependencies needed for the student panel.
 
+  # Main PostgreSQL database for the application
   postgres:
     image: postgres:16.2
     environment:
@@ -18,17 +19,46 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d codeethnics"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 20
+      retries: 5
     ports:
       - "5432:5432"
     <<: *default-logging
     restart: unless-stopped
+    networks:
+      - codeethnic-network
 
-  server:
+  # Redis for caching, rate limiting, and job queues
+  redis:
+    image: redis:7.2.4-alpine
+    command: [
+      "redis-server",
+      "--appendonly", "yes",
+      "--appendfsync", "everysec",
+      "--maxmemory", "256mb",
+      "--maxmemory-policy", "allkeys-lru",
+      "--requirepass", "redis_password_123"
+    ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "6379:6379"
+    <<: *default-logging
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
+
+  # Judge0 API server for DSA code execution
+  judge0-server:
     image: mrkushalsm/judge0:cgv2
     volumes:
       - ./judge0.conf:/judge0.conf:ro
@@ -36,45 +66,167 @@ services:
       - "2358:2358"
     privileged: true
     depends_on:
-      - db
-      - redis
+      - judge0-db
+      - judge0-redis
+    environment:
+      - REDIS_HOST=judge0-redis
+      - POSTGRES_HOST=judge0-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2358/config"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     <<: *default-logging
-    restart: always
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
 
-  workers:
+  # Judge0 workers for processing code execution
+  judge0-workers:
     image: mrkushalsm/judge0:cgv2
     command: ["./scripts/workers"]
     volumes:
       - ./judge0.conf:/judge0.conf:ro
     privileged: true
     depends_on:
-      - db
-      - redis
+      - judge0-db
+      - judge0-redis
+    environment:
+      - REDIS_HOST=judge0-redis
+      - POSTGRES_HOST=judge0-db
+    deploy:
+      replicas: 3  # Run 3 worker instances for better throughput
     <<: *default-logging
-    restart: always
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
 
-  db:
+  # PostgreSQL database for Judge0
+  judge0-db:
     image: postgres:16.2
     env_file:
       - judge0.conf
     volumes:
-      - data:/var/lib/postgresql/data/
+      - judge0_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U judge0 -d judge0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     <<: *default-logging
-    restart: always
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
 
-  redis:
-    image: redis:7.2.4
+  # Redis for Judge0 job queue
+  judge0-redis:
+    image: redis:7.2.4-alpine
     command: [
-      "bash", "-c",
-      "docker-entrypoint.sh --appendonly no --requirepass \"$$REDIS_PASSWORD\""
+      "redis-server",
+      "--appendonly", "no",
+      "--maxmemory", "128mb",
+      "--maxmemory-policy", "allkeys-lru"
     ]
     env_file:
       - judge0.conf
-    ports:
-      - "6379:6379"
+    volumes:
+      - judge0_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     <<: *default-logging
-    restart: always
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
+
+  # Arduino compiler service for Arduino code compilation
+  arduino-compiler:
+    build:
+      context: ./arduino-compiler
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://postgres:password@postgres:5432/codeethnics
+      - NODE_ENV=development
+    volumes:
+      - arduino_cache:/app/cache
+      - /tmp/arduino-builds:/tmp/arduino-builds
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "3001:3001"
+    <<: *default-logging
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
+
+  # Arduino job worker for processing compilation jobs
+  arduino-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      target: arduino-worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://postgres:password@postgres:5432/codeethnics
+      - ARDUINO_COMPILER_URL=http://arduino-compiler:3001
+      - CDN_API_KEY=${CDN_API_KEY}
+      - CDN_API_SECRET=${CDN_API_SECRET}
+      - NODE_ENV=development
+    depends_on:
+      - postgres
+      - redis
+      - arduino-compiler
+    deploy:
+      replicas: 2  # Run 2 worker instances
+    <<: *default-logging
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
+
+  # Nginx reverse proxy for development (optional)
+  nginx:
+    image: nginx:1.25-alpine
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - judge0-server
+      - arduino-compiler
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    <<: *default-logging
+    restart: unless-stopped
+    networks:
+      - codeethnic-network
 
 volumes:
-  data:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  judge0_data:
+    driver: local
+  judge0_redis_data:
+    driver: local
+  arduino_cache:
+    driver: local
+
+networks:
+  codeethnic-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

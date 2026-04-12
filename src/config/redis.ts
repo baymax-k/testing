@@ -16,7 +16,7 @@ export function getRedisClient(): Redis {
     const redisPort = Number(process.env.REDIS_PORT) || 6379;
 
     const baseConfig = {
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null, // Required by BullMQ
       retryStrategy: (times: number) => {
         // Exponential backoff: 50ms, 100ms, 200ms, etc. (max 3 retries)
         const delay = Math.min(times * 50, 2000);

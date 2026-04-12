@@ -1,11 +1,17 @@
 import { body, param, query, ValidationChain } from 'express-validator';
 
+// CUID validation helper (Prisma default ID format)
+const isCUID = (value: string): boolean => {
+  return typeof value === 'string' && /^c[a-z0-9]{24,}$/.test(value);
+};
+
 export class ArduinoValidators {
   static submitCompile(): ValidationChain[] {
     return [
       body('problemId')
-        .isUUID()
-        .withMessage('Problem ID must be a valid UUID'),
+        .isString()
+        .custom(isCUID)
+        .withMessage('Problem ID must be a valid CUID or test ID'),
       
       body('code')
         .isString()
@@ -22,8 +28,9 @@ export class ArduinoValidators {
   static getJobStatus(): ValidationChain[] {
     return [
       param('submissionId')
-        .isUUID()
-        .withMessage('Submission ID must be a valid UUID'),
+        .isString()
+        .custom(isCUID)
+        .withMessage('Submission ID must be a valid CUID'),
     ];
   }
 
@@ -31,8 +38,9 @@ export class ArduinoValidators {
     return [
       query('problemId')
         .optional()
-        .isUUID()
-        .withMessage('Problem ID must be a valid UUID if provided'),
+        .isString()
+        .custom(isCUID)
+        .withMessage('Problem ID must be a valid CUID if provided'),
       
       query('limit')
         .optional()
@@ -49,8 +57,9 @@ export class ArduinoValidators {
   static cancelJob(): ValidationChain[] {
     return [
       param('submissionId')
-        .isUUID()
-        .withMessage('Submission ID must be a valid UUID'),
+        .isString()
+        .custom(isCUID)
+        .withMessage('Submission ID must be a valid CUID'),
     ];
   }
 
@@ -76,8 +85,9 @@ export class ArduinoValidators {
   static getProblem(): ValidationChain[] {
     return [
       param('problemId')
-        .isUUID()
-        .withMessage('Problem ID must be a valid UUID'),
+        .isString()
+        .custom(isCUID)
+        .withMessage('Problem ID must be a valid CUID or test ID'),
     ];
   }
 }

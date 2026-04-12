@@ -1,6 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { getRedisClient } from '../config/redis';
 import { prisma } from '../config/prisma.js';
+import { cdnService } from '../services/cdn.service';
 
 const redisClient = getRedisClient();
 
@@ -22,6 +23,19 @@ interface CompileResult {
     program: number;
     data: number;
   };
+  codeQuality?: {
+    programSize: number;
+    dataUsage: number;
+    hexSize: number;
+    compileTime: number;
+    warningCount: number;
+    efficiency: {
+      programUtilization: string;
+      memoryUtilization: string;
+    };
+    score: number;
+  };
+  warnings?: string[];
 }
 
 class ArduinoWorker {
@@ -62,23 +76,32 @@ class ArduinoWorker {
       await prisma.arduinoSubmission.update({
         where: { id: submissionId },
         data: { 
-          status: 'processing',
-          processedAt: new Date()
+          status: 'processing'
         }
       });
+
+      // Fetch problem details to get required libraries
+      const problem = await prisma.arduinoProblem.findUnique({
+        where: { id: problemId },
+        select: { libraries: true }
+      });
+
+      const libraries = problem?.libraries || [];
+      console.log(`📚 Problem requires libraries: ${libraries.join(', ') || 'none'}`);
 
       // Call Arduino compiler service using fetch (Node.js 18+ built-in)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const response = await fetch(`${this.ARDUINO_SERVICE_URL}/compile`, {
+      const response = await fetch(`${this.ARDUINO_SERVICE_URL}/compile/json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           code,
-          boardType
+          boardType,
+          libraries
         }),
         signal: controller.signal
       });
@@ -98,18 +121,42 @@ class ArduinoWorker {
           success: true,
           hexCode: compileData.hexCode,
           compileTime,
-          memoryUsage: compileData.memoryUsage
+          memoryUsage: compileData.memoryUsage,
+          codeQuality: compileData.codeQuality,
+          warnings: compileData.warnings
         };
 
-        // Update submission with successful result
+        // Try to upload HEX file to CDN first
+        let hexFileReference = result.hexCode; // Fallback to storing in DB
+        
+        if (result.hexCode && cdnService.isAvailable()) {
+          console.log(`📤 Uploading HEX file to CDN for submission ${submissionId}`);
+          const uploadResult = await cdnService.uploadHexFile(
+            result.hexCode, 
+            submissionId, 
+            problemId
+          );
+          
+          if (uploadResult.success && uploadResult.url) {
+            hexFileReference = uploadResult.url; // Use CDN URL instead of content
+            console.log(`✅ HEX file uploaded to CDN: ${uploadResult.url}`);
+          } else {
+            console.warn(`⚠️ CDN upload failed, storing in database: ${uploadResult.error}`);
+          }
+        }
+
+        // Update submission with successful result - using schema field names
         await prisma.arduinoSubmission.update({
           where: { id: submissionId },
           data: {
             status: 'compiled',
-            hexCode: result.hexCode,
-            compileTimeMs: compileTime,
-            memoryUsage: result.memoryUsage ? JSON.stringify(result.memoryUsage) : null,
-            completedAt: new Date()
+            hexFile: hexFileReference,        // Either CDN URL or hex content
+            compileTime: compileTime,         // Use compileTime field  
+            runtime: JSON.stringify({
+              memoryUsage: result.memoryUsage,
+              codeQuality: result.codeQuality,
+              warnings: result.warnings
+            })
           }
         });
 
@@ -135,9 +182,8 @@ class ArduinoWorker {
         where: { id: submissionId },
         data: {
           status: 'failed',
-          error: errorMessage,
-          compileTimeMs: compileTime,
-          completedAt: new Date()
+          errorOutput: errorMessage,         // Use errorOutput field
+          compileTime: compileTime          // Use compileTime field
         }
       });
 

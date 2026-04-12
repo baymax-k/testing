@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 import { getRedisClient } from '../config/redis';
 import { prisma } from '../config/prisma.js';
-import { v4 as uuidv4 } from 'uuid';
+// Remove UUID - use Prisma's default CUID generation
 const redisClient = getRedisClient();
 
 interface ArduinoCompileJobData {
@@ -54,17 +54,17 @@ export class ArduinoJobService {
     userId: string,
     problemId: string,
     code: string,
-    boardType: 'uno' | 'mega' = 'uno'
+    boardType: 'uno' | 'mega' = 'uno',
+    contestParticipationId?: string
   ): Promise<string> {
-    // Create submission record
+    // Create submission record (Prisma will auto-generate CUID for id)
     const submission = await prisma.arduinoSubmission.create({
       data: {
-        id: uuidv4(),
         userId,
         problemId,
-        code,
-        boardType,
-        status: 'queued',
+        sourceCode: code,
+        status: 'processing',
+        contestParticipationId,
         createdAt: new Date(),
       },
     });
@@ -122,18 +122,18 @@ export class ArduinoJobService {
       status: submission.status as any,
       progress: queueProgress,
       createdAt: submission.createdAt,
-      processedAt: submission.processedAt || undefined,
-      completedAt: submission.completedAt || undefined,
+      processedAt: undefined,  // Field doesn't exist in schema
+      completedAt: undefined,  // Field doesn't exist in schema
     };
 
     // Include result if completed or failed
     if (submission.status === 'compiled' || submission.status === 'failed') {
       response.result = {
         success: submission.status === 'compiled',
-        hexCode: submission.hexCode || undefined,
-        error: submission.error || undefined,
-        compileTime: submission.compileTimeMs || 0,
-        memoryUsage: submission.memoryUsage ? JSON.parse(submission.memoryUsage) : undefined,
+        hexCode: submission.hexFile || undefined,          // Use hexFile field
+        error: submission.errorOutput || undefined,        // Use errorOutput field
+        compileTime: submission.compileTime || 0,          // Use compileTime field
+        memoryUsage: submission.runtime ? JSON.parse(submission.runtime) : undefined, // Use runtime field
       };
     }
 
@@ -164,14 +164,14 @@ export class ArduinoJobService {
       progress: submission.status === 'queued' ? 0 : 
                 submission.status === 'processing' ? 50 : 100,
       createdAt: submission.createdAt,
-      processedAt: submission.processedAt || undefined,
-      completedAt: submission.completedAt || undefined,
+      processedAt: undefined,  // Field doesn't exist in schema
+      completedAt: undefined,  // Field doesn't exist in schema
       result: (submission.status === 'compiled' || submission.status === 'failed') ? {
         success: submission.status === 'compiled',
-        hexCode: submission.hexCode || undefined,
-        error: submission.error || undefined,
-        compileTime: submission.compileTimeMs || 0,
-        memoryUsage: submission.memoryUsage ? JSON.parse(submission.memoryUsage) : undefined,
+        hexCode: submission.hexFile || undefined,          // Use hexFile field
+        error: submission.errorOutput || undefined,        // Use errorOutput field
+        compileTime: submission.compileTime || 0,          // Use compileTime field
+        memoryUsage: submission.runtime ? JSON.parse(submission.runtime) : undefined, // Use runtime field
       } : undefined,
     }));
   }
@@ -212,8 +212,7 @@ export class ArduinoJobService {
       where: { id: submissionId },
       data: {
         status: 'failed',
-        error: 'Cancelled by user',
-        completedAt: new Date(),
+        errorOutput: 'Cancelled by user'  // Use errorOutput field
       },
     });
 

@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { ArduinoController } from '../controllers/arduino.controller';
+import { ArduinoHardwareController } from '../controllers/arduino-hardware.controller';
 import { ArduinoValidators } from '../validators/arduino.validators';
 import { arduinoCompileRateLimit, generalArduinoRateLimit } from '../../../middleware/rate-limiter';
 import { validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
+import { requireAuth } from '../../../middleware/auth';
 
 // Validation middleware
 const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
@@ -19,36 +21,34 @@ const handleValidationErrors = (req: Request, res: Response, next: NextFunction)
   next();
 };
 
-// Authentication middleware placeholder (should be imported from your auth system)
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  // TODO: Replace with your actual authentication middleware
-  // For now, this is a placeholder that should be replaced with your existing auth system
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({
-      success: false,
-      error: 'Authentication token required'
-    });
-    return;
-  }
-
-  // Mock user for now - replace with actual token verification
-  (req as any).user = {
-    id: 'mock-user-id',
-    role: 'student' // or 'admin', 'superadmin'
-  };
-  
-  next();
-};
-
-const router = Router();
+const router: Router = Router();
 const arduinoController = new ArduinoController();
+const hardwareController = new ArduinoHardwareController();
 
-// Apply general rate limiting to all Arduino routes
+// ========== PUBLIC ROUTES (NO AUTH REQUIRED) ==========
+
+// Health check endpoint - must be accessible for monitoring
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'healthy',
+    service: 'arduino-api',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ========== PROTECTED ROUTES (AUTH REQUIRED) ==========
+
+// Apply authentication to ALL routes below this point
+router.use(requireAuth);
+
+// Apply general rate limiting to all authenticated routes
 router.use(generalArduinoRateLimit.middleware());
 
-// Public routes (no auth required)
+// Board information
+router.get('/boards', (req, res) => arduinoController.getBoards(req, res));
+
+// Problem management
 router.get(
   '/problems',
   ArduinoValidators.getProblems(),
@@ -63,10 +63,7 @@ router.get(
   (req, res) => arduinoController.getProblem(req, res)
 );
 
-// Protected routes (auth required)
-router.use(requireAuth);
-
-// Compilation routes with stricter rate limiting
+// Compilation with stricter rate limiting
 router.post(
   '/compile',
   arduinoCompileRateLimit.middleware(),
@@ -75,7 +72,7 @@ router.post(
   (req, res) => arduinoController.submitCompile(req, res)
 );
 
-// Job management routes
+// Job management
 router.get(
   '/jobs/:submissionId',
   ArduinoValidators.getJobStatus(),
@@ -97,7 +94,19 @@ router.delete(
   (req, res) => arduinoController.cancelJob(req, res)
 );
 
-// Admin routes
+// Test case validation
+router.post(
+  '/validate',
+  (req, res) => arduinoController.validateSubmission(req, res)
+);
+
+// Hardware upload instructions
+router.get(
+  '/hardware/upload-guide',
+  (req, res) => hardwareController.getUploadInstructions(req, res)
+);
+
+// Admin routes (require admin role)
 router.get(
   '/admin/queue/stats',
   (req, res) => arduinoController.getQueueStats(req, res)

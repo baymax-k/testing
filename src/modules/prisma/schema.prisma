@@ -17,14 +17,21 @@ model User {
   passwordHash  String
   role          Role      @default(student)
   emailVerified Boolean   @default(false)
+  phone         String?
+  image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  refreshTokens  RefreshToken[]
-  submissions    Submission[]
-  participations ContestParticipation[]
-  arduinoSubmissions ArduinoSubmission[]
-  codeDrafts CodeDraft[]
+  refreshTokens       RefreshToken[]
+  submissions         Submission[]
+  participations      ContestParticipation[]
+  arduinoSubmissions  ArduinoSubmission[]
+  codeDrafts          CodeDraft[]
+  dailyChallengeSolves DailyChallengeSolve[]
+  userStreak          UserStreak?
+  mcqPracticeSessions MCQPracticeSession[]
+  practiceActivities  PracticeActivity[]
+  practiceRandomSets  PracticeRandomSet[]
 
   @@map("user")
 }
@@ -125,6 +132,8 @@ model Question {
 
   contests ContestQuestion[]
   arduinoProblem ArduinoProblem?
+  dailyChallenges DailyChallenge[]
+  mcqSessionAnswers MCQSessionAnswer[]
 
   @@map("question")
 }
@@ -258,7 +267,7 @@ model ArduinoSubmission {
   problemId       String
   sourceCode      String           @db.Text
   status          SubmissionStatus @default(processing)
-  hexFile         String?          // URL or path to stored hex file
+  hexFile         String?          @db.Text // Updated to store hex content instead of URL
   verdict         Json?            // Detailed test results
   testCasesPassed Int              @default(0)
   totalTestCases  Int              @default(0)
@@ -292,4 +301,138 @@ model CodeDraft {
   @@unique([userId, problemId])
   @@index([userId])
   @@map("code_draft")
+}
+
+// ─── Student POTD Models ─────────────────────────────────────────────────────
+
+model DailyChallenge {
+  id        String   @id @default(cuid())
+  questionId String
+  date      DateTime @db.Date
+  createdBy String
+  createdAt DateTime @default(now())
+
+  solves   DailyChallengeSolve[]
+  question Question              @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([date])
+  @@index([date])
+  @@map("daily_challenge")
+}
+
+model DailyChallengeSolve {
+  id               String  @id @default(cuid())
+  userId           String
+  dailyChallengeId String
+  selectedOption   Int?
+  isCorrect        Boolean
+  attempts         Int     @default(1)
+  languageId       Int?
+  sourceCode       String? @db.Text
+  solvedAt         DateTime @default(now())
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyChallenge  DailyChallenge  @relation(fields: [dailyChallengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dailyChallengeId])
+  @@index([userId])
+  @@index([dailyChallengeId])
+  @@map("daily_challenge_solve")
+}
+
+model UserStreak {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  lastSolveDate  DateTime? @db.Date
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_streak")
+}
+
+// ─── MCQ Practice Models ─────────────────────────────────────────────────────
+
+enum McqSessionStatus {
+  in_progress
+  submitted
+}
+
+model MCQPracticeSession {
+  id              String           @id @default(cuid())
+  userId          String
+  topics          Json
+  difficulty      String?
+  requestedCount  Int
+  totalQuestions  Int
+  questionIds     Json
+  status          McqSessionStatus @default(in_progress)
+  score           Int              @default(0)
+  correctCount    Int              @default(0)
+  submittedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers MCQSessionAnswer[]
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@map("mcq_practice_session")
+}
+
+model MCQSessionAnswer {
+  id             String @id @default(cuid())
+  sessionId      String
+  questionId     String
+  selectedOption Int
+  correctAnswer  Int
+  isCorrect      Boolean
+  points         Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  session  MCQPracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([questionId])
+  @@map("mcq_practice_answer")
+}
+
+// ─── Practice Activity Models ────────────────────────────────────────────────
+
+model PracticeActivity {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime @db.Date
+  problemsSolved Int      @default(0)
+  mcqSolved      Int      @default(0)
+  dsaSolved      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_practice_activity")
+}
+
+model PracticeRandomSet {
+  id          String    @id @default(cuid())
+  userId      String
+  seed        String?
+  filters     Json
+  questionIds Json
+  count       Int
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("practice_random_set")
 }

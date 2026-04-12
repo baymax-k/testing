@@ -1,0 +1,46 @@
+# Multi-stage Dockerfile for different workers
+
+# Base Node.js image
+FROM node:20-alpine AS base
+WORKDIR /app
+COPY package*.json pnpm-lock.yaml ./
+RUN npm install -g pnpm
+RUN pnpm install --frozen-lockfile
+
+# Build stage
+FROM base AS builder
+COPY . .
+RUN pnpm build
+
+# Arduino Worker Stage
+FROM base AS arduino-worker
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src ./src
+COPY prisma ./prisma
+
+# Install Arduino CLI
+RUN apk add --no-cache curl
+RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/local/bin sh
+RUN arduino-cli core update-index
+RUN arduino-cli core install arduino:avr
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S worker && \
+    adduser -S worker -u 1001
+USER worker
+
+EXPOSE 3002
+CMD ["node", "dist/workers/arduino-worker.js"]
+
+# General Worker Stage (for other background jobs)
+FROM base AS general-worker
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src ./src
+COPY prisma ./prisma
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S worker && \
+    adduser -S worker -u 1001
+USER worker
+
+CMD ["node", "dist/workers/general-worker.js"]

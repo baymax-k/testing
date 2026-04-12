@@ -279,6 +279,380 @@ const dsaQuestions = [
   }
 ];
 
+const arduinoQuestions = [
+  {
+    id: "arduino-practice-001",
+    title: "Blink LED",
+    description: `# LED Blink Pattern
+
+Write an Arduino program that blinks the built-in LED on pin 13.
+
+## Requirements:
+- Turn LED ON for 1 second
+- Turn LED OFF for 1 second
+- Repeat continuously
+
+## Expected Behavior:
+The LED should blink with a 1-second interval (HIGH for 1s, LOW for 1s).
+
+## Starter Template:
+\`\`\`cpp
+void setup() {
+  // Configure pin 13 as output
+}
+
+void loop() {
+  // Implement blinking logic
+}
+\`\`\``,
+    difficulty: "easy",
+    tags: ["arduino", "basics", "gpio"],
+    board: "uno",
+    fqbn: "arduino:avr:uno",
+    libraries: [] as string[],
+    starterCode: `void setup() {
+  // Configure pin 13 as output
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  // Write your code here
+  
+}`,
+    simulationConfig: {
+      version: 1,
+      author: "CodeEthnics",
+      editor: "wokwi",
+      parts: [
+        { type: "wokwi-arduino-uno", id: "uno", top: 0, left: 0 }
+      ],
+      connections: []
+    },
+    testCases: [
+      {
+        label: "LED should toggle every 1000ms",
+        type: "pin_state",
+        isHidden: false,
+        pin: 13,
+        expectedState: "TOGGLE",
+        atMs: 1000,
+        toleranceMs: 100,
+        order: 1
+      }
+    ]
+  },
+  {
+    id: "arduino-practice-002",
+    title: "Serial Communication",
+    description: `# Serial Hello World
+
+Write an Arduino program that prints "Hello Arduino!" to the serial monitor every second.
+
+## Requirements:
+- Initialize serial communication at 9600 baud rate
+- Print "Hello Arduino!" every 1000ms
+- Use Serial.println()
+
+## Expected Output:
+\`\`\`
+Hello Arduino!
+Hello Arduino!
+Hello Arduino!
+...
+\`\`\`
+
+## Starter Template:
+\`\`\`cpp
+void setup() {
+  // Initialize serial communication
+}
+
+void loop() {
+  // Print message and wait
+}
+\`\`\``,
+    difficulty: "easy",
+    tags: ["arduino", "serial", "basics"],
+    board: "uno",
+    fqbn: "arduino:avr:uno",
+    libraries: [] as string[],
+    starterCode: `void setup() {
+  // Initialize serial communication at 9600 baud
+  
+}
+
+void loop() {
+  // Print "Hello Arduino!" and wait 1 second
+  
+}`,
+    simulationConfig: {
+      version: 1,
+      author: "CodeEthnics",
+      editor: "wokwi",
+      parts: [
+        { type: "wokwi-arduino-uno", id: "uno", top: 0, left: 0 }
+      ],
+      connections: []
+    },
+    testCases: [
+      {
+        label: "Should print 'Hello Arduino!' to serial",
+        type: "serial_output",
+        isHidden: false,
+        expectedOutput: "Hello Arduino!",
+        order: 1
+      }
+    ]
+  },
+  {
+    id: "arduino-practice-003",
+    title: "Button Controlled LED",
+    description: `# Button Input Control
+
+Create an Arduino program that controls an LED using a push button.
+
+## Requirements:
+- Button connected to pin 2 (with internal pull-up resistor)
+- LED connected to pin 13
+- When button is pressed (LOW), LED should turn ON
+- When button is released (HIGH), LED should turn OFF
+
+## Circuit:
+- Button: Pin 2 (INPUT_PULLUP)
+- LED: Pin 13 (OUTPUT)
+
+## Starter Template:
+\`\`\`cpp
+void setup() {
+  // Configure pins
+}
+
+void loop() {
+  // Read button and control LED
+}
+\`\`\``,
+    difficulty: "medium",
+    tags: ["arduino", "gpio", "input", "output"],
+    board: "uno",
+    fqbn: "arduino:avr:uno",
+    libraries: [] as string[],
+    starterCode: `const int buttonPin = 2;
+const int ledPin = 13;
+
+void setup() {
+  // Configure button pin with internal pull-up
+  
+  // Configure LED pin as output
+  
+}
+
+void loop() {
+  // Read button state and control LED
+  
+}`,
+    simulationConfig: {
+      version: 1,
+      author: "CodeEthnics",
+      editor: "wokwi",
+      parts: [
+        { type: "wokwi-arduino-uno", id: "uno", top: 0, left: 0 },
+        { type: "wokwi-pushbutton", id: "btn1", top: 100, left: 200 },
+        { type: "wokwi-led", id: "led1", top: 100, left: 300 }
+      ],
+      connections: [
+        ["btn1:1.l", "uno:2", "green"],
+        ["btn1:1.r", "uno:GND", "black"],
+        ["led1:A", "uno:13", "red"],
+        ["led1:C", "uno:GND", "black"]
+      ]
+    },
+    testCases: [
+      {
+        label: "LED should turn on when button is pressed",
+        type: "pin_state",
+        isHidden: false,
+        pin: 13,
+        expectedState: "HIGH",
+        order: 1
+      },
+      {
+        label: "LED should turn off when button is released",
+        type: "pin_state",
+        isHidden: false,
+        pin: 13,
+        expectedState: "LOW",
+        order: 2
+      }
+    ]
+  },
+  {
+    id: "arduino-practice-004",
+    title: "PWM Fading LED",
+    description: `# PWM LED Fading
+
+Use PWM (Pulse Width Modulation) to create a smooth fading effect on an LED.
+
+## Requirements:
+- LED connected to PWM-capable pin 9
+- Fade LED from 0 to 255 brightness
+- Fade LED from 255 to 0 brightness
+- Use analogWrite() for PWM control
+- Create a smooth transition
+
+## Expected Behavior:
+LED should smoothly fade in and fade out continuously.
+
+## Starter Template:
+\`\`\`cpp
+void setup() {
+  // Configure PWM pin
+}
+
+void loop() {
+  // Implement fading logic
+}
+\`\`\``,
+    difficulty: "medium",
+    tags: ["arduino", "pwm", "analog"],
+    board: "uno",
+    fqbn: "arduino:avr:uno",
+    libraries: [] as string[],
+    starterCode: `const int ledPin = 9;  // PWM pin
+
+void setup() {
+  pinMode(ledPin, OUTPUT);
+}
+
+void loop() {
+  // Fade in from 0 to 255
+  
+  // Fade out from 255 to 0
+  
+}`,
+    simulationConfig: {
+      version: 1,
+      author: "CodeEthnics",
+      editor: "wokwi",
+      parts: [
+        { type: "wokwi-arduino-uno", id: "uno", top: 0, left: 0 },
+        { type: "wokwi-led", id: "led1", top: 100, left: 300 }
+      ],
+      connections: [
+        ["led1:A", "uno:9", "red"],
+        ["led1:C", "uno:GND", "black"]
+      ]
+    },
+    testCases: [
+      {
+        label: "LED should fade in and out smoothly using PWM",
+        type: "pin_state",
+        isHidden: false,
+        pin: 9,
+        expectedState: "PWM",
+        order: 1
+      }
+    ]
+  },
+  {
+    id: "arduino-practice-005",
+    title: "Traffic Light Simulator",
+    description: `# Traffic Light System
+
+Simulate a traffic light using three LEDs (Red, Yellow, Green).
+
+## Requirements:
+- Red LED on pin 10 (5 seconds)
+- Yellow LED on pin 11 (2 seconds)
+- Green LED on pin 12 (5 seconds)
+- Cycle: RED → YELLOW → GREEN → repeat
+
+## Timing:
+1. Red: 5 seconds
+2. Yellow: 2 seconds
+3. Green: 5 seconds
+
+## Starter Template:
+\`\`\`cpp
+void setup() {
+  // Configure LED pins
+}
+
+void loop() {
+  // Implement traffic light sequence
+}
+\`\`\``,
+    difficulty: "medium",
+    tags: ["arduino", "gpio", "timing", "logic"],
+    board: "uno",
+    fqbn: "arduino:avr:uno",
+    libraries: [] as string[],
+    starterCode: `const int redPin = 10;
+const int yellowPin = 11;
+const int greenPin = 12;
+
+void setup() {
+  // Configure all LED pins as OUTPUT
+  
+}
+
+void loop() {
+  // Implement traffic light sequence
+  
+}`,
+    simulationConfig: {
+      version: 1,
+      author: "CodeEthnics",
+      editor: "wokwi",
+      parts: [
+        { type: "wokwi-arduino-uno", id: "uno", top: 0, left: 0 },
+        { type: "wokwi-led", id: "red", top: 100, left: 250, attrs: { color: "red" } },
+        { type: "wokwi-led", id: "yellow", top: 150, left: 250, attrs: { color: "yellow" } },
+        { type: "wokwi-led", id: "green", top: 200, left: 250, attrs: { color: "green" } }
+      ],
+      connections: [
+        ["red:A", "uno:10", "red"],
+        ["red:C", "uno:GND", "black"],
+        ["yellow:A", "uno:11", "orange"],
+        ["yellow:C", "uno:GND", "black"],
+        ["green:A", "uno:12", "green"],
+        ["green:C", "uno:GND", "black"]
+      ]
+    },
+    testCases: [
+      {
+        label: "Red LED should be on for 5 seconds",
+        type: "pin_state",
+        isHidden: false,
+        pin: 10,
+        expectedState: "HIGH",
+        atMs: 1000,
+        toleranceMs: 200,
+        order: 1
+      },
+      {
+        label: "Yellow LED should be on after red",
+        type: "pin_state",
+        isHidden: false,
+        pin: 11,
+        expectedState: "HIGH",
+        atMs: 5500,
+        toleranceMs: 200,
+        order: 2
+      },
+      {
+        label: "Green LED should be on after yellow",
+        type: "pin_state",
+        isHidden: false,
+        pin: 12,
+        expectedState: "HIGH",
+        atMs: 7500,
+        toleranceMs: 200,
+        order: 3
+      }
+    ]
+  }
+];
+
 async function seed() {
   console.log("🌱 Seeding database...\n");
 
@@ -400,6 +774,99 @@ async function seed() {
   }
 
   console.log(`✓ Seeded ${dsaQuestions.length} DSA practice questions`);
+
+  // ─── Seed Arduino Problems ──────────────────────────────────────────────────
+  console.log("\nSeeding Arduino problems...");
+  
+  for (const arduino of arduinoQuestions) {
+    // Ensure Arduino-specific tags exist
+    for (const tagName of arduino.tags) {
+      await prisma.tag.upsert({
+        where: { name: tagName },
+        update: { type: "topic" },
+        create: { name: tagName, type: "topic" },
+      });
+    }
+
+    const tagConnections = arduino.tags.map((name) => ({ name }));
+
+    // Create the base Question first
+    const question = await prisma.question.upsert({
+      where: { id: arduino.id },
+      update: {
+        type: "arduino",
+        title: arduino.title,
+        description: arduino.description,
+        difficulty: arduino.difficulty,
+        createdBy: adminUserId,
+        tags: {
+          set: [],
+          connect: tagConnections,
+        },
+      },
+      create: {
+        id: arduino.id,
+        type: "arduino",
+        title: arduino.title,
+        description: arduino.description,
+        difficulty: arduino.difficulty,
+        createdBy: adminUserId,
+        tags: {
+          connect: tagConnections,
+        },
+      },
+    });
+
+    // Create or update the ArduinoProblem
+    await prisma.arduinoProblem.upsert({
+      where: { questionId: question.id },
+      update: {
+        board: arduino.board,
+        fqbn: arduino.fqbn,
+        libraries: arduino.libraries,
+        starterCode: arduino.starterCode,
+        simulationConfig: arduino.simulationConfig,
+      },
+      create: {
+        questionId: question.id,
+        board: arduino.board,
+        fqbn: arduino.fqbn,
+        libraries: arduino.libraries,
+        starterCode: arduino.starterCode,
+        simulationConfig: arduino.simulationConfig,
+      },
+    });
+
+    // Get the ArduinoProblem to link test cases
+    const arduinoProblem = await prisma.arduinoProblem.findUnique({
+      where: { questionId: question.id }
+    });
+
+    if (!arduinoProblem) {
+      console.error(`Arduino problem not found for question ${question.id}`);
+      continue;
+    }
+
+    // Create test cases for the Arduino problem
+    for (const testCase of arduino.testCases) {
+      await prisma.arduinoTestCase.create({
+        data: {
+          problemId: arduinoProblem.id,
+          label: testCase.label,
+          type: testCase.type,
+          isHidden: testCase.isHidden,
+          pin: testCase.pin,
+          expectedState: testCase.expectedState,
+          atMs: testCase.atMs,
+          toleranceMs: testCase.toleranceMs,
+          expectedOutput: testCase.expectedOutput,
+          order: testCase.order,
+        },
+      });
+    }
+  }
+
+  console.log(`✓ Seeded ${arduinoQuestions.length} Arduino problems with test cases`);
 
   // ─── Seed Daily Challenges ──────────────────────────────────────────────────
   // Note: DailyChallenge model not yet implemented in schema
