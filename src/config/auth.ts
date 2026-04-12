@@ -1,11 +1,11 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
-import { PrismaClient } from "../generated/prisma/client";
 import nodemailer from "nodemailer";
 import { getConfiguredOrigins, normalizeOrigin } from "./origins.js";
+import { prisma } from "./prisma.js";
+export { prisma } from "./prisma.js";
 
-export const prisma = new PrismaClient();
 const trustedOrigins = getConfiguredOrigins();
 
 const mailTransporter = nodemailer.createTransport({

@@ -71,6 +71,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
         description: "Hackathon creation, management, team operations, and leaderboard tracking.",
       },
       {
+        name: "Product Admin - Dashboard",
+        description: "Dashboard metrics, chart series, and recent activity for product admin portal.",
+      },
+      {
         name: "Public APIs - Tests",
         description: "Publicly available tests, filters, and statistics (no authentication required).",
       },
@@ -2353,6 +2357,108 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
 
       // ──── Product Admin Colleges ────────────────────────────────────────────────────────
+      "/api/product-admin/dashboard": {
+        get: {
+          summary: "Get product-admin dashboard stats",
+          description: "Returns cards, weekly overview chart data, activity distribution, and recent activity feed.",
+          tags: ["Product Admin - Dashboard"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "Dashboard data",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      generatedAt: { type: "string", format: "date-time" },
+                      dashboard: {
+                        type: "object",
+                        properties: {
+                          overview: {
+                            type: "object",
+                            properties: {
+                              totalProblems: {
+                                type: "object",
+                                properties: {
+                                  value: { type: "integer", example: 1284 },
+                                  changePercent: { type: "integer", example: 12 },
+                                  changeLabel: { type: "string", example: "+12% from last week" },
+                                },
+                              },
+                              activeUsersToday: {
+                                type: "object",
+                                properties: {
+                                  value: { type: "integer", example: 328 },
+                                  changePercent: { type: "integer", example: 8 },
+                                  changeLabel: { type: "string", example: "+8% from last week" },
+                                },
+                              },
+                              studentActivity: {
+                                type: "object",
+                                properties: {
+                                  value: { type: "integer", example: 2847 },
+                                  changePercent: { type: "integer", example: 15 },
+                                  changeLabel: { type: "string", example: "+15% from last week" },
+                                },
+                              },
+                              growthRate: {
+                                type: "object",
+                                properties: {
+                                  value: { type: "integer", example: 23 },
+                                  changePercent: { type: "integer", example: 3 },
+                                  changeLabel: { type: "string", example: "+3% from last week" },
+                                },
+                              },
+                            },
+                          },
+                          weeklyOverview: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                day: { type: "string", example: "Mon" },
+                                problems: { type: "integer", example: 24 },
+                                users: { type: "integer", example: 40 },
+                              },
+                            },
+                          },
+                          activityDistribution: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                day: { type: "string", example: "Mon" },
+                                activity: { type: "integer", example: 24 },
+                              },
+                            },
+                          },
+                          recentActivity: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string", example: "activity_1" },
+                                title: { type: "string", example: "New problem created" },
+                                actor: { type: "string", example: "Admin User" },
+                                timeAgo: { type: "string", example: "2 hours ago" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires product_admin or super_admin role" },
+          },
+        },
+      },
+
       "/api/product-admin/colleges": {
         post: {
           summary: "Create a new college",
