@@ -6,6 +6,7 @@ import productAdminCollegesRoutes from "../product-admin/colleges.routes.js";
 import productAdminRbacRoutes from "../product-admin/rbac.routes.js";
 import productAdminHackathonRoutes from "../product-admin/hackathon.routes.js";
 import productAdminDashboardRoutes from "../product-admin/dashboard.routes.js";
+import productAdminUsersRoutes from "../product-admin/users.routes.js";
 
 const router: Router = Router();
 
@@ -23,6 +24,9 @@ router.use("/hackathons", productAdminHackathonRoutes);
 
 // ─── Mount Dashboard Routes ───────────────────────────────────────────────────
 router.use("/dashboard", productAdminDashboardRoutes);
+
+// ─── Mount Users Routes ───────────────────────────────────────────────────────
+router.use("/users", productAdminUsersRoutes);
 
 // Additional product admin routes can be added here
 // router.use("/dashboard", productAdminDashboardRoutes);

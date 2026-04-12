@@ -75,6 +75,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
         description: "Dashboard metrics, chart series, and recent activity for product admin portal.",
       },
       {
+        name: "Product Admin - Users",
+        description: "Hierarchical user statistics across colleges, departments, years, and batches.",
+      },
+      {
         name: "Public APIs - Tests",
         description: "Publicly available tests, filters, and statistics (no authentication required).",
       },
@@ -301,6 +305,76 @@ const swaggerOptions: swaggerJsdoc.Options = {
             startTime: { type: "string", format: "date-time", nullable: true },
             endTime: { type: "string", format: "date-time", nullable: true },
             duration: { type: "integer", description: "Duration in minutes", nullable: true },
+          },
+        },
+        ProductAdminUserStatsBatch: {
+          type: "object",
+          properties: {
+            id: { type: "string", example: "batch-a" },
+            name: { type: "string", example: "Batch A" },
+            code: { type: "string", example: "SCI-1-A" },
+            year: { type: "integer", example: 1 },
+            userCount: { type: "integer", example: 200 },
+          },
+        },
+        ProductAdminUserStatsYear: {
+          type: "object",
+          properties: {
+            year: { type: "integer", example: 1 },
+            label: { type: "string", example: "1st Year" },
+            userCount: { type: "integer", example: 400 },
+            batches: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ProductAdminUserStatsBatch" },
+            },
+          },
+        },
+        ProductAdminUserStatsDepartment: {
+          type: "object",
+          properties: {
+            id: { type: "string", example: "dept-sci" },
+            name: { type: "string", example: "Science" },
+            code: { type: "string", example: "SCI" },
+            userCount: { type: "integer", example: 1500 },
+            years: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ProductAdminUserStatsYear" },
+            },
+          },
+        },
+        ProductAdminUserStatsCollege: {
+          type: "object",
+          properties: {
+            id: { type: "string", example: "college-1" },
+            name: { type: "string", example: "MIT" },
+            code: { type: "string", example: "MIT-001" },
+            userCount: { type: "integer", example: 4500 },
+            departments: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ProductAdminUserStatsDepartment" },
+            },
+          },
+        },
+        ProductAdminUserStatsSummary: {
+          type: "object",
+          properties: {
+            totalColleges: { type: "integer", example: 2 },
+            totalDepartments: { type: "integer", example: 2 },
+            totalYears: { type: "integer", example: 1 },
+            totalBatches: { type: "integer", example: 2 },
+            totalUsers: { type: "integer", example: 7700 },
+          },
+        },
+        ProductAdminUserStatsResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            generatedAt: { type: "string", format: "date-time" },
+            summary: { $ref: "#/components/schemas/ProductAdminUserStatsSummary" },
+            hierarchy: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ProductAdminUserStatsCollege" },
+            },
           },
         },
       },
@@ -2455,6 +2529,39 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
             "401": { description: "Not authenticated" },
             "403": { description: "Forbidden - requires product_admin or super_admin role" },
+          },
+        },
+      },
+
+      "/api/product-admin/users/stats": {
+        get: {
+          summary: "Get hierarchical user stats",
+          description:
+            "Returns users hierarchy grouped by college, department, year, and batch with aggregate totals for users management.",
+          tags: ["Product Admin - Users"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              in: "query",
+              name: "search",
+              required: false,
+              schema: { type: "string", minLength: 1 },
+              description:
+                "Optional search text to filter hierarchy by college, department, batch, code, or year label (for example: Batch B).",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Hierarchical user stats",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ProductAdminUserStatsResponse" },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires product_admin or super_admin role" },
+            "500": { description: "Failed to fetch user stats" },
           },
         },
       },

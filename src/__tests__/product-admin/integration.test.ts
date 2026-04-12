@@ -675,4 +675,118 @@ describe("Product Admin API - Integration Tests", () => {
       expect(response.status).toBe(200);
     });
   });
+
+  describe("Users Endpoints", () => {
+    it("GET /users/stats returns hierarchical college stats", async () => {
+      const collegeFindMany = prisma.college.findMany as any;
+
+      collegeFindMany.mockResolvedValueOnce([
+        {
+          id: "college-1",
+          name: "MIT",
+          code: "MIT-001",
+          _count: { users: 4500 },
+          departments: [
+            {
+              id: "dept-eng",
+              name: "Engineering",
+              code: "ENG",
+              _count: { users: 2000 },
+              batches: [],
+            },
+            {
+              id: "dept-sci",
+              name: "Science",
+              code: "SCI",
+              _count: { users: 1500 },
+              batches: [
+                {
+                  id: "batch-a",
+                  name: "Batch A",
+                  code: "SCI-1-A",
+                  year: 1,
+                  _count: { students: 200 },
+                },
+                {
+                  id: "batch-b",
+                  name: "Batch B",
+                  code: "SCI-1-B",
+                  year: 1,
+                  _count: { students: 200 },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "college-2",
+          name: "Stanford",
+          code: "STF-001",
+          _count: { users: 3200 },
+          departments: [],
+        },
+      ] as any);
+
+      const response = await request(testApp).get("/api/product-admin/users/stats").set("x-test-role", "super_admin");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.summary.totalColleges).toBe(2);
+      expect(response.body.summary.totalDepartments).toBe(2);
+      expect(response.body.summary.totalYears).toBe(1);
+      expect(response.body.summary.totalBatches).toBe(2);
+      expect(response.body.summary.totalUsers).toBe(7700);
+      expect(response.body.hierarchy[0].name).toBe("MIT");
+      expect(response.body.hierarchy[0].departments[1].years[0].label).toBe("1st Year");
+    });
+
+    it("GET /users/stats supports search filtering", async () => {
+      const collegeFindMany = prisma.college.findMany as any;
+
+      collegeFindMany.mockResolvedValueOnce([
+        {
+          id: "college-1",
+          name: "MIT",
+          code: "MIT-001",
+          _count: { users: 4500 },
+          departments: [
+            {
+              id: "dept-sci",
+              name: "Science",
+              code: "SCI",
+              _count: { users: 1500 },
+              batches: [
+                {
+                  id: "batch-a",
+                  name: "Batch A",
+                  code: "SCI-1-A",
+                  year: 1,
+                  _count: { students: 200 },
+                },
+                {
+                  id: "batch-b",
+                  name: "Batch B",
+                  code: "SCI-1-B",
+                  year: 1,
+                  _count: { students: 200 },
+                },
+              ],
+            },
+          ],
+        },
+      ] as any);
+
+      const response = await request(testApp)
+        .get("/api/product-admin/users/stats")
+        .query({ search: "Batch B" })
+        .set("x-test-role", "super_admin");
+
+      expect(response.status).toBe(200);
+      expect(response.body.hierarchy).toHaveLength(1);
+      expect(response.body.hierarchy[0].departments).toHaveLength(1);
+      expect(response.body.hierarchy[0].departments[0].years).toHaveLength(1);
+      expect(response.body.hierarchy[0].departments[0].years[0].batches).toHaveLength(1);
+      expect(response.body.hierarchy[0].departments[0].years[0].batches[0].name).toBe("Batch B");
+    });
+  });
 });
