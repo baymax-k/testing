@@ -3,7 +3,7 @@ import type { AuthRequest } from "../../middleware/auth.js";
 import { getProductAdminDashboardData } from "../services/productAdminDashboard.service.js";
 
 function isProductAdminRole(role: string): boolean {
-  return role === "product_admin" || role === "super_admin";
+  return role === "product_admin";
 }
 
 /**
@@ -18,7 +18,7 @@ export async function getDashboard(req: AuthRequest, res: Response): Promise<voi
     }
 
     if (!isProductAdminRole(req.user.role)) {
-      res.status(403).json({ error: "Only product_admin or super_admin can access dashboard" });
+      res.status(403).json({ error: "Only product_admin can access dashboard" });
       return;
     }
 
@@ -34,3 +34,4 @@ export async function getDashboard(req: AuthRequest, res: Response): Promise<voi
     res.status(500).json({ error: err.message || "Failed to fetch dashboard" });
   }
 }
+

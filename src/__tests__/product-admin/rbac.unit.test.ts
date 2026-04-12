@@ -40,7 +40,7 @@ describe("Product Admin RBAC Controller - Unit Tests", () => {
     id: "super-1",
     email: "super.admin@example.com",
     name: "Super Admin",
-    role: "super_admin",
+    role: "product_admin",
     phone: null,
     collegeId: null,
     createdAt: now,
@@ -73,7 +73,7 @@ describe("Product Admin RBAC Controller - Unit Tests", () => {
   });
 
   it("getAllAdmins returns admin list", async () => {
-    const req = { user: { userId: "super-1", role: "super_admin" } } as any;
+    const req = { user: { userId: "super-1", role: "product_admin" } } as any;
     const res = createMockRes();
 
     await getAllAdmins(req, res);
@@ -93,11 +93,11 @@ describe("Product Admin RBAC Controller - Unit Tests", () => {
 
   it("promoteAdmin promotes target admin", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(collegeAdmin as any);
-    vi.mocked(prisma.user.update).mockResolvedValueOnce({ ...collegeAdmin, role: "super_admin", collegeId: null } as any);
+    vi.mocked(prisma.user.update).mockResolvedValueOnce({ ...collegeAdmin, role: "product_admin", collegeId: null } as any);
 
     const req = {
-      user: { userId: "super-1", role: "super_admin" },
-      body: { adminId: "admin-1", newRole: "super_admin" },
+      user: { userId: "super-1", role: "product_admin" },
+      body: { adminId: "admin-1", newRole: "product_admin" },
     } as any;
     const res = createMockRes();
 
@@ -111,7 +111,7 @@ describe("Product Admin RBAC Controller - Unit Tests", () => {
     vi.mocked(prisma.user.update).mockResolvedValueOnce({ ...superAdmin, role: "college_admin", collegeId: "college-1" } as any);
 
     const req = {
-      user: { userId: "super-1", role: "super_admin" },
+      user: { userId: "super-1", role: "product_admin" },
       body: { adminId: "super-1", collegeId: "college-1" },
     } as any;
     const res = createMockRes();
@@ -122,7 +122,7 @@ describe("Product Admin RBAC Controller - Unit Tests", () => {
   });
 
   it("getRolePermissions returns role permissions", async () => {
-    const req = { params: { role: "super_admin" } } as any;
+    const req = { params: { role: "product_admin" } } as any;
     const res = createMockRes();
 
     await getRolePermissions(req, res);
@@ -139,3 +139,4 @@ describe("Product Admin RBAC Controller - Unit Tests", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });
+

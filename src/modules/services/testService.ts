@@ -101,7 +101,7 @@ async function checkTestManagementPermission(
   }
 
   // Super admins and college admins can manage all tests
-  if (allowedRoles.includes(user.role) || user.role === "super_admin" || user.role === "college_admin") {
+  if (allowedRoles.includes(user.role) || user.role === "product_admin" || user.role === "college_admin") {
     return true;
   }
 
@@ -886,3 +886,4 @@ export class TestService {
     return updatedTest;
   }
 }
+

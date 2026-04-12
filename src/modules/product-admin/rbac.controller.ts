@@ -11,7 +11,7 @@ import { ROLE_PERMISSIONS } from "../../middleware/rbac.js";
 
 const promoteAdminSchema = z.object({
   adminId: z.string().min(1, "Admin ID is required"),
-  newRole: z.enum(["super_admin", "college_admin"]).optional(),
+  newRole: z.enum(["product_admin", "college_admin"]).optional(),
 });
 
 const demoteAdminSchema = z.object({
@@ -20,14 +20,14 @@ const demoteAdminSchema = z.object({
 });
 
 const getAdminPermissionsSchema = z.object({
-  role: z.enum(["super_admin", "college_admin"]),
+  role: z.enum(["product_admin", "college_admin"]),
 });
 
 // ─── Get All Product Admins ───────────────────────────────────────────────────
 
 /**
  * GET /api/product-admin/rbac/admins
- * List all product admins (super_admin only)
+ * List all product admins (product_admin only)
  */
 export async function getAllAdmins(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -39,7 +39,7 @@ export async function getAllAdmins(req: AuthRequest, res: Response): Promise<voi
     const admins = await prisma.user.findMany({
       where: {
         role: {
-          in: ["super_admin", "college_admin"],
+          in: ["product_admin", "college_admin"],
         },
       },
       select: {
@@ -113,7 +113,7 @@ export async function getAdminDetails(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (!["super_admin", "college_admin"].includes(admin.role)) {
+    if (!["product_admin", "college_admin"].includes(admin.role)) {
       res.status(400).json({ error: "User is not a product admin" });
       return;
     }
@@ -146,11 +146,11 @@ export async function getAdminDetails(req: AuthRequest, res: Response): Promise<
   }
 }
 
-// ─── Promote Admin (to super_admin) ────────────────────────────────────────────
+// ─── Promote Admin (to product_admin) ────────────────────────────────────────────
 
 /**
  * POST /api/product-admin/rbac/promote
- * Promote an admin to super_admin (super_admin only)
+ * Promote an admin to product_admin (product_admin only)
  */
 export async function promoteAdmin(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -169,7 +169,7 @@ export async function promoteAdmin(req: AuthRequest, res: Response): Promise<voi
     }
 
     const { adminId, newRole } = validation.data;
-    const targetRole = (newRole || "super_admin") as "super_admin" | "college_admin";
+    const targetRole = (newRole || "product_admin") as "product_admin" | "college_admin";
 
     // Find the admin to promote
     const adminToPromote = await prisma.user.findUnique({
@@ -181,7 +181,7 @@ export async function promoteAdmin(req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (!["super_admin", "college_admin"].includes(adminToPromote.role)) {
+    if (!["product_admin", "college_admin"].includes(adminToPromote.role)) {
       res.status(400).json({ error: "User is not a product admin" });
       return;
     }
@@ -196,8 +196,8 @@ export async function promoteAdmin(req: AuthRequest, res: Response): Promise<voi
       where: { id: adminId },
       data: {
         role: targetRole,
-        // If promoting to super_admin, they don't need collegeId
-        ...(targetRole === "super_admin" && { collegeId: null }),
+        // If promoting to product_admin, they don't need collegeId
+        ...(targetRole === "product_admin" && { collegeId: null }),
       },
       select: {
         id: true,
@@ -233,7 +233,7 @@ export async function promoteAdmin(req: AuthRequest, res: Response): Promise<voi
 
 /**
  * POST /api/product-admin/rbac/demote
- * Demote a super_admin to college_admin and assign to a college (super_admin only)
+ * Demote a product_admin to college_admin and assign to a college (product_admin only)
  */
 export async function demoteAdmin(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -263,8 +263,8 @@ export async function demoteAdmin(req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    if (adminToDemote.role !== "super_admin") {
-      res.status(400).json({ error: "Only super_admins can be demoted" });
+    if (adminToDemote.role !== "product_admin") {
+      res.status(400).json({ error: "Only product_admins can be demoted" });
       return;
     }
 
@@ -372,3 +372,4 @@ export async function getMyPermissions(req: AuthRequest, res: Response): Promise
     res.status(500).json({ error: err.message || "Failed to fetch permissions" });
   }
 }
+

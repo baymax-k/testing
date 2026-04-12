@@ -142,7 +142,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("createHackathon creates a new hackathon", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin" },
+      user: { userId: "super-1", role: "product_admin" },
       body: {
         title: "Spring Hackathon",
         description: "Description",
@@ -171,7 +171,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("getHackathons returns filtered hackathons", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin", collegeId: null },
+      user: { userId: "super-1", role: "product_admin", collegeId: null },
       query: { page: "1", limit: "20" },
     } as any;
     const res = createMockRes();
@@ -183,7 +183,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("getHackathonById returns details", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin", collegeId: null },
+      user: { userId: "super-1", role: "product_admin", collegeId: null },
       params: { hackathonId: "hack-1" },
     } as any;
     const res = createMockRes();
@@ -195,7 +195,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("getHackathonStats returns computed stats", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin", collegeId: null },
+      user: { userId: "super-1", role: "product_admin", collegeId: null },
       params: { hackathonId: "hack-1" },
     } as any;
     const res = createMockRes();
@@ -207,7 +207,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("updateHackathon updates fields", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin" },
+      user: { userId: "super-1", role: "product_admin" },
       params: { hackathonId: "hack-1" },
       body: { title: "Updated Hackathon" },
     } as any;
@@ -220,7 +220,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("updateHackathonStatus updates status", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin" },
+      user: { userId: "super-1", role: "product_admin" },
       params: { hackathonId: "hack-1" },
       body: { status: "registration_open" },
     } as any;
@@ -233,7 +233,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("deleteHackathon removes hackathon", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin" },
+      user: { userId: "super-1", role: "product_admin" },
       params: { hackathonId: "hack-1" },
     } as any;
     const res = createMockRes();
@@ -245,7 +245,7 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
 
   it("updateTeam updates team details", async () => {
     const req = {
-      user: { userId: "super-1", role: "super_admin", collegeId: null },
+      user: { userId: "super-1", role: "product_admin", collegeId: null },
       params: { hackathonId: "hack-1", teamId: "team-1" },
       body: { score: 95, ranking: 1 },
     } as any;

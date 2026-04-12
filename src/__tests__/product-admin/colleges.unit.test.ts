@@ -123,7 +123,7 @@ describe("Product Admin Colleges Controller - Unit Tests", () => {
 
   it("getColleges returns list of colleges", async () => {
     const req = {
-      user: { userId: "user-1", role: "super_admin", collegeId: null },
+      user: { userId: "user-1", role: "product_admin", collegeId: null },
     } as any;
     const res = createMockRes();
 
@@ -134,7 +134,7 @@ describe("Product Admin Colleges Controller - Unit Tests", () => {
 
   it("getCollege returns a single college", async () => {
     const req = {
-      user: { userId: "user-1", role: "super_admin", collegeId: null },
+      user: { userId: "user-1", role: "product_admin", collegeId: null },
       params: { collegeId: "college-1" },
     } as any;
     const res = createMockRes();
@@ -162,7 +162,7 @@ describe("Product Admin Colleges Controller - Unit Tests", () => {
 
   it("createCollegeAdmin creates and assigns admin", async () => {
     const req = {
-      user: { userId: "user-1", role: "super_admin" },
+      user: { userId: "user-1", role: "product_admin" },
       body: {
         email: "college.admin@example.com",
         name: "College Admin",
@@ -217,7 +217,7 @@ describe("Product Admin Colleges Controller - Unit Tests", () => {
 
   it("deleteCollege removes empty college", async () => {
     const req = {
-      user: { userId: "user-1", role: "super_admin" },
+      user: { userId: "user-1", role: "product_admin" },
       params: { collegeId: "college-1" },
     } as any;
     const res = createMockRes();
@@ -227,3 +227,4 @@ describe("Product Admin Colleges Controller - Unit Tests", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });
+

@@ -176,7 +176,7 @@
           <label for="promoteBody">POST /rbac/promote payload</label>
           <textarea id="promoteBody">{
   "adminId": "",
-  "newRole": "super_admin"
+  "newRole": "product_admin"
 }</textarea>
 
           <label for="demoteBody">POST /rbac/demote payload</label>
@@ -195,14 +195,14 @@
           <h2>Role Permissions</h2>
           <label for="roleName">Role</label>
           <select id="roleName">
-            <option value="super_admin">super_admin</option>
+            <option value="product_admin">product_admin</option>
             <option value="college_admin">college_admin</option>
           </select>
           <div class="actions">
             <button class="btn-soft" id="btnRolePerms">GET /rbac/roles/:role/permissions</button>
             <button class="btn-soft" id="btnMyPerms">GET /rbac/my-permissions</button>
           </div>
-          <p class="hint">Promotion and demotion endpoints require super_admin role.</p>
+          <p class="hint">Promotion and demotion endpoints require product_admin role.</p>
         </article>
 
         <article class="card span-12">
@@ -324,3 +324,4 @@
     </script>
   </body>
 </html>
+

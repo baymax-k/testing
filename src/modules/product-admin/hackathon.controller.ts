@@ -113,7 +113,7 @@ function safeTeam(team: any) {
 
 /**
  * POST /api/product-admin/hackathons
- * Create a new hackathon (super_admin only)
+ * Create a new hackathon (product_admin only)
  */
 export async function createHackathon(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -122,9 +122,9 @@ export async function createHackathon(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    // Only super_admin can create hackathons
-    if (req.user.role !== "super_admin") {
-      res.status(403).json({ error: "Only super_admin can create hackathons" });
+    // Only product_admin can create hackathons
+    if (req.user.role !== "product_admin") {
+      res.status(403).json({ error: "Only product_admin can create hackathons" });
       return;
     }
 
@@ -218,7 +218,7 @@ export async function getHackathons(req: AuthRequest, res: Response): Promise<vo
     if (req.user.role === "college_admin" && req.user.collegeId) {
       // College admin can only see their own college's hackathons
       whereFilter.collegeId = req.user.collegeId;
-    } else if (!["super_admin", "product_admin"].includes(req.user.role)) {
+    } else if (req.user.role !== "product_admin") {
       // Non-admin cannot access this
       res.status(403).json({ error: "Insufficient permissions" });
       return;
@@ -367,7 +367,7 @@ export async function getHackathonById(req: AuthRequest, res: Response): Promise
 
 /**
  * PATCH /api/product-admin/hackathons/:hackathonId
- * Update hackathon details (super_admin only)
+ * Update hackathon details (product_admin only)
  */
 export async function updateHackathon(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -376,8 +376,8 @@ export async function updateHackathon(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (req.user.role !== "super_admin") {
-      res.status(403).json({ error: "Only super_admin can update hackathons" });
+    if (req.user.role !== "product_admin") {
+      res.status(403).json({ error: "Only product_admin can update hackathons" });
       return;
     }
 
@@ -454,7 +454,7 @@ export async function updateHackathon(req: AuthRequest, res: Response): Promise<
 
 /**
  * PATCH /api/product-admin/hackathons/:hackathonId/status
- * Update hackathon status (super_admin only)
+ * Update hackathon status (product_admin only)
  */
 export async function updateHackathonStatus(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -463,8 +463,8 @@ export async function updateHackathonStatus(req: AuthRequest, res: Response): Pr
       return;
     }
 
-    if (req.user.role !== "super_admin") {
-      res.status(403).json({ error: "Only super_admin can update hackathon status" });
+    if (req.user.role !== "product_admin") {
+      res.status(403).json({ error: "Only product_admin can update hackathon status" });
       return;
     }
 
@@ -512,7 +512,7 @@ export async function updateHackathonStatus(req: AuthRequest, res: Response): Pr
 
 /**
  * DELETE /api/product-admin/hackathons/:hackathonId
- * Delete a hackathon (super_admin only)
+ * Delete a hackathon (product_admin only)
  */
 export async function deleteHackathon(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -521,8 +521,8 @@ export async function deleteHackathon(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (req.user.role !== "super_admin") {
-      res.status(403).json({ error: "Only super_admin can delete hackathons" });
+    if (req.user.role !== "product_admin") {
+      res.status(403).json({ error: "Only product_admin can delete hackathons" });
       return;
     }
 
@@ -594,7 +594,7 @@ export async function updateTeam(req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Only super_admin or team lead can update
+    // Only product_admin or team lead can update
     const team = await (prisma as any).hackathonTeam.findUnique({
       where: { id: teamId },
       include: { leader: true },
@@ -610,8 +610,8 @@ export async function updateTeam(req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    if (req.user.role !== "super_admin" && team.leaderUserId !== req.user.userId) {
-      res.status(403).json({ error: "Only team lead or super_admin can update team" });
+    if (req.user.role !== "product_admin" && team.leaderUserId !== req.user.userId) {
+      res.status(403).json({ error: "Only team lead or product_admin can update team" });
       return;
     }
 

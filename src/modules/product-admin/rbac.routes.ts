@@ -2,7 +2,7 @@
 
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
-import { requireSuperAdmin } from "../../middleware/rbac.js";
+import { requireProductAdminOnly } from "../../middleware/rbac.js";
 import {
   getAllAdmins,
   getAdminDetails,
@@ -17,19 +17,19 @@ const router: Router = Router();
 // All RBAC routes require authentication
 router.use(requireAuth);
 
-// ─── Admin Management (superadmin only) ────────────────────────────────────────
+// ─── Admin Management (product_admin only) ─────────────────────────────────────
 
 // List all admins
-router.get("/admins", requireSuperAdmin(), getAllAdmins);
+router.get("/admins", requireProductAdminOnly(), getAllAdmins);
 
 // Get admin details
 router.get("/admins/:adminId", getAdminDetails);
 
-// Promote admin to superadmin
-router.post("/promote", requireSuperAdmin(), promoteAdmin);
+// Promote admin to product_admin
+router.post("/promote", requireProductAdminOnly(), promoteAdmin);
 
-// Demote superadmin to admin
-router.post("/demote", requireSuperAdmin(), demoteAdmin);
+// Demote product_admin to college_admin
+router.post("/demote", requireProductAdminOnly(), demoteAdmin);
 
 // ─── Permissions Management ────────────────────────────────────────────────────
 

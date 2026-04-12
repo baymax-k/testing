@@ -906,12 +906,12 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
       body: { email, password },
     });
 
-    // Check if user has college admin portal access (super_admin, college_admin, principal, hod, mentor, dept_admin)
-    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    // Check if user has college admin portal access (product_admin, college_admin, principal, hod, mentor, dept_admin)
+    const allowedRoles = ["product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
     if (result?.user && !allowedRoles.includes(result.user.role)) {
       res.status(403).json({
         error: "Access denied",
-        message: "This portal is only accessible to super admins, college administrators, principals, HODs, and mentors",
+        message: "This portal is only accessible to product admins, college administrators, principals, HODs, and mentors",
       });
       return;
     }
@@ -1044,7 +1044,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
       return;
     }
 
-    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    const allowedRoles = ["product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
     if (!allowedRoles.includes(user.role)) {
       res.status(403).json({
         error: "Access denied",
@@ -1129,7 +1129,7 @@ router.post("/auth/reset-password", async (req: AuthRequest, res: Response): Pro
 router.get(
   "/profile",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -1177,7 +1177,7 @@ router.get(
 router.put(
   "/profile",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -1239,7 +1239,7 @@ router.put(
 router.get(
   "/dashboard",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const user = req.user!;
     const { role: queryRole } = req.query;
@@ -1249,12 +1249,12 @@ router.get(
     let effectiveRole = user.role;
     
     if (queryRole && typeof queryRole === "string") {
-      const validRoles = ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"];
+      const validRoles = ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"];
       
       // Verify the query role is valid
       if (validRoles.includes(queryRole)) {
-        // Security check: Only super_admin/college_admin/principal can view other role dashboards
-        if (user.role === "super_admin" || user.role === "college_admin" || user.role === "principal") {
+        // Security check: Only product_admin/college_admin/principal can view other role dashboards
+        if (user.role === "product_admin" || user.role === "college_admin" || user.role === "principal") {
           effectiveRole = queryRole;
         } else if (queryRole === user.role) {
           // Users can always view their own role dashboard
@@ -1280,35 +1280,35 @@ router.get(
           name: "Department Management", 
           status: "active", 
           endpoint: "/api/college-admin/departments",
-          roles: ["super_admin", "college_admin", "principal"],
+          roles: ["product_admin", "college_admin", "principal"],
           description: "Manage departments, assign HODs"
         },
         { 
           name: "Batch Management", 
           status: "active", 
           endpoint: "/api/college-admin/batches",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin"],
           description: "Create and manage student batches"
         },
         { 
           name: "User Management", 
           status: "active", 
           endpoint: "/api/college-admin/users",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin"],
           description: "Create and manage users (Principal, HOD, Mentors, Students)"
         },
         { 
           name: "Student Management", 
           status: "active", 
           endpoint: "/api/college-admin/students",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Manage student records, bulk operations"
         },
         { 
           name: "Test Management", 
           status: "active", 
           endpoint: "/api/college-admin/tests",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Create, schedule and manage tests"
         },
         { 
@@ -1339,14 +1339,14 @@ router.get(
           name: "Active Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=active",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "View currently active tests"
         },
         { 
           name: "Upcoming Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=upcoming",
-          roles: ["super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "View scheduled upcoming tests"
         },
         { 
@@ -1360,14 +1360,14 @@ router.get(
           name: "Performance Analytics", 
           status: "coming soon", 
           endpoint: "/api/college-admin/analytics",
-          roles: ["super_admin", "college_admin", "principal", "hod"],
+          roles: ["product_admin", "college_admin", "principal", "hod"],
           description: "View performance metrics and analytics"
         },
         { 
           name: "Reports", 
           status: "coming soon", 
           endpoint: "/api/college-admin/reports",
-          roles: ["super_admin", "college_admin", "principal", "hod"],
+          roles: ["product_admin", "college_admin", "principal", "hod"],
           description: "Generate and view reports"
         },
       ];
@@ -1383,7 +1383,7 @@ router.get(
     // Get role-specific greeting and statistics
     const getRoleTitle = (role: string) => {
       const roleTitles: Record<string, string> = {
-        super_admin: "Super Administrator",
+        product_admin: "Super Administrator",
         college_admin: "College Administrator",
         principal: "Principal",
         hod: "Head of Department",
@@ -1398,7 +1398,7 @@ router.get(
       const stats: any = {};
 
       try {
-        if (role === "super_admin" || role === "college_admin" || role === "principal") {
+        if (role === "product_admin" || role === "college_admin" || role === "principal") {
           // Global statistics
           const [totalDepartments, totalBatches, totalStudents, totalTests] = await Promise.all([
             prisma.department.count(),
@@ -1453,7 +1453,7 @@ router.get(
             scheduledStartTime: { lte: now },
             scheduledEndTime: { gte: now },
             status: { notIn: ["archived"] },
-            ...(role !== "super_admin" && role !== "college_admin" && role !== "principal" && user.departmentId
+            ...(role !== "product_admin" && role !== "college_admin" && role !== "principal" && user.departmentId
               ? { departmentId: user.departmentId }
               : {}),
           },
@@ -1502,7 +1502,7 @@ router.get(
 router.post(
   "/users",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -1596,7 +1596,7 @@ router.post(
 router.post(
   "/users/bulk",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const validation = bulkUsersSchema.safeParse(req.body);
@@ -1680,7 +1680,7 @@ router.post(
 router.get(
   "/users",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -1721,7 +1721,7 @@ router.get(
 router.get(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.params.userId as string;
@@ -1756,7 +1756,7 @@ router.get(
 router.put(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principalcor", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principalcor", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -1808,7 +1808,7 @@ router.put(
 router.delete(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -1863,7 +1863,7 @@ router.delete(
 router.put(
   "/users/:userId/assign-role",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.params.userId as string;
@@ -1900,7 +1900,7 @@ router.put(
 router.put(
   "/users/:userId/assign-department",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.params.userId as string;
@@ -1939,7 +1939,7 @@ router.put(
 router.post(
   "/departments",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const validation = createDepartmentSchema.safeParse(req.body);
@@ -1975,7 +1975,7 @@ router.post(
 router.get(
   "/departments",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2033,7 +2033,7 @@ router.get(
 router.get(
   "/departments/:deptId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2079,7 +2079,7 @@ router.get(
 router.put(
   "/departments/:deptId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const deptId = req.params.deptId as string;
@@ -2116,7 +2116,7 @@ router.put(
 router.delete(
   "/departments/:deptId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const deptId = req.params.deptId as string;
@@ -2148,7 +2148,7 @@ router.delete(
 router.post(
   "/batches",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2204,7 +2204,7 @@ router.post(
 router.get(
   "/batches",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2254,7 +2254,7 @@ router.get(
 router.get(
   "/batches/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2300,7 +2300,7 @@ router.get(
 router.put(
   "/batches/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2358,7 +2358,7 @@ router.put(
 router.delete(
   "/batches/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2405,7 +2405,7 @@ router.delete(
 router.post(
   "/batches/:batchId/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2463,7 +2463,7 @@ router.post(
 router.delete(
   "/batches/:batchId/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2521,7 +2521,7 @@ router.delete(
 router.put(
   "/batches/:batchId/mentor",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2579,7 +2579,7 @@ router.put(
 router.delete(
   "/batches/:batchId/mentor",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2627,7 +2627,7 @@ router.delete(
 router.get(
   "/batches/:batchId/stats",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2678,7 +2678,7 @@ router.get(
 router.post(
   "/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2784,7 +2784,7 @@ router.post(
 router.post(
   "/students/bulk",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2860,7 +2860,7 @@ router.post(
 router.get(
   "/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2911,7 +2911,7 @@ router.get(
 router.get(
   "/students/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2972,7 +2972,7 @@ router.get(
 router.put(
   "/students/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3054,7 +3054,7 @@ router.put(
 router.delete(
   "/students/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3176,7 +3176,7 @@ const reorderQuestionsSchema = z.object({
 router.post(
   "/tests",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -3234,7 +3234,7 @@ router.post(
 router.get(
   "/tests",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -3257,8 +3257,8 @@ router.get(
         filters.departmentId = user.departmentId;
       }
 
-      // Override with query params if super_admin/college_admin/principal
-      if (user.role === "super_admin" || user.role === "college_admin" || user.role === "principal") {
+      // Override with query params if product_admin/college_admin/principal
+      if (user.role === "product_admin" || user.role === "college_admin" || user.role === "principal") {
         if (departmentId) filters.departmentId = departmentId as string;
         if (batchId) filters.batchId = batchId as string;
       }
@@ -3291,7 +3291,7 @@ router.get(
 router.get(
   "/tests/:testId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3300,7 +3300,7 @@ router.get(
       const test = await TestService.getTestById(testId);
 
       // Check access permissions
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -3328,7 +3328,7 @@ router.get(
 router.put(
   "/tests/:testId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3347,7 +3347,7 @@ router.put(
       // Check if user has permission to edit this test
       const existingTest = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (existingTest.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (existingTest.departmentId !== user.departmentId) {
@@ -3395,7 +3395,7 @@ router.put(
 router.delete(
   "/tests/:testId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3404,7 +3404,7 @@ router.delete(
       // Check if user has permission to delete this test
       const existingTest = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (existingTest.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (existingTest.departmentId !== user.departmentId) {
@@ -3446,7 +3446,7 @@ router.delete(
 router.post(
   "/tests/:testId/questions",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3465,7 +3465,7 @@ router.post(
       // Check if user has permission to add questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -3507,7 +3507,7 @@ router.post(
 router.get(
   "/tests/:testId/questions",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3516,7 +3516,7 @@ router.get(
       // Check access permissions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -3546,7 +3546,7 @@ router.get(
 router.put(
   "/tests/:testId/questions/:questionId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3566,7 +3566,7 @@ router.put(
       // Check if user has permission to edit questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -3608,7 +3608,7 @@ router.put(
 router.delete(
   "/tests/:testId/questions/:questionId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3618,7 +3618,7 @@ router.delete(
       // Check if user has permission to delete questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -3658,7 +3658,7 @@ router.delete(
 router.put(
   "/tests/:testId/questions/reorder",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3677,7 +3677,7 @@ router.put(
       // Check if user has permission to reorder questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -3720,7 +3720,7 @@ router.put(
 router.get(
   "/tests/:testId/status",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3729,7 +3729,7 @@ router.get(
       // Check access permissions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -3761,7 +3761,7 @@ router.get(
 router.post(
   "/tests/:testId/assign-batch",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -3777,7 +3777,7 @@ router.post(
       // Check access permissions for the test
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -3830,7 +3830,7 @@ router.post(
 router.get(
   "/report/student/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const studentId = req.params.studentId as string;
@@ -3848,7 +3848,7 @@ router.get(
       }
 
       // Verify user has access to this student's data
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin") {
           if (student.departmentId !== user.departmentId) {
             res.status(403).json({ error: "You can only view students from your department" });
@@ -3885,7 +3885,7 @@ router.get(
 router.get(
   "/report/batch/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const batchId = req.params.batchId as string;
@@ -3903,7 +3903,7 @@ router.get(
       }
 
       // Verify user has access to this batch
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (batch.departmentId !== user.departmentId) {
           res.status(403).json({ error: "You can only view batches from your department" });
           return;
@@ -3933,7 +3933,7 @@ router.get(
 router.get(
   "/report/batch/:batchId/leaderboard",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const batchId = req.params.batchId as string;
@@ -3952,7 +3952,7 @@ router.get(
       }
 
       // Verify user has access to this batch
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (batch.departmentId !== user.departmentId) {
           res.status(403).json({ error: "You can only view leaderboards for batches in your department" });
           return;
@@ -3984,7 +3984,7 @@ router.get(
 router.get(
   "/report/test/:testId/analysis",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -4002,7 +4002,7 @@ router.get(
       }
 
       // Verify user has access to this test
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.departmentId !== user.departmentId) {
           res.status(403).json({ error: "You can only view analysis for tests in your department" });
           return;
@@ -4031,7 +4031,7 @@ router.get(
 router.get(
   "/report/student/:studentId/skillset",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const studentId = req.params.studentId as string;
@@ -4049,7 +4049,7 @@ router.get(
       }
 
       // Verify user has access to this student's data
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin") {
           if (student.departmentId !== user.departmentId) {
             res.status(403).json({ error: "You can only view students from your department" });
@@ -4086,7 +4086,7 @@ router.get(
 router.get(
   "/report/department/:departmentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const departmentId = req.params.departmentId as string;
@@ -4104,7 +4104,7 @@ router.get(
       }
 
       // Verify user has access to this department
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin") {
           if (departmentId !== user.departmentId) {
             res.status(403).json({ error: "You can only view reports for your department" });
@@ -4129,6 +4129,7 @@ router.get(
 );
 
 export default router;
+
 
 
 

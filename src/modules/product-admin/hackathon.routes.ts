@@ -11,16 +11,15 @@ import {
   updateTeam,
   getHackathonStats,
 } from "./hackathon.controller.js";
-import { requireAuth } from "../../middleware/auth.js";
-import { requireSuperAdmin } from "../../middleware/rbac.js";
+import { requireAuth, requireRole } from "../../middleware/auth.js";
 
 const router: Router = Router();
 
 // All hackathon routes require authentication
 router.use(requireAuth);
 
-// ─── Create hackathon (super_admin only)
-router.post("/", requireSuperAdmin(), createHackathon);
+// ─── Create hackathon (product_admin only)
+router.post("/", requireRole("product_admin"), createHackathon);
 
 // ─── Get all hackathons (with filtering)
 router.get("/", getHackathons);
@@ -31,14 +30,14 @@ router.get("/:hackathonId", getHackathonById);
 // ─── Get hackathon statistics
 router.get("/:hackathonId/stats", getHackathonStats);
 
-// ─── Update hackathon (super_admin only)
-router.patch("/:hackathonId", requireSuperAdmin(), updateHackathon);
+// ─── Update hackathon (product_admin only)
+router.patch("/:hackathonId", requireRole("product_admin"), updateHackathon);
 
-// ─── Update hackathon status (super_admin only)
-router.patch("/:hackathonId/status", requireSuperAdmin(), updateHackathonStatus);
+// ─── Update hackathon status (product_admin only)
+router.patch("/:hackathonId/status", requireRole("product_admin"), updateHackathonStatus);
 
-// ─── Delete hackathon (super_admin only)
-router.delete("/:hackathonId", requireSuperAdmin(), deleteHackathon);
+// ─── Delete hackathon (product_admin only)
+router.delete("/:hackathonId", requireRole("product_admin"), deleteHackathon);
 
 // ─── Update team submission/scoring
 router.patch("/:hackathonId/teams/:teamId", updateTeam);

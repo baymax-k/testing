@@ -1,2 +1,3 @@
 -- AlterEnum
-ALTER TYPE "Role" ADD VALUE 'super_admin';
+ALTER TYPE "Role" ADD VALUE 'product_admin';
+

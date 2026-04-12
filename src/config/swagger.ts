@@ -64,7 +64,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       },
       {
         name: "Product Admin - RBAC",
-        description: "Role-based access control management for superadmin and admin roles.",
+        description: "Role-based access control management for product admin and college admin roles.",
       },
       {
         name: "Product Admin - Hackathons",
@@ -2585,7 +2585,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden - requires product_admin or super_admin role" },
+            "403": { description: "Forbidden - requires product_admin role" },
           },
         },
       },
@@ -2617,7 +2617,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden - requires product_admin or super_admin role" },
+            "403": { description: "Forbidden - requires product_admin role" },
             "500": { description: "Failed to fetch user stats" },
           },
         },
@@ -2684,6 +2684,58 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
+          },
+        },
+      },
+
+      "/api/product-admin/colleges/admins": {
+        get: {
+          summary: "Get all college admins",
+          tags: ["Product Admin - Colleges"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "List of all college admins",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      count: { type: "integer" },
+                      admins: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            name: { type: "string" },
+                            phone: { type: "string", nullable: true },
+                            role: { type: "string", enum: ["college_admin"] },
+                            collegeId: { type: "string", nullable: true },
+                            emailVerified: { type: "boolean" },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            college: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                code: { type: "string" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires product_admin role" },
           },
         },
       },
@@ -2885,7 +2937,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       "/api/product-admin/rbac/admins": {
         get: {
           summary: "List all product admins",
-          description: "Returns all superadmins and admins in the system (superadmin only)",
+          description: "Returns all product admins and college admins in the system (product_admin only)",
           tags: ["Product Admin - RBAC"],
           security: [{ cookieAuth: [] }],
           responses: {
@@ -2907,7 +2959,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                             email: { type: "string" },
                             name: { type: "string" },
                             phone: { type: "string" },
-                            role: { type: "string", enum: ["super_admin", "college_admin"] },
+                            role: { type: "string", enum: ["product_admin", "college_admin"] },
                             college: { type: "object" },
                           },
                         },
@@ -2918,7 +2970,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden - requires superadmin role" },
+            "403": { description: "Forbidden - requires product_admin role" },
           },
         },
       },
@@ -2947,8 +2999,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
 
       "/api/product-admin/rbac/promote": {
         post: {
-          summary: "Promote admin to superadmin",
-          description: "Promote an admin to superadmin role (superadmin only)",
+          summary: "Promote admin to product admin",
+          description: "Promote an admin to product_admin role (product_admin only)",
           tags: ["Product Admin - RBAC"],
           security: [{ cookieAuth: [] }],
           requestBody: {
@@ -2959,7 +3011,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   type: "object",
                   properties: {
                     adminId: { type: "string" },
-                    newRole: { type: "string", enum: ["super_admin", "college_admin"] },
+                    newRole: { type: "string", enum: ["product_admin", "college_admin"] },
                   },
                   required: ["adminId"],
                 },
@@ -2971,15 +3023,15 @@ const swaggerOptions: swaggerJsdoc.Options = {
             "400": { description: "Admin already has this role or validation failed" },
             "404": { description: "Admin not found" },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden - requires superadmin role" },
+            "403": { description: "Forbidden - requires product_admin role" },
           },
         },
       },
 
       "/api/product-admin/rbac/demote": {
         post: {
-          summary: "Demote superadmin to admin",
-          description: "Demote a superadmin to admin and assign to a college (superadmin only)",
+          summary: "Demote product admin to college admin",
+          description: "Demote a product_admin to college_admin and assign to a college (product_admin only)",
           tags: ["Product Admin - RBAC"],
           security: [{ cookieAuth: [] }],
           requestBody: {
@@ -2999,10 +3051,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": { description: "Admin demoted successfully" },
-            "400": { description: "Only superadmins can be demoted or validation failed" },
+            "400": { description: "Only product_admin users can be demoted or validation failed" },
             "404": { description: "Admin or college not found" },
             "401": { description: "Not authenticated" },
-            "403": { description: "Forbidden - requires superadmin role" },
+            "403": { description: "Forbidden - requires product_admin role" },
           },
         },
       },
@@ -3017,7 +3069,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               name: "role",
               in: "path",
               required: true,
-              schema: { type: "string", enum: ["super_admin", "college_admin"] },
+              schema: { type: "string", enum: ["product_admin", "college_admin"] },
             },
           ],
           responses: {
@@ -3057,7 +3109,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   schema: {
                     type: "object",
                     properties: {
-                      role: { type: "string", enum: ["super_admin", "college_admin"] },
+                      role: { type: "string", enum: ["product_admin", "college_admin"] },
                       permissionCount: { type: "integer" },
                       permissions: {
                         type: "array",
@@ -3128,7 +3180,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "400": { description: "Validation error" },
-            "403": { description: "Only super_admin can create hackathons" },
+            "403": { description: "Only product_admin can create hackathons" },
           },
         },
         get: {
@@ -3235,7 +3287,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": { description: "Hackathon updated" },
-            "403": { description: "Only super_admin can update" },
+            "403": { description: "Only product_admin can update" },
             "404": { description: "Not found" },
           },
         },
@@ -3253,7 +3305,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           ],
           responses: {
             "200": { description: "Hackathon deleted" },
-            "403": { description: "Only super_admin can delete" },
+            "403": { description: "Only product_admin can delete" },
           },
         },
       },
@@ -3290,7 +3342,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           },
           responses: {
             "200": { description: "Status updated" },
-            "403": { description: "Only super_admin can update status" },
+            "403": { description: "Only product_admin can update status" },
           },
         },
       },
@@ -3724,4 +3776,5 @@ export const swaggerSpec = (() => {
   }
   return spec;
 })();
+
 

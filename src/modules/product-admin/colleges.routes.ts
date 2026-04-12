@@ -5,6 +5,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import {
   createCollege,
   getColleges,
+  getCollegeAdmins,
   getCollege,
   updateCollege,
   createCollegeAdmin,
@@ -26,6 +27,9 @@ router.post("/", createCollege);
 
 // Get all colleges
 router.get("/", getColleges);
+
+// Get all college admins
+router.get("/admins", getCollegeAdmins);
 
 // Get single college
 router.get("/:collegeId", getCollege);

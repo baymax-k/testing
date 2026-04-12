@@ -80,7 +80,7 @@ function safeCollege(college: any) {
 }
 
 function isPlatformAdmin(role: string): boolean {
-  return role === "super_admin" || role === "product_admin";
+  return role === "product_admin";
 }
 
 function isPrismaAvailabilityError(err: unknown): boolean {
@@ -94,7 +94,7 @@ function isPrismaAvailabilityError(err: unknown): boolean {
 
 /**
  * POST /api/product-admin/colleges
- * Creates a new college/institution (superadmin only)
+ * Creates a new college/institution (product_admin only)
  */
 export async function createCollege(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -105,7 +105,7 @@ export async function createCollege(req: AuthRequest, res: Response): Promise<vo
 
     // Platform admins can create colleges
     if (!isPlatformAdmin(req.user.role)) {
-      res.status(403).json({ error: "Only product_admin or super_admin can create colleges" });
+      res.status(403).json({ error: "Only product_admin can create colleges" });
       return;
     }
 
@@ -177,7 +177,7 @@ export async function createCollege(req: AuthRequest, res: Response): Promise<vo
 
 /**
  * GET /api/product-admin/colleges
- * Retrieves colleges - superadmin sees all, admin sees only their own
+ * Retrieves colleges - product admin sees all, college admin sees only their own
  */
 export async function getColleges(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -230,6 +230,58 @@ export async function getColleges(req: AuthRequest, res: Response): Promise<void
   } catch (err: any) {
     console.error("[product-admin/colleges/list] Error:", err);
     res.status(500).json({ error: err.message || "Failed to fetch colleges" });
+  }
+}
+
+// ─── Get All College Admins ──────────────────────────────────────────────────
+
+/**
+ * GET /api/product-admin/colleges/admins
+ * Retrieves all college admins across colleges
+ */
+export async function getCollegeAdmins(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!isPlatformAdmin(req.user.role)) {
+      res.status(403).json({ error: "Only product_admin can access college admins" });
+      return;
+    }
+
+    const admins = await prisma.user.findMany({
+      where: { role: "college_admin" },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        collegeId: true,
+        emailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        college: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.status(200).json({
+      success: true,
+      count: admins.length,
+      admins,
+    });
+  } catch (err: any) {
+    console.error("[product-admin/colleges/admins/list] Error:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch college admins" });
   }
 }
 
@@ -682,7 +734,7 @@ export async function editAdmin(req: AuthRequest, res: Response): Promise<void> 
 
 /**
  * DELETE /api/product-admin/colleges/:collegeId
- * Deletes a college (superadmin only)
+ * Deletes a college (product_admin only)
  */
 export async function deleteCollege(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -693,7 +745,7 @@ export async function deleteCollege(req: AuthRequest, res: Response): Promise<vo
 
     // Platform admins can delete colleges
     if (!isPlatformAdmin(req.user.role)) {
-      res.status(403).json({ error: "Only product_admin or super_admin can delete colleges" });
+      res.status(403).json({ error: "Only product_admin can delete colleges" });
       return;
     }
 
@@ -739,3 +791,4 @@ export async function deleteCollege(req: AuthRequest, res: Response): Promise<vo
     res.status(500).json({ error: err.message || "Failed to delete college" });
   }
 }
+

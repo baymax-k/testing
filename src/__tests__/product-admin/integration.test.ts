@@ -137,9 +137,9 @@ describe("Product Admin API - Integration Tests", () => {
   const superAdminUser = {
     id: "super-1",
     email: "super.admin@example.com",
-    username: "super_admin",
+    username: "product_admin",
     name: "Super Admin",
-    role: "super_admin",
+    role: "product_admin",
     emailVerified: true,
     passwordHash: "hashed-password",
     phone: null,
@@ -480,6 +480,17 @@ describe("Product Admin API - Integration Tests", () => {
       expect(response.status).toBe(200);
     });
 
+    it("GET /colleges/admins", async () => {
+      vi.mocked(prisma.user.findMany).mockResolvedValueOnce([collegeAdminUser] as any);
+
+      const response = await request(testApp).get("/api/product-admin/colleges/admins");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.count).toBe(1);
+      expect(response.body.admins).toHaveLength(1);
+    });
+
     it("GET /colleges/:collegeId", async () => {
       const response = await request(testApp).get("/api/product-admin/colleges/college-1");
       expect(response.status).toBe(200);
@@ -537,7 +548,7 @@ describe("Product Admin API - Integration Tests", () => {
 
   describe("RBAC Endpoints", () => {
     it("GET /rbac/admins", async () => {
-      const response = await request(testApp).get("/api/product-admin/rbac/admins").set("x-test-role", "super_admin");
+      const response = await request(testApp).get("/api/product-admin/rbac/admins").set("x-test-role", "product_admin");
       expect(response.status).toBe(200);
     });
 
@@ -549,8 +560,8 @@ describe("Product Admin API - Integration Tests", () => {
     it("POST /rbac/promote", async () => {
       const response = await request(testApp)
         .post("/api/product-admin/rbac/promote")
-        .set("x-test-role", "super_admin")
-        .send({ adminId: "admin-1", newRole: "super_admin" });
+        .set("x-test-role", "product_admin")
+        .send({ adminId: "admin-1", newRole: "product_admin" });
 
       expect(response.status).toBe(200);
     });
@@ -558,14 +569,14 @@ describe("Product Admin API - Integration Tests", () => {
     it("POST /rbac/demote", async () => {
       const response = await request(testApp)
         .post("/api/product-admin/rbac/demote")
-        .set("x-test-role", "super_admin")
+        .set("x-test-role", "product_admin")
         .send({ adminId: "super-1", collegeId: "college-1" });
 
       expect(response.status).toBe(200);
     });
 
     it("GET /rbac/roles/:role/permissions", async () => {
-      const response = await request(testApp).get("/api/product-admin/rbac/roles/super_admin/permissions");
+      const response = await request(testApp).get("/api/product-admin/rbac/roles/product_admin/permissions");
       expect(response.status).toBe(200);
     });
 
@@ -579,7 +590,7 @@ describe("Product Admin API - Integration Tests", () => {
     it("POST /hackathons", async () => {
       const response = await request(testApp)
         .post("/api/product-admin/hackathons")
-        .set("x-test-role", "super_admin")
+        .set("x-test-role", "product_admin")
         .send({
           title: "Spring Hackathon",
           description: "Description",
@@ -603,7 +614,7 @@ describe("Product Admin API - Integration Tests", () => {
     });
 
     it("GET /hackathons", async () => {
-      const response = await request(testApp).get("/api/product-admin/hackathons").set("x-test-role", "super_admin");
+      const response = await request(testApp).get("/api/product-admin/hackathons").set("x-test-role", "product_admin");
       expect(response.status).toBe(200);
     });
 
@@ -618,7 +629,7 @@ describe("Product Admin API - Integration Tests", () => {
     it("GET /hackathons/:hackathonId", async () => {
       const response = await request(testApp)
         .get("/api/product-admin/hackathons/hack-1")
-        .set("x-test-role", "super_admin");
+        .set("x-test-role", "product_admin");
 
       expect(response.status).toBe(200);
     });
@@ -626,7 +637,7 @@ describe("Product Admin API - Integration Tests", () => {
     it("GET /hackathons/:hackathonId/stats", async () => {
       const response = await request(testApp)
         .get("/api/product-admin/hackathons/hack-1/stats")
-        .set("x-test-role", "super_admin");
+        .set("x-test-role", "product_admin");
 
       expect(response.status).toBe(200);
     });
@@ -634,7 +645,7 @@ describe("Product Admin API - Integration Tests", () => {
     it("PATCH /hackathons/:hackathonId", async () => {
       const response = await request(testApp)
         .patch("/api/product-admin/hackathons/hack-1")
-        .set("x-test-role", "super_admin")
+        .set("x-test-role", "product_admin")
         .send({ title: "Updated Hackathon" });
 
       expect(response.status).toBe(200);
@@ -643,7 +654,7 @@ describe("Product Admin API - Integration Tests", () => {
     it("PATCH /hackathons/:hackathonId/status", async () => {
       const response = await request(testApp)
         .patch("/api/product-admin/hackathons/hack-1/status")
-        .set("x-test-role", "super_admin")
+        .set("x-test-role", "product_admin")
         .send({ status: "registration_open" });
 
       expect(response.status).toBe(200);
@@ -652,7 +663,7 @@ describe("Product Admin API - Integration Tests", () => {
     it("DELETE /hackathons/:hackathonId", async () => {
       const response = await request(testApp)
         .delete("/api/product-admin/hackathons/hack-1")
-        .set("x-test-role", "super_admin");
+        .set("x-test-role", "product_admin");
 
       expect(response.status).toBe(200);
     });
@@ -660,7 +671,7 @@ describe("Product Admin API - Integration Tests", () => {
     it("PATCH /hackathons/:hackathonId/teams/:teamId", async () => {
       const response = await request(testApp)
         .patch("/api/product-admin/hackathons/hack-1/teams/team-1")
-        .set("x-test-role", "super_admin")
+        .set("x-test-role", "product_admin")
         .send({ score: 90, ranking: 1 });
 
       expect(response.status).toBe(200);
@@ -718,7 +729,7 @@ describe("Product Admin API - Integration Tests", () => {
         },
       ] as any);
 
-      const response = await request(testApp).get("/api/product-admin/users/stats").set("x-test-role", "super_admin");
+      const response = await request(testApp).get("/api/product-admin/users/stats").set("x-test-role", "product_admin");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -770,7 +781,7 @@ describe("Product Admin API - Integration Tests", () => {
       const response = await request(testApp)
         .get("/api/product-admin/users/stats")
         .query({ search: "Batch B" })
-        .set("x-test-role", "super_admin");
+        .set("x-test-role", "product_admin");
 
       expect(response.status).toBe(200);
       expect(response.body.hierarchy).toHaveLength(1);
@@ -781,3 +792,4 @@ describe("Product Admin API - Integration Tests", () => {
     });
   });
 });
+

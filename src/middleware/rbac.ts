@@ -5,23 +5,23 @@ import type { AuthRequest } from "./auth.js";
 
 // ─── Role Hierarchy & Permissions ─────────────────────────────────────────────
 
-export type ProductAdminRole = "super_admin" | "college_admin";
+export type ProductAdminRole = "product_admin" | "college_admin";
 
 /**
  * Role hierarchy for product admin portal:
- * super_admin (level 3) > college_admin (level 2)
+ * product_admin (level 3) > college_admin (level 2)
  * 
- * super_admin: Can access all colleges, create new colleges, manage all admins
+ * product_admin: Can access all colleges, create new colleges, manage all admins
  * college_admin: Can only access their assigned college, manage college-level resources
  */
 
 export const ROLE_HIERARCHY: Record<ProductAdminRole, number> = {
-  super_admin: 3,
+  product_admin: 3,
   college_admin: 2,
 };
 
 export const ROLE_PERMISSIONS: Record<ProductAdminRole, string[]> = {
-  super_admin: [
+  product_admin: [
     // College management
     "college:create",
     "college:read",
@@ -60,7 +60,7 @@ export const ROLE_PERMISSIONS: Record<ProductAdminRole, string[]> = {
 
 /**
  * Check if user has specific product admin role
- * Usage: router.use(requireRole("super_admin"))
+ * Usage: router.use(requireRole("product_admin"))
  */
 export const requireRole = (requiredRole: ProductAdminRole) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -116,11 +116,11 @@ export const requirePermission = (permission: string) => {
 };
 
 /**
- * Check if user is super_admin
- * Usage: router.use(requireSuperAdmin())
+ * Check if user is product_admin
+ * Usage: router.use(requireProductAdminOnly())
  */
-export const requireSuperAdmin = () => {
-  return requireRole("super_admin");
+export const requireProductAdminOnly = () => {
+  return requireRole("product_admin");
 };
 
 /**
@@ -136,7 +136,7 @@ export const requireProductAdmin = () => {
       return;
     }
 
-    const validRoles = ["super_admin", "college_admin"];
+    const validRoles = ["product_admin", "college_admin"];
     if (!validRoles.includes(authReq.user.role)) {
       res.status(403).json({
         error: "Forbidden",
@@ -151,11 +151,11 @@ export const requireProductAdmin = () => {
 
 /**
  * Helper function to check if user can access a specific college
- * - super_admin can access all colleges
+ * - product_admin can access all colleges
  * - college_admin can only access their assigned college
  */
 export const canAccessCollege = (userRole: string, userCollegeId: string | null, targetCollegeId: string): boolean => {
-  if (userRole === "super_admin") {
+  if (userRole === "product_admin") {
     return true;
   }
   
@@ -194,7 +194,7 @@ export const filterCollegeResponse = (
     updatedAt: college.updatedAt,
   };
 
-  if (includeStats && userRole === "super_admin") {
+  if (includeStats && userRole === "product_admin") {
     return {
       ...baseCollege,
       stats: {
@@ -206,3 +206,4 @@ export const filterCollegeResponse = (
 
   return baseCollege;
 };
+

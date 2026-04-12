@@ -18,7 +18,6 @@ enum Role {
   hod
   principal
   college_admin
-  super_admin
   product_admin
 }
 
@@ -608,7 +607,7 @@ model Hackathon {
   description     String?           @db.Text
   shortDescription String?          @db.VarChar(500)
   collegeId       String
-  createdByUserId String            // Super admin who created it
+  createdByUserId String            // Product admin who created it
   
   // Timing
   startDate       DateTime
@@ -702,3 +701,4 @@ model HackathonParticipant {
   @@index([status])
   @@map("hackathon_participant")
 }
+
