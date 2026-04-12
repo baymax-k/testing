@@ -2975,6 +2975,318 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      "/api/product-admin/rbac/product-admins": {
+        get: {
+          summary: "List product admins with page permissions",
+          description: "Returns all product_admin users with page-level view permissions.",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": {
+              description: "List of product admins",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      count: { type: "integer" },
+                      admins: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            name: { type: "string" },
+                            phone: { type: "string", nullable: true },
+                            role: { type: "string", enum: ["product_admin"] },
+                            collegeId: { type: "string", nullable: true },
+                            emailVerified: { type: "boolean" },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            permissions: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  page: {
+                                    type: "string",
+                                    enum: [
+                                      "dashboard",
+                                      "colleges",
+                                      "hackathons",
+                                      "public_tests",
+                                      "public_problems",
+                                      "problems",
+                                      "mcq_list",
+                                      "rbac",
+                                      "users_management",
+                                      "settings",
+                                    ],
+                                  },
+                                  label: { type: "string" },
+                                  canView: { type: "boolean" },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires product_admin role" },
+          },
+        },
+        post: {
+          summary: "Create product admin with page permissions",
+          description:
+            "Creates a new product_admin account and sets page-level view permissions for dashboard/menu pages.",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    name: { type: "string", maxLength: 100 },
+                    password: { type: "string", minLength: 8, maxLength: 128 },
+                    phone: { type: "string", maxLength: 20, nullable: true },
+                    permissions: {
+                      type: "array",
+                      minItems: 1,
+                      items: {
+                        type: "string",
+                        enum: [
+                          "dashboard",
+                          "colleges",
+                          "hackathons",
+                          "public_tests",
+                          "public_problems",
+                          "problems",
+                          "mcq_list",
+                          "rbac",
+                          "users_management",
+                          "settings",
+                        ],
+                      },
+                    },
+                  },
+                  required: ["email", "name", "password", "permissions"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Product admin created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Product admin created successfully" },
+                      admin: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string" },
+                          phone: { type: "string", nullable: true },
+                          role: { type: "string", enum: ["product_admin"] },
+                          collegeId: { type: "string", nullable: true },
+                          emailVerified: { type: "boolean" },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      permissions: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            page: {
+                              type: "string",
+                              enum: [
+                                "dashboard",
+                                "colleges",
+                                "hackathons",
+                                "public_tests",
+                                "public_problems",
+                                "problems",
+                                "mcq_list",
+                                "rbac",
+                                "users_management",
+                                "settings",
+                              ],
+                            },
+                            label: { type: "string" },
+                            canView: { type: "boolean" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation failed or email already exists" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires product_admin role" },
+          },
+        },
+      },
+
+      "/api/product-admin/rbac/product-admins/{adminId}": {
+        patch: {
+          summary: "Update product admin and page permissions",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "adminId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    name: { type: "string", maxLength: 100 },
+                    phone: { type: "string", maxLength: 20, nullable: true },
+                    permissions: {
+                      type: "array",
+                      items: {
+                        type: "string",
+                        enum: [
+                          "dashboard",
+                          "colleges",
+                          "hackathons",
+                          "public_tests",
+                          "public_problems",
+                          "problems",
+                          "mcq_list",
+                          "rbac",
+                          "users_management",
+                          "settings",
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Product admin updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Product admin updated successfully" },
+                      admin: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string" },
+                          phone: { type: "string", nullable: true },
+                          role: { type: "string", enum: ["product_admin"] },
+                          collegeId: { type: "string", nullable: true },
+                          emailVerified: { type: "boolean" },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      permissions: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            page: {
+                              type: "string",
+                              enum: [
+                                "dashboard",
+                                "colleges",
+                                "hackathons",
+                                "public_tests",
+                                "public_problems",
+                                "problems",
+                                "mcq_list",
+                                "rbac",
+                                "users_management",
+                                "settings",
+                              ],
+                            },
+                            label: { type: "string" },
+                            canView: { type: "boolean" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation failed or email already exists" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires product_admin role" },
+            "404": { description: "Product admin not found" },
+          },
+        },
+        delete: {
+          summary: "Delete product admin",
+          tags: ["Product Admin - RBAC"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "adminId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Product admin deleted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Product admin deleted successfully" },
+                      deletedAdminId: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Cannot delete self, last product admin, or dependent admin" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden - requires product_admin role" },
+            "404": { description: "Product admin not found" },
+          },
+        },
+      },
+
       "/api/product-admin/rbac/admins/{adminId}": {
         get: {
           summary: "Get admin details",

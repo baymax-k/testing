@@ -73,8 +73,10 @@ vi.mock("../../config/prisma.js", () => {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
+      count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
     },
     college: {
       findUnique: vi.fn(),
@@ -87,6 +89,11 @@ vi.mock("../../config/prisma.js", () => {
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+    },
+    productAdminPagePermission: {
+      findMany: vi.fn(),
+      createMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
     hackathon: {
       findUnique: vi.fn(),
@@ -250,8 +257,10 @@ describe("Product Admin API - Integration Tests", () => {
     const userFindUnique = prisma.user.findUnique as any;
     const userFindFirst = prisma.user.findFirst as any;
     const userFindMany = prisma.user.findMany as any;
+    const userCount = prisma.user.count as any;
     const userCreate = prisma.user.create as any;
     const userUpdate = prisma.user.update as any;
+    const userDelete = prisma.user.delete as any;
     const collegeFindUnique = prisma.college.findUnique as any;
     const collegeFindMany = prisma.college.findMany as any;
     const collegeCreate = prisma.college.create as any;
@@ -270,6 +279,7 @@ describe("Product Admin API - Integration Tests", () => {
 
     userFindFirst.mockResolvedValue(productAdminUser as any);
     userFindMany.mockResolvedValue([superAdminUser, collegeAdminUser] as any);
+    userCount.mockResolvedValue(2 as any);
 
     userCreate.mockImplementation(async (args: any) => ({
       id: args?.data?.role === "college_admin" ? "new-college-admin" : "new-product-admin",
@@ -291,6 +301,8 @@ describe("Product Admin API - Integration Tests", () => {
       id: args?.where?.id || productAdminUser.id,
       updatedAt: now,
     }));
+
+    userDelete.mockResolvedValue(superAdminUser as any);
 
     collegeFindUnique.mockImplementation(async (args: any) => {
       if (args?.where?.id === "missing-college") return null as any;
@@ -329,6 +341,12 @@ describe("Product Admin API - Integration Tests", () => {
     vi.mocked(prisma.productAdminSettings.findUnique).mockResolvedValue(settings as any);
     vi.mocked(prisma.productAdminSettings.create).mockResolvedValue(settings as any);
     vi.mocked(prisma.productAdminSettings.update).mockResolvedValue(settings as any);
+    vi.mocked(prisma.productAdminPagePermission.findMany).mockResolvedValue([
+      { page: "dashboard", canView: true },
+      { page: "colleges", canView: true },
+    ] as any);
+    vi.mocked(prisma.productAdminPagePermission.createMany).mockResolvedValue({ count: 10 } as any);
+    vi.mocked(prisma.productAdminPagePermission.deleteMany).mockResolvedValue({ count: 10 } as any);
 
     vi.mocked(prisma.hackathon.findUnique).mockResolvedValue({
       ...hackathon,
@@ -555,6 +573,68 @@ describe("Product Admin API - Integration Tests", () => {
     it("GET /rbac/admins/:adminId", async () => {
       const response = await request(testApp).get("/api/product-admin/rbac/admins/admin-1");
       expect(response.status).toBe(200);
+    });
+
+    it("GET /rbac/product-admins", async () => {
+      vi.mocked(prisma.productAdminPagePermission.findMany).mockResolvedValueOnce([
+        { adminUserId: "super-1", page: "dashboard" },
+        { adminUserId: "super-1", page: "rbac" },
+      ] as any);
+
+      const response = await request(testApp)
+        .get("/api/product-admin/rbac/product-admins")
+        .set("x-test-role", "product_admin");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.count).toBeGreaterThan(0);
+      expect(response.body.admins[0].permissions).toHaveLength(10);
+    });
+
+    it("POST /rbac/product-admins", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null as any);
+
+      const response = await request(testApp)
+        .post("/api/product-admin/rbac/product-admins")
+        .set("x-test-role", "product_admin")
+        .send({
+          email: "ops.admin@example.com",
+          name: "Ops Product Admin",
+          password: "StrongPass@123",
+          permissions: ["dashboard", "users_management", "settings"],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.permissions).toHaveLength(10);
+    });
+
+    it("PATCH /rbac/product-admins/:adminId", async () => {
+      vi.mocked(prisma.productAdminPagePermission.findMany).mockResolvedValueOnce([
+        { page: "dashboard", canView: true },
+        { page: "rbac", canView: true },
+      ] as any);
+
+      const response = await request(testApp)
+        .patch("/api/product-admin/rbac/product-admins/super-1")
+        .set("x-test-role", "product_admin")
+        .send({
+          name: "Updated Product Admin",
+          permissions: ["dashboard", "rbac"],
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.permissions).toHaveLength(10);
+    });
+
+    it("DELETE /rbac/product-admins/:adminId", async () => {
+      const response = await request(testApp)
+        .delete("/api/product-admin/rbac/product-admins/super-1")
+        .set("x-test-role", "product_admin");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
     });
 
     it("POST /rbac/promote", async () => {

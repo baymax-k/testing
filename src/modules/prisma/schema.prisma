@@ -65,6 +65,19 @@ enum QuestionType {
   coding
 }
 
+enum ProductAdminPage {
+  dashboard
+  colleges
+  hackathons
+  public_tests
+  public_problems
+  problems
+  mcq_list
+  rbac
+  users_management
+  settings
+}
+
 enum McqSessionStatus {
   in_progress
   submitted
@@ -116,6 +129,7 @@ model User {
   createdTests    Test[]       @relation("TestCreatedBy")
   testAttempts    TestAttempt[] @relation("StudentTestAttempts")
   productAdminSettings ProductAdminSettings?
+  productAdminPagePermissions ProductAdminPagePermission[] @relation("ProductAdminPagePermissions")
 
   // Hackathon management
   hackathonsCreated HackathonTeam[] @relation("HackathonTeamLead")
@@ -238,6 +252,21 @@ model ProductAdminSettings {
   updatedAt                    DateTime @updatedAt
 
   @@map("product_admin_settings")
+}
+
+model ProductAdminPagePermission {
+  id          String           @id @default(cuid())
+  adminUserId String
+  adminUser   User             @relation("ProductAdminPagePermissions", fields: [adminUserId], references: [id], onDelete: Cascade)
+  page        ProductAdminPage
+  canView     Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([adminUserId, page])
+  @@index([adminUserId])
+  @@index([page])
+  @@map("product_admin_page_permission")
 }
 
 model Department {

@@ -169,6 +169,36 @@ describe("Product Admin Hackathon Controller - Unit Tests", () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it("createHackathon accepts date-only strings and normalizes to Date", async () => {
+    const req = {
+      user: { userId: "super-1", role: "product_admin" },
+      body: {
+        title: "Date Only Hackathon",
+        description: "Description",
+        shortDescription: "Short",
+        collegeId: "college-1",
+        startDate: "2026-05-10",
+        endDate: "2026-05-12",
+        registrationDeadline: "2026-05-05",
+        maxTeams: 100,
+        maxTeamSize: 5,
+        minTeamSize: 1,
+        theme: "AI",
+        isPublic: true,
+        allowRemoteParticipation: true,
+      },
+    } as any;
+    const res = createMockRes();
+
+    await createHackathon(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    const createArg = vi.mocked(prisma.hackathon.create).mock.calls[0]?.[0] as any;
+    expect(createArg.data.startDate).toBeInstanceOf(Date);
+    expect(createArg.data.endDate).toBeInstanceOf(Date);
+    expect(createArg.data.registrationDeadline).toBeInstanceOf(Date);
+  });
+
   it("getHackathons returns filtered hackathons", async () => {
     const req = {
       user: { userId: "super-1", role: "product_admin", collegeId: null },

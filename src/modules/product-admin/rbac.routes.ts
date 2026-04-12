@@ -6,8 +6,12 @@ import { requireProductAdminOnly } from "../../middleware/rbac.js";
 import {
   getAllAdmins,
   getAdminDetails,
+  getProductAdmins,
   promoteAdmin,
   demoteAdmin,
+  createProductAdmin,
+  updateProductAdmin,
+  deleteProductAdmin,
   getRolePermissions,
   getMyPermissions,
 } from "./rbac.controller.js";
@@ -21,6 +25,18 @@ router.use(requireAuth);
 
 // List all admins
 router.get("/admins", requireProductAdminOnly(), getAllAdmins);
+
+// List all product admins with page permissions
+router.get("/product-admins", requireProductAdminOnly(), getProductAdmins);
+
+// Create a product admin with page permissions
+router.post("/product-admins", requireProductAdminOnly(), createProductAdmin);
+
+// Update a product admin and page permissions
+router.patch("/product-admins/:adminId", requireProductAdminOnly(), updateProductAdmin);
+
+// Delete a product admin
+router.delete("/product-admins/:adminId", requireProductAdminOnly(), deleteProductAdmin);
 
 // Get admin details
 router.get("/admins/:adminId", getAdminDetails);

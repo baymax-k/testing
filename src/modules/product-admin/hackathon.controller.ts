@@ -109,6 +109,65 @@ function safeTeam(team: any) {
   };
 }
 
+function toDateValue(value: string): Date {
+  return new Date(value);
+}
+
+function getDateOrderError(startDate: Date, endDate: Date): string | null {
+  if (endDate <= startDate) {
+    return "End date must be after start date";
+  }
+  return null;
+}
+
+function getRegistrationDeadlineError(registrationDeadline: Date, startDate: Date): string | null {
+  if (registrationDeadline > startDate) {
+    return "Registration deadline must be before start date";
+  }
+  return null;
+}
+
+function getTeamSizeError(maxTeamSize: number | null, minTeamSize: number | null): string | null {
+  if (maxTeamSize !== null && minTeamSize !== null && maxTeamSize < minTeamSize) {
+    return "Max team size must be >= min team size";
+  }
+  return null;
+}
+
+function getUpdateValidationError(updateData: any, hackathon: any): string | null {
+  const effectiveStartDate = updateData.startDate ? toDateValue(updateData.startDate) : hackathon.startDate;
+  const effectiveEndDate = updateData.endDate ? toDateValue(updateData.endDate) : hackathon.endDate;
+
+  const dateOrderError = getDateOrderError(effectiveStartDate, effectiveEndDate);
+  if (dateOrderError) {
+    return dateOrderError;
+  }
+
+  if (updateData.registrationDeadline !== undefined && updateData.registrationDeadline !== null) {
+    const regDeadline = toDateValue(updateData.registrationDeadline);
+    const registrationDeadlineError = getRegistrationDeadlineError(regDeadline, effectiveStartDate);
+    if (registrationDeadlineError) {
+      return registrationDeadlineError;
+    }
+  }
+
+  const effectiveMaxTeamSize = updateData.maxTeamSize ?? hackathon.maxTeamSize;
+  const effectiveMinTeamSize = updateData.minTeamSize ?? hackathon.minTeamSize;
+  return getTeamSizeError(effectiveMaxTeamSize, effectiveMinTeamSize);
+}
+
+function buildHackathonUpdateData(updateData: any): Record<string, unknown> {
+  return {
+    ...updateData,
+    ...(updateData.startDate !== undefined && { startDate: toDateValue(updateData.startDate) }),
+    ...(updateData.endDate !== undefined && { endDate: toDateValue(updateData.endDate) }),
+    ...(updateData.registrationDeadline !== undefined && {
+      registrationDeadline:
+        updateData.registrationDeadline === null ? null : toDateValue(updateData.registrationDeadline),
+    }),
+  };
+}
+
 // ─── Create Hackathon ──────────────────────────────────────────────────────────
 
 /**
@@ -150,16 +209,20 @@ export async function createHackathon(req: AuthRequest, res: Response): Promise<
     }
 
     // Validate dates
-    const startDate = new Date(hackathonData.startDate);
-    const endDate = new Date(hackathonData.endDate);
+    const startDate = toDateValue(hackathonData.startDate);
+    const endDate = toDateValue(hackathonData.endDate);
 
     if (endDate <= startDate) {
       res.status(400).json({ error: "End date must be after start date" });
       return;
     }
 
-    if (hackathonData.registrationDeadline) {
-      const regDeadline = new Date(hackathonData.registrationDeadline);
+    const registrationDeadline = hackathonData.registrationDeadline
+      ? toDateValue(hackathonData.registrationDeadline)
+      : null;
+
+    if (registrationDeadline) {
+      const regDeadline = registrationDeadline;
       if (regDeadline > startDate) {
         res.status(400).json({ error: "Registration deadline must be before start date" });
         return;
@@ -174,6 +237,9 @@ export async function createHackathon(req: AuthRequest, res: Response): Promise<
     const hackathon = await (prisma as any).hackathon.create({
       data: {
         ...hackathonData,
+        startDate,
+        endDate,
+        registrationDeadline,
         collegeId,
         createdByUserId: req.user.userId,
       },
@@ -403,36 +469,17 @@ export async function updateHackathon(req: AuthRequest, res: Response): Promise<
 
     const updateData = validation.data;
 
-    // Validate dates if provided
-    if (updateData.startDate || updateData.endDate) {
-      const startDate = updateData.startDate ? new Date(updateData.startDate) : hackathon.startDate;
-      const endDate = updateData.endDate ? new Date(updateData.endDate) : hackathon.endDate;
-
-      if (endDate <= startDate) {
-        res.status(400).json({ error: "End date must be after start date" });
-        return;
-      }
+    const updateValidationError = getUpdateValidationError(updateData, hackathon);
+    if (updateValidationError) {
+      res.status(400).json({ error: updateValidationError });
+      return;
     }
 
-    if (updateData.registrationDeadline && updateData.startDate) {
-      const regDeadline = new Date(updateData.registrationDeadline);
-      const startDate = new Date(updateData.startDate);
-      if (regDeadline > startDate) {
-        res.status(400).json({ error: "Registration deadline must be before start date" });
-        return;
-      }
-    }
-
-    if (updateData.maxTeamSize && updateData.minTeamSize) {
-      if (updateData.maxTeamSize < updateData.minTeamSize) {
-        res.status(400).json({ error: "Max team size must be >= min team size" });
-        return;
-      }
-    }
+    const prismaUpdateData = buildHackathonUpdateData(updateData);
 
     const updated = await (prisma as any).hackathon.update({
       where: { id: hackathonId },
-      data: updateData,
+      data: prismaUpdateData,
       include: {
         college: true,
         createdBy: true,
