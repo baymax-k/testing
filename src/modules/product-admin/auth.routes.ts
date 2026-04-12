@@ -9,10 +9,8 @@ import {
   signOut,
   refresh,
   verifyEmail,
-  sendOtp,
   forgotPassword,
   resetPassword,
-  changePassword,
   getCurrentUser,
   updateProfile,
   getSettings,
@@ -36,7 +34,6 @@ router.post("/refresh", refresh);
 
 // Email verification
 router.post("/verify-email", verifyEmail);
-router.post("/send-otp", sendOtp);
 
 // Password reset
 router.post("/forgot-password", forgotPassword);
@@ -44,7 +41,6 @@ router.post("/reset-password", resetPassword);
 
 // ─── Authenticated routes ─────────────────────────────────────────────────────
 
-router.post("/change-password", requireAuth, changePassword);
 router.get("/me", requireAuth, getCurrentUser);
 
 // ─── Profile & Settings ───────────────────────────────────────────────────────

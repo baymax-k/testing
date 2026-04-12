@@ -1,6 +1,7 @@
 // ─── Product Admin College Controller ──────────────────────────────────────────
 
 import type { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/prisma.js";
@@ -82,6 +83,13 @@ function isPlatformAdmin(role: string): boolean {
   return role === "super_admin" || role === "product_admin";
 }
 
+function isPrismaAvailabilityError(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientInitializationError ||
+    err instanceof Prisma.PrismaClientUnknownRequestError
+  );
+}
+
 // ─── Create College ───────────────────────────────────────────────────────────
 
 /**
@@ -153,7 +161,15 @@ export async function createCollege(req: AuthRequest, res: Response): Promise<vo
     });
   } catch (err: any) {
     console.error("[product-admin/colleges/create] Error:", err);
-    res.status(500).json({ error: err.message || "Failed to create college" });
+
+    if (isPrismaAvailabilityError(err)) {
+      res.status(503).json({
+        error: "Database service temporarily unavailable. Please try again.",
+      });
+      return;
+    }
+
+    res.status(500).json({ error: "Failed to create college" });
   }
 }
 

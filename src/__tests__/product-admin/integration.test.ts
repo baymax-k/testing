@@ -413,14 +413,6 @@ describe("Product Admin API - Integration Tests", () => {
       expect(response.status).toBe(200);
     });
 
-    it("POST /auth/send-otp", async () => {
-      const response = await request(testApp).post("/api/product-admin/auth/send-otp").send({
-        email: "product.admin@example.com",
-      });
-
-      expect(response.status).toBe(200);
-    });
-
     it("POST /auth/forgot-password", async () => {
       const response = await request(testApp).post("/api/product-admin/auth/forgot-password").send({
         email: "product.admin@example.com",
@@ -434,15 +426,6 @@ describe("Product Admin API - Integration Tests", () => {
         email: "product.admin@example.com",
         otp: "123456",
         newPassword: "NewStrongPass@123",
-      });
-
-      expect(response.status).toBe(200);
-    });
-
-    it("POST /auth/change-password", async () => {
-      const response = await request(testApp).post("/api/product-admin/auth/change-password").send({
-        currentPassword: "StrongPass@123",
-        newPassword: "AnotherStrongPass@123",
       });
 
       expect(response.status).toBe(200);
@@ -621,6 +604,14 @@ describe("Product Admin API - Integration Tests", () => {
 
     it("GET /hackathons", async () => {
       const response = await request(testApp).get("/api/product-admin/hackathons").set("x-test-role", "super_admin");
+      expect(response.status).toBe(200);
+    });
+
+    it("GET /hackathons allows product_admin role", async () => {
+      const response = await request(testApp)
+        .get("/api/product-admin/hackathons")
+        .set("x-test-role", "product_admin");
+
       expect(response.status).toBe(200);
     });
 

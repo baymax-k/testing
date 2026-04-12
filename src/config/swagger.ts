@@ -2249,6 +2249,31 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      "/api/product-admin/auth/sign-out": {
+        post: {
+          summary: "Sign out product admin",
+          description: "Clears authentication cookies for the current session.",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          responses: {
+            "200": { description: "Signed out successfully" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/refresh": {
+        post: {
+          summary: "Refresh product admin access token",
+          description: "Refreshes access token using the refresh token cookie.",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          responses: {
+            "200": { description: "Token refreshed successfully" },
+            "401": { description: "Refresh token missing or invalid" },
+          },
+        },
+      },
+
       "/api/product-admin/auth/verify-email": {
         post: {
           summary: "Verify email with OTP",
@@ -2276,11 +2301,13 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/api/product-admin/auth/change-password": {
+      "/api/product-admin/auth/forgot-password": {
         post: {
-          summary: "Change password",
+          summary: "Request password reset OTP",
+          description:
+            "Sends a password reset OTP to the requested email when a matching product-admin account exists.",
           tags: ["Product Admin - Auth"],
-          security: [{ cookieAuth: [] }],
+          security: [],
           requestBody: {
             required: true,
             content: {
@@ -2288,17 +2315,47 @@ const swaggerOptions: swaggerJsdoc.Options = {
                 schema: {
                   type: "object",
                   properties: {
-                    currentPassword: { type: "string" },
-                    newPassword: { type: "string", minLength: 8 },
+                    email: { type: "string", format: "email" },
                   },
-                  required: ["currentPassword", "newPassword"],
+                  required: ["email"],
                 },
               },
             },
           },
           responses: {
-            "200": { description: "Password changed successfully" },
-            "401": { description: "Unauthorized or incorrect current password" },
+            "200": { description: "If the account exists, a reset code has been sent" },
+            "400": { description: "Validation failed" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/reset-password": {
+        post: {
+          summary: "Reset password with OTP",
+          description: "Verifies OTP and resets product-admin password.",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    otp: { type: "string", minLength: 6, maxLength: 6 },
+                    newPassword: { type: "string", minLength: 8 },
+                  },
+                  required: ["email", "otp", "newPassword"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Password reset successfully" },
+            "400": { description: "Validation failed or invalid OTP" },
+            "403": { description: "Forbidden for non product-admin user" },
+            "404": { description: "User not found" },
           },
         },
       },
@@ -2327,7 +2384,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/api/product-admin/profile": {
+      "/api/product-admin/auth/profile": {
         patch: {
           summary: "Update product admin profile",
           description: "Updates admin profile information like name and phone",
@@ -2356,7 +2413,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
-      "/api/product-admin/settings": {
+      "/api/product-admin/auth/settings": {
         get: {
           summary: "Get product admin settings",
           description:

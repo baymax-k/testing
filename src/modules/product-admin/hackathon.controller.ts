@@ -218,7 +218,7 @@ export async function getHackathons(req: AuthRequest, res: Response): Promise<vo
     if (req.user.role === "college_admin" && req.user.collegeId) {
       // College admin can only see their own college's hackathons
       whereFilter.collegeId = req.user.collegeId;
-    } else if (req.user.role !== "super_admin") {
+    } else if (!["super_admin", "product_admin"].includes(req.user.role)) {
       // Non-admin cannot access this
       res.status(403).json({ error: "Insufficient permissions" });
       return;
