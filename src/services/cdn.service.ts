@@ -13,15 +13,15 @@ class CDNService {
   constructor() {
     try {
       // Initialize ImageKit only if credentials are provided
-      if (process.env.IMAGEKIT_PUBLIC_KEY && 
+      if (process.env.IMAGEKIT_PUBLIC_KEY_ID && 
           process.env.IMAGEKIT_PRIVATE_KEY && 
           process.env.IMAGEKIT_URL_ENDPOINT) {
         
         this.imagekit = new ImageKit({
-          publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-          privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-          urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT
-        });
+          publicKeyId: process.env.IMAGEKIT_PUBLIC_KEY_ID!,
+          privateKey: process.env.IMAGEKIT_PRIVATE_KEY!,
+          urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT!
+        } as any);
         
         console.log('✅ CDN Service (ImageKit) initialized');
       } else {
@@ -55,7 +55,7 @@ class CDNService {
       // Convert HEX content to buffer
       const fileBuffer = Buffer.from(hexContent, 'utf8');
       
-      const uploadResult = await this.imagekit.upload({
+      const uploadResult = await (this.imagekit as any).upload({
         file: fileBuffer,
         fileName: fileName,
         folder: 'arduino-hex-files',
@@ -94,7 +94,7 @@ class CDNService {
     }
 
     try {
-      await this.imagekit.deleteFile(fileId);
+      await (this.imagekit as any).deleteFile(fileId);
       console.log(`✅ HEX file deleted from CDN: ${fileId}`);
       return true;
     } catch (error: any) {

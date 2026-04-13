@@ -9,6 +9,80 @@ datasource db {
 
 // ─── Auth Models ─────────────────────────────────────────────────────────────
 
+
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  student
+  mentor
+  instructor_staff
+  dept_admin
+  hod
+  principal
+  college_admin
+  super_admin
+  product_admin
+}
+
+enum SubmissionStatus {
+  processing
+  accepted
+  wrong_answer
+  time_limit_exceeded
+  memory_limit_exceeded
+  runtime_error
+  compilation_error
+  internal_error
+}
+
+enum ContestType {
+  contest
+  practice
+}
+
+enum TestStatus {
+  draft
+  scheduled
+  active
+  completed
+  archived
+}
+
+enum QuestionType {
+  // Practice/contest problem types
+  mcq
+  dsa
+  // Test management question types
+  multiple_choice
+  true_false
+  short_answer
+  long_answer
+  coding
+}
+
+enum ProctoringViolationType {
+  NO_FACE_DETECTED
+  MULTIPLE_FACES
+  OFF_SCREEN_GAZE
+  TAB_SWITCH
+  FULLSCREEN_EXIT
+  OTHER
+}
+
+enum ProctoringReviewStatus {
+  pending
+  confirmed
+  dismissed
+  needs_review
+}
+
+enum ProctoringSeverity {
+  low
+  medium
+  high
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -19,10 +93,18 @@ model User {
   emailVerified Boolean   @default(false)
   phone         String?
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  collegeId     String?
+  college       College?    @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  departmentId  String?
+  department    Department? @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  batchId       String?
+  batch         Batch?      @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   refreshTokens       RefreshToken[]
+  sessions            Session[]
+  accounts            Account[]
   submissions         Submission[]
   participations      ContestParticipation[]
   arduinoSubmissions  ArduinoSubmission[]
@@ -33,6 +115,18 @@ model User {
   practiceActivities  PracticeActivity[]
   practiceRandomSets  PracticeRandomSet[]
 
+  // College-admin flow
+  mentoredBatches Batch[]      @relation("BatchMentor")
+  createdTests    Test[]       @relation("TestCreatedBy")
+  testAttempts    TestAttempt[] @relation("StudentTestAttempts")
+  proctoringVideos        ProctoringVideo[] @relation("ProctoringVideoStudent")
+  reviewedProctoringVideos ProctoringVideo[] @relation("ProctoringVideoReviewer")
+  departmentAsHod Department?  @relation("DepartmentHod")
+
+  @@index([departmentId])
+  @@index([batchId])
+  @@index([collegeId])
+  @@index([role])
   @@map("user")
 }
 
@@ -66,38 +160,112 @@ model Verification {
   @@map("verification")
 }
 
-// ─── Enums ───────────────────────────────────────────────────────────────────
+// ─── Better-Auth Models ──────────────────────────────────────────────────────
 
-enum Role {
-  student
-  college_admin
-  product_admin
-  instructor_staff
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("session")
 }
 
-enum SubmissionStatus {
-  processing
-  accepted
-  wrong_answer
-  time_limit_exceeded
-  memory_limit_exceeded
-  runtime_error
-  compilation_error
-  internal_error
+model Account {
+  id                 String   @id
+  accountId          String
+  providerId         String
+  userId             String
+  accessToken        String?  @db.Text
+  refreshToken       String?  @db.Text
+  idToken            String?  @db.Text
+  expiresAt          DateTime?
+  password           String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerId])
+  @@index([userId])
+  @@map("account")
 }
 
-enum QuestionType {
-  mcq
-  dsa
-  arduino
+model College {
+  id          String       @id @default(cuid())
+  name        String
+  code        String       @unique
+  description String?
+  website     String?
+  location    String?
+  adminId     String?
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  users       User[]
+  departments Department[]
+
+  @@index([adminId])
+  @@index([createdById])
+  @@map("college")
 }
 
-enum ContestType {
-  contest
-  practice
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  collegeId   String?
+  college     College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  hodId       String?  @unique
+  hod         User?    @relation("DepartmentHod", fields: [hodId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]   @relation("UserDepartment")
+  batches     Batch[]
+  tests       Test[]
+
+  @@index([collegeId])
+  @@index([hodId])
+  @@map("department")
 }
 
-// ─── Problem Models ──────────────────────────────────────────────────────────
+model Batch {
+  id           String      @id @default(cuid())
+  name         String
+  code         String
+  year         Int
+  semester     Int?
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  mentorId     String?
+  mentor       User?       @relation("BatchMentor", fields: [mentorId], references: [id], onDelete: SetNull)
+  students     User[]
+  tests        Test[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([code, departmentId])
+  @@index([departmentId])
+  @@index([mentorId])
+  @@map("batch")
+}
+enum McqSessionStatus {
+  in_progress
+  submitted
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+
 
 model Tag {
   id        String     @id @default(cuid())
@@ -112,6 +280,7 @@ model Question {
   id          String       @id @default(cuid())
   type        QuestionType
   title       String
+  content     String?      // markdown for DSA, text for MCQ (alternate to description)
   description String       // markdown for DSA, text for MCQ
   difficulty  String       // "easy", "medium", "hard"
   tags        Tag[]
@@ -119,10 +288,19 @@ model Question {
   createdBy   String       // admin user ID
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  
+  // Test relationship
+  testId      String?
+  test        Test?        @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  // Marks and ordering for tests
+  marks       Int?         // Points for this question in a test
+  orderIndex  Int?         // Order of question within test
 
   // MCQ-specific
   options       Json?  // ["A) Option 1", ...]
   correctAnswer Int?   // 0-3
+  explanation   String? // Explanation for the correct answer
 
   // DSA-specific
   timeLimit       Int?   // seconds
@@ -218,6 +396,38 @@ model Submission {
   @@map("submission")
 }
 
+model Test {
+  id                  String       @id @default(cuid())
+  title               String
+  description         String?
+  instructions        String?
+  status              TestStatus   @default(draft)
+  durationMinutes     Int          @default(60)
+  maxAttempts         Int          @default(1)
+  totalMarks          Int          @default(0)
+  passingMarks        Int?
+  scheduledStartTime  DateTime?
+  scheduledEndTime    DateTime?
+  departmentId        String?
+  department          Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  batchId             String?
+  batch               Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdById         String
+  createdBy           User         @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  questions           Question[]
+  attempts            TestAttempt[]
+  proctoringVideos    ProctoringVideo[]
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([batchId])
+  @@index([createdById])
+  @@index([scheduledStartTime])
+  @@map("test")
+}
+
 // ─── Arduino Models ──────────────────────────────────────────────────────────
 
 model ArduinoProblem {
@@ -288,6 +498,32 @@ model ArduinoSubmission {
   @@map("arduino_submission")
 }
 
+model TestAttempt {
+  id            String    @id @default(cuid())
+  testId        String
+  test          Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User      @relation("StudentTestAttempts", fields: [studentId], references: [id], onDelete: Cascade)
+  attemptNumber Int       @default(1)
+  status        String    @default("in_progress")
+  score         Float?
+  maxScore      Float
+  startedAt     DateTime  @default(now())
+  submittedAt   DateTime?
+  evaluatedAt   DateTime?
+  answers       Json?
+  feedback      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  proctoringVideos ProctoringVideo[]
+
+  @@unique([testId, studentId, attemptNumber])
+  @@index([testId])
+  @@index([studentId])
+  @@index([status])
+  @@map("test_attempt")
+}
+
 model CodeDraft {
   id        String   @id @default(cuid())
   userId    String
@@ -355,9 +591,40 @@ model UserStreak {
 
 // ─── MCQ Practice Models ─────────────────────────────────────────────────────
 
-enum McqSessionStatus {
-  in_progress
-  submitted
+model ProctoringVideo {
+  id            String                 @id @default(cuid())
+  studentId     String
+  testId        String
+  attemptId     String
+  objectKey     String
+  mimeType      String
+  violationType ProctoringViolationType
+  startedAt     DateTime
+  endedAt       DateTime
+  durationMs    Int
+  meta          Json?
+  clientEventId String?
+  reviewStatus  ProctoringReviewStatus @default(pending)
+  reviewNote    String?
+  severity      ProctoringSeverity?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  student    User        @relation("ProctoringVideoStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  test       Test        @relation(fields: [testId], references: [id], onDelete: Cascade)
+  attempt    TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  reviewedBy User?       @relation("ProctoringVideoReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, clientEventId])
+  @@index([testId])
+  @@index([attemptId])
+  @@index([studentId])
+  @@index([violationType])
+  @@index([reviewStatus])
+  @@index([createdAt])
+  @@map("proctoring_video")
 }
 
 model MCQPracticeSession {

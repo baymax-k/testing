@@ -8,3 +8,4 @@ certs/
 scripts/
 .claude/
 github/
+tests/

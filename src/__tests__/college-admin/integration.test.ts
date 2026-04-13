@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import request from "supertest";
 import type { Express } from "express";
 import { randomUUID } from "node:crypto";
-import { auth, prisma } from "../../config/auth";
+import { auth } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 import app from "../../app.js";
 
 /**
@@ -65,6 +66,8 @@ describe("College Admin API - Integration Tests", () => {
         name: "Report Admin",
         role: "college_admin",
         emailVerified: true,
+        username: `report-admin-${suffix}`,
+        passwordHash: "hashed_password_123",
       },
     });
 
@@ -75,6 +78,8 @@ describe("College Admin API - Integration Tests", () => {
         role: "dept_admin",
         emailVerified: true,
         departmentId: restrictedDepartment.id,
+        username: `restricted-dept-admin-${suffix}`,
+        passwordHash: "hashed_password_123",
       },
     });
 
@@ -97,6 +102,8 @@ describe("College Admin API - Integration Tests", () => {
           emailVerified: true,
           departmentId: reportDepartment.id,
           batchId: reportBatch.id,
+          username: `report-student-a-${suffix}`,
+          passwordHash: "hashed_password_123",
         },
       }),
       prisma.user.create({
@@ -107,6 +114,8 @@ describe("College Admin API - Integration Tests", () => {
           emailVerified: true,
           departmentId: reportDepartment.id,
           batchId: reportBatch.id,
+          username: `report-student-b-${suffix}`,
+          passwordHash: "hashed_password_123",
         },
       }),
       prisma.user.create({
@@ -117,6 +126,8 @@ describe("College Admin API - Integration Tests", () => {
           emailVerified: true,
           departmentId: reportDepartment.id,
           batchId: reportBatch.id,
+          username: `report-student-c-${suffix}`,
+          passwordHash: "hashed_password_123",
         },
       }),
     ]);
@@ -143,21 +154,29 @@ describe("College Admin API - Integration Tests", () => {
         data: {
           testId: reportTest.id,
           type: "multiple_choice",
+          title: "Python Function Definition",
+          description: "Which keyword defines a function in Python?",
           content: "Which keyword defines a function in Python?",
           marks: 50,
           options: ["function", "def", "fn", "lambda"],
-          correctAnswer: "def",
+          correctAnswer: 1,
           orderIndex: 0,
+          createdBy: reportAdminUser.id,
+          difficulty: "easy",
         },
       }),
       prisma.question.create({
         data: {
           testId: reportTest.id,
           type: "true_false",
+          title: "Python List Mutability",
+          description: "Python lists are mutable.",
           content: "Python lists are mutable.",
           marks: 50,
-          correctAnswer: "true",
+          correctAnswer: 1,
           orderIndex: 1,
+          createdBy: reportAdminUser.id,
+          difficulty: "easy",
         },
       }),
     ]);
@@ -386,10 +405,10 @@ describe("College Admin API - Integration Tests", () => {
       });
     });
 
-    describe("POST /api/college-admin/auth/reset-password", () => {
-      it("should require token and new password", async () => {
+    describe("PUT /api/college-admin/auth/reset-password", () => {
+      it("should require email, otp and new password", async () => {
         const response = await request(testApp)
-          .post("/api/college-admin/auth/reset-password")
+          .put("/api/college-admin/auth/reset-password")
           .send({});
 
         expect(response.status).toBe(400);
@@ -398,9 +417,10 @@ describe("College Admin API - Integration Tests", () => {
 
       it("should validate password strength", async () => {
         const response = await request(testApp)
-          .post("/api/college-admin/auth/reset-password")
+          .put("/api/college-admin/auth/reset-password")
           .send({
-            token: "dummy-token",
+            email: "test@example.com",
+            otp: "123456",
             password: "weak",
           });
 

@@ -85,7 +85,7 @@ vi.mock("../../middleware/auth.js", () => ({
 }));
 
 // Import after mocks
-const { prisma } = await import("../../config/auth.js");
+const { prisma } = await import("../../config/prisma.js");
 const app = (await import("../../app.js")).default;
 
 describe("College Admin - Dashboard Endpoint", () => {
@@ -163,6 +163,25 @@ describe("College Admin - Dashboard Endpoint", () => {
       // Set the current mock user to HOD
       currentMockUser = mockUsers.hod;
 
+      const departmentCountSpy = vi.spyOn(prisma.department, "count");
+      departmentCountSpy.mockReset();
+      departmentCountSpy.mockResolvedValue(5);
+
+      const batchCountSpy = vi.spyOn(prisma.batch, "count");
+      batchCountSpy.mockReset();
+      batchCountSpy.mockResolvedValue(3);
+
+      const testCountSpy = vi.spyOn(prisma.test, "count");
+      testCountSpy.mockReset();
+      testCountSpy.mockResolvedValue(7);
+
+      const userCountSpy = vi.spyOn(prisma.user, "count");
+      userCountSpy.mockReset();
+      userCountSpy
+        .mockResolvedValueOnce(100) // college total students
+        .mockResolvedValueOnce(42) // department students
+        .mockResolvedValueOnce(6); // department mentors
+
       const response = await request(app as Express)
         .get("/api/college-admin/dashboard")
         .set(createAuthHeaders(mockUsers.hod));
@@ -171,6 +190,15 @@ describe("College Admin - Dashboard Endpoint", () => {
       expect(response.body.dashboard).toBeDefined();
       expect(response.body.dashboard.role).toBe("hod");
       expect(response.body.dashboard.sections).toBeDefined();
+      expect(response.body.dashboard.statistics.scope).toBe("department");
+      expect(response.body.dashboard.statistics.departmentId).toBe(mockUsers.hod.departmentId);
+      expect(response.body.dashboard.statistics.totalMentors).toBe(6);
+      expect(userCountSpy).toHaveBeenCalledWith({
+        where: {
+          role: "mentor",
+          departmentId: mockUsers.hod.departmentId,
+        },
+      });
     });
 
     it("should return department admin dashboard stats", async () => {

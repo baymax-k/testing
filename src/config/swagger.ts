@@ -37,6 +37,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
     ],
     tags: [
       {
+        name: "Proctoring",
+        description: "Student proctoring evidence upload and reviewer moderation endpoints.",
+      },
+      {
         name: "College Admin - Auth",
         description: "Authentication and session endpoints for college-admin portal access.",
       },
@@ -365,6 +369,75 @@ const swaggerOptions: swaggerJsdoc.Options = {
             startTime: { type: "string", format: "date-time", nullable: true },
             endTime: { type: "string", format: "date-time", nullable: true },
             duration: { type: "integer", description: "Duration in minutes", nullable: true },
+          },
+        },
+        ProctoringUploadUrlResponse: {
+          type: "object",
+          properties: {
+            uploadUrl: { type: "string", format: "uri" },
+            objectKey: { type: "string" },
+            expiresInSeconds: { type: "integer" },
+            maxUploadBytes: { type: "integer" },
+          },
+        },
+        ProctoringVideoStoredResponse: {
+          type: "object",
+          properties: {
+            videoId: { type: "string" },
+            status: { type: "string", enum: ["stored"] },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        ProctoringVideoListItem: {
+          type: "object",
+          properties: {
+            videoId: { type: "string" },
+            studentId: { type: "string" },
+            testId: { type: "string" },
+            attemptId: { type: "string" },
+            violationType: {
+              type: "string",
+              enum: ["NO_FACE_DETECTED", "MULTIPLE_FACES", "OFF_SCREEN_GAZE", "TAB_SWITCH", "FULLSCREEN_EXIT", "OTHER"],
+            },
+            startedAt: { type: "string", format: "date-time" },
+            endedAt: { type: "string", format: "date-time" },
+            durationMs: { type: "integer" },
+            reviewStatus: { type: "string", enum: ["pending", "confirmed", "dismissed", "needs_review"] },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        ProctoringVideoListResponse: {
+          type: "object",
+          properties: {
+            items: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ProctoringVideoListItem" },
+            },
+            pagination: {
+              type: "object",
+              properties: {
+                page: { type: "integer" },
+                limit: { type: "integer" },
+                total: { type: "integer" },
+                pages: { type: "integer" },
+              },
+            },
+          },
+        },
+        ProctoringAccessUrlResponse: {
+          type: "object",
+          properties: {
+            accessUrl: { type: "string", format: "uri" },
+            expiresInSeconds: { type: "integer" },
+          },
+        },
+        ProctoringReviewResponse: {
+          type: "object",
+          properties: {
+            videoId: { type: "string" },
+            reviewStatus: { type: "string", enum: ["pending", "confirmed", "dismissed", "needs_review"] },
+            reviewedBy: { type: "string" },
+            reviewedAt: { type: "string", format: "date-time" },
           },
         },
       },
@@ -1831,6 +1904,213 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      // G��G�� Proctoring G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
+      "/api/v1/proctoring/videos/upload-url": {
+        post: {
+          summary: "Create signed S3 upload URL for proctoring video segment",
+          description:
+            "Student-only endpoint. Validates test attempt ownership and returns a short-lived signed URL for direct S3 upload.",
+          tags: ["Proctoring"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    testId: { type: "string" },
+                    attemptId: { type: "string" },
+                    violationType: {
+                      type: "string",
+                      enum: ["NO_FACE_DETECTED", "MULTIPLE_FACES", "OFF_SCREEN_GAZE", "TAB_SWITCH", "FULLSCREEN_EXIT", "OTHER"],
+                    },
+                    mimeType: { type: "string", enum: ["video/webm", "video/mp4"] },
+                    segmentStartMs: { type: "integer", minimum: 0 },
+                    segmentEndMs: { type: "integer", minimum: 0 },
+                    clientEventId: { type: "string", maxLength: 128 },
+                  },
+                  required: ["testId", "attemptId", "violationType", "mimeType"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Signed URL generated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ProctoringUploadUrlResponse" } } },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden (non-student role)" },
+            "404": { description: "Attempt not found for this student" },
+            "500": { description: "Server error" },
+          },
+        },
+      },
+
+      "/api/v1/proctoring/videos": {
+        post: {
+          summary: "Persist uploaded proctoring video metadata",
+          description:
+            "Student-only endpoint. Stores metadata after client uploads the video segment to S3.",
+          tags: ["Proctoring"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    testId: { type: "string" },
+                    attemptId: { type: "string" },
+                    objectKey: { type: "string" },
+                    mimeType: { type: "string", enum: ["video/webm", "video/mp4"] },
+                    violationType: {
+                      type: "string",
+                      enum: ["NO_FACE_DETECTED", "MULTIPLE_FACES", "OFF_SCREEN_GAZE", "TAB_SWITCH", "FULLSCREEN_EXIT", "OTHER"],
+                    },
+                    startedAt: { type: "string", format: "date-time" },
+                    endedAt: { type: "string", format: "date-time" },
+                    durationMs: { type: "integer", minimum: 0 },
+                    meta: { type: "object", additionalProperties: true },
+                    clientEventId: { type: "string", maxLength: 128 },
+                  },
+                  required: [
+                    "testId",
+                    "attemptId",
+                    "objectKey",
+                    "mimeType",
+                    "violationType",
+                    "startedAt",
+                    "endedAt",
+                  ],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Metadata stored",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ProctoringVideoStoredResponse" } } },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden (non-student role)" },
+            "404": { description: "Attempt not found for this student" },
+            "409": { description: "Duplicate clientEventId" },
+            "422": { description: "Invalid object key prefix" },
+          },
+        },
+      },
+
+      "/api/v1/proctoring/tests/{testId}/videos": {
+        get: {
+          summary: "List proctoring videos for a test",
+          description: "Reviewer/admin endpoint with filtering and pagination.",
+          tags: ["Proctoring"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "testId", in: "path", required: true, schema: { type: "string" } },
+            { name: "attemptId", in: "query", schema: { type: "string" } },
+            { name: "studentId", in: "query", schema: { type: "string" } },
+            {
+              name: "violationType",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: ["NO_FACE_DETECTED", "MULTIPLE_FACES", "OFF_SCREEN_GAZE", "TAB_SWITCH", "FULLSCREEN_EXIT", "OTHER"],
+              },
+            },
+            {
+              name: "reviewStatus",
+              in: "query",
+              schema: { type: "string", enum: ["pending", "confirmed", "dismissed", "needs_review"] },
+            },
+            { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
+            { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
+          ],
+          responses: {
+            "200": {
+              description: "Proctoring videos list",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ProctoringVideoListResponse" } } },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden (insufficient role)" },
+          },
+        },
+      },
+
+      "/api/v1/proctoring/videos/{videoId}/access-url": {
+        get: {
+          summary: "Create signed read URL for a stored proctoring video",
+          description: "Reviewer/admin endpoint to preview or download a proctoring video from S3.",
+          tags: ["Proctoring"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "videoId", in: "path", required: true, schema: { type: "string" } },
+            {
+              name: "disposition",
+              in: "query",
+              required: false,
+              schema: { type: "string", enum: ["inline", "attachment"], default: "inline" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Signed read URL generated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ProctoringAccessUrlResponse" } } },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden (insufficient role)" },
+            "404": { description: "Video not found" },
+          },
+        },
+      },
+
+      "/api/v1/proctoring/videos/{videoId}/review": {
+        patch: {
+          summary: "Review and classify a proctoring violation",
+          description: "Reviewer/admin endpoint to mark video evidence as confirmed/dismissed/needs review.",
+          tags: ["Proctoring"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { name: "videoId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    reviewStatus: { type: "string", enum: ["confirmed", "dismissed", "needs_review"] },
+                    reviewNote: { type: "string", maxLength: 2000 },
+                    severity: { type: "string", enum: ["low", "medium", "high"] },
+                  },
+                  required: ["reviewStatus"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Review saved",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ProctoringReviewResponse" } } },
+            },
+            "400": { description: "Validation error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden (insufficient role)" },
+            "404": { description: "Video not found" },
+          },
+        },
+      },
+
       // G��G�� Problems G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/problems": {
         get: {
@@ -2514,6 +2794,162 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
       },
 
+      "/api/college-admin/mentors/{mentorId}/students": {
+        get: {
+          summary: "List students assigned to a mentor",
+          description:
+            "Returns students whose batch is assigned to the specified mentor. Supports pagination and role-based scoping.",
+          tags: ["College Admin - Students"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "mentorId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Mentor user ID",
+            },
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1 },
+              description: "Page number (default 1)",
+            },
+            {
+              name: "limit",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+              description: "Page size (default 20, max 100)",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Students assigned to mentor",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      mentor: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          role: { type: "string", example: "mentor" },
+                          departmentId: { type: "string", nullable: true },
+                        },
+                      },
+                      students: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string", nullable: true },
+                            batch: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                code: { type: "string" },
+                                year: { type: "integer" },
+                              },
+                            },
+                            department: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                code: { type: "string" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          total: { type: "integer", example: 42 },
+                          page: { type: "integer", example: 1 },
+                          limit: { type: "integer", example: 20 },
+                          totalPages: { type: "integer", example: 3 },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation error or mentor missing department" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden" },
+            "404": { description: "Mentor not found" },
+          },
+        },
+      },
+
+      "/api/college-admin/tests": {
+        post: {
+          summary: "Create a test (college admin portal)",
+          description:
+            "Creates a test with scheduling, attempt limits, and optional maximum marks. Role restrictions mirror the portal (super_admin, college_admin, principal, hod, dept_admin, mentor).",
+          tags: ["College Admin - Tests"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string", maxLength: 200 },
+                    description: { type: "string", maxLength: 1000 },
+                    instructions: { type: "string", maxLength: 2000 },
+                    durationMinutes: { type: "integer", minimum: 1, maximum: 600, default: 60 },
+                    maxAttempts: { type: "integer", minimum: 1, maximum: 10, default: 1 },
+                    maximumMarks: { type: "integer", minimum: 0, description: "Cap/total marks for the test" },
+                    passingMarks: { type: "integer", minimum: 0 },
+                    scheduledStartTime: { type: "string", format: "date-time" },
+                    scheduledEndTime: { type: "string", format: "date-time" },
+                    departmentId: { type: "string" },
+                    batchId: { type: "string" },
+                  },
+                  required: ["title"],
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Test created",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Test created successfully" },
+                      test: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation or scheduling error" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "Forbidden" },
+          },
+        },
+      },
+
       // ═══ Arduino Platform API ═══════════════════════════════════════════════════
       "/api/v1/arduino/health": {
         get: {
@@ -2911,6 +3347,323 @@ const swaggerOptions: swaggerJsdoc.Options = {
   },
   apis: ["src/modules/routes/*.ts", "dist/modules/routes/*.js"],
 };
+
+// ── Response Examples Helper -------------------------------------------------
+// Adds a concrete example body to every response so Swagger UI always shows a
+// sample JSON payload. Examples are resolved from schema references where
+// possible, otherwise sensible defaults are used.
+const schemaExamples: Record<string, unknown> = {
+  "#/components/schemas/Message": { message: "Request completed successfully" },
+  "#/components/schemas/Error": {
+    error: "Validation error",
+    details: [{ path: ["email"], message: "Email is required" }],
+  },
+  "#/components/schemas/User": {
+    id: "usr_123",
+    email: "student@example.com",
+    username: "student01",
+    name: "Student One",
+    role: "student",
+    emailVerified: true,
+  },
+  "#/components/schemas/ProblemSummary": {
+    id: "two-sum",
+    title: "Two Sum",
+    slug: "two-sum",
+    difficulty: "easy",
+    tags: ["arrays", "hash-map"],
+  },
+  "#/components/schemas/ProblemDetail": {
+    id: "two-sum",
+    title: "Two Sum",
+    slug: "two-sum",
+    difficulty: "easy",
+    tags: ["arrays", "hash-map"],
+    description: "Find two numbers that add up to target.",
+    constraints: "1 <= nums.length <= 1e4",
+    timeLimits: {
+      javascript: 2,
+      python: 2,
+      java: 1,
+    },
+    memoryLimit: 256,
+    sampleTestCases: [
+      { input: "[2,7,11,15], target=9", output: "[0,1]", explanation: "2 + 7 = 9" },
+    ],
+  },
+  "#/components/schemas/RunResult": {
+    status: "Accepted",
+    stdout: "Hello, World!\n",
+    stderr: "",
+    compileOutput: "",
+    time: "0.012",
+    memory: 3200,
+  },
+  "#/components/schemas/TestCaseDetail": {
+    index: 1,
+    visibility: "sample",
+    passed: true,
+    status: "accepted",
+    input: "2 7 11 15\n9",
+    expectedOutput: "0 1",
+    actualOutput: "0 1",
+    errorOutput: null,
+  },
+  "#/components/schemas/SubmitResult": {
+    submissionId: "sub_123",
+    status: "accepted",
+    testCasesPassed: 4,
+    totalTestCases: 4,
+    failedAt: null,
+    runtime: "0.045",
+    memory: 2800,
+    errorOutput: null,
+    testCaseResults: [
+      { index: 1, visibility: "sample", passed: true, status: "accepted" },
+      { index: 2, visibility: "public", passed: true, status: "accepted" },
+    ],
+  },
+  "#/components/schemas/PreSubmitResult": {
+    status: "accepted",
+    testCasesPassed: 2,
+    totalTestCases: 2,
+    failedAt: null,
+    runtime: "0.030",
+    memory: 2500,
+    errorOutput: null,
+    testCaseResults: [
+      { index: 1, visibility: "sample", passed: true, status: "accepted" },
+    ],
+  },
+  "#/components/schemas/SubmissionSummary": {
+    id: "sub_123",
+    problemId: "two-sum",
+    language: "javascript",
+    status: "accepted",
+    testCasesPassed: 4,
+    totalTestCases: 4,
+    runtime: "0.045",
+    memory: 2800,
+    createdAt: "2026-03-19T10:00:00.000Z",
+  },
+  "#/components/schemas/Question": {
+    id: "mcq-101",
+    type: "mcq",
+    title: "What is the output of console.log(typeof null)?",
+    description: "Check JavaScript typeof behavior.",
+    difficulty: "easy",
+    tags: ["javascript", "basics"],
+    company: null,
+    options: ["object", "null", "undefined", "boolean"],
+    timeLimit: null,
+    memoryLimit: null,
+    sampleTestCases: null,
+  },
+  "#/components/schemas/QuestionSummary": {
+    id: "mcq-101",
+    title: "What is the output of console.log(typeof null)?",
+    statement: "Evaluate typeof null.",
+    options: ["object", "null", "undefined", "boolean"],
+    topic: "javascript",
+    difficulty: "easy",
+  },
+  "#/components/schemas/RandomPracticeResponse": {
+    seed: "abc123",
+    poolSize: 120,
+    reset: false,
+    questions: [
+      {
+        id: "mcq-101",
+        title: "What is the output of console.log(typeof null)?",
+        statement: "Evaluate typeof null.",
+        options: ["object", "null", "undefined", "boolean"],
+        topic: "javascript",
+        difficulty: "easy",
+      },
+    ],
+  },
+  "#/components/schemas/Contest": {
+    id: "contest_1",
+    title: "Weekly DSA Challenge",
+    description: "Solve 5 medium problems in 90 minutes",
+    type: "contest",
+    startTime: "2026-03-19T09:00:00.000Z",
+    endTime: "2026-03-19T10:30:00.000Z",
+    duration: 90,
+  },
+  "#/components/schemas/DailyChallenge": {
+    id: "potd_2026_03_19",
+    date: "2026-03-19",
+    question: {
+      id: "mcq-101",
+      type: "mcq",
+      title: "What is the output of console.log(typeof null)?",
+      description: "Check JavaScript typeof behavior.",
+      difficulty: "easy",
+      tags: ["javascript", "basics"],
+      company: null,
+      options: ["object", "null", "undefined", "boolean"],
+      timeLimit: null,
+      memoryLimit: null,
+      sampleTestCases: null,
+    },
+  },
+  "#/components/schemas/UserStreak": {
+    currentStreak: 5,
+    longestStreak: 14,
+    lastSolveDate: "2026-03-19",
+  },
+  "#/components/schemas/PotdResponse": {
+    challenge: {
+      id: "potd_2026_03_19",
+      date: "2026-03-19",
+      question: {
+        id: "mcq-101",
+        title: "What is the output of console.log(typeof null)?",
+        difficulty: "easy",
+        type: "mcq",
+        tags: ["javascript", "basics"],
+        options: ["object", "null", "undefined", "boolean"],
+      },
+    },
+    solved: true,
+    solveResult: {
+      isCorrect: true,
+      selectedOption: 0,
+      solvedAt: "2026-03-19T10:00:00.000Z",
+    },
+    streak: { currentStreak: 5, longestStreak: 14, lastSolveDate: "2026-03-19" },
+  },
+  "#/components/schemas/McqStats": {
+    totalSessions: 12,
+    totalQuestions: 180,
+    totalCorrect: 142,
+    totalScore: 1420,
+    overallAccuracy: 78.9,
+    topicBreakdown: [
+      { topic: "arrays", total: 30, correct: 25, accuracy: 83.3 },
+      { topic: "sql", total: 20, correct: 14, accuracy: 70 },
+    ],
+  },
+  "#/components/schemas/DailyPracticeActivity": {
+    id: "activity_1",
+    userId: "usr_123",
+    date: "2026-03-19",
+    problemsSolved: 2,
+    mcqSolved: 1,
+    dsaSolved: 1,
+    createdAt: "2026-03-19T10:00:00.000Z",
+    updatedAt: "2026-03-19T10:00:00.000Z",
+  },
+};
+
+const defaultResponseExamples: Record<string, unknown> = {
+  "200": { message: "Request succeeded" },
+  "201": { message: "Resource created" },
+  "204": {},
+  "400": { error: "Bad request" },
+  "401": { error: "Unauthorized" },
+  "403": { error: "Forbidden" },
+  "404": { error: "Not found" },
+  "409": { error: "Conflict" },
+  "422": { error: "Unprocessable entity" },
+  "429": { error: "Too many requests", retryAfterSeconds: 60 },
+  "500": { error: "Internal server error" },
+  "2xx": { message: "Request succeeded" },
+  "4xx": { error: "Client error" },
+  "5xx": { error: "Server error" },
+};
+
+type SchemaObject = { $ref?: string; type?: string; items?: SchemaObject; properties?: Record<string, SchemaObject & { example?: unknown }>; example?: unknown };
+
+const getStatusFamily = (status: string): string | undefined => {
+  const numeric = Number(status);
+  if (Number.isFinite(numeric)) {
+    return `${Math.floor(numeric / 100)}xx`;
+  }
+  return undefined;
+};
+
+const buildExampleFromSchema = (schema: SchemaObject | undefined): unknown => {
+  if (!schema) return undefined;
+  if (schema.example !== undefined) return schema.example;
+  if (schema.$ref && schemaExamples[schema.$ref]) return schemaExamples[schema.$ref];
+
+  if (schema.type === "array" && schema.items) {
+    const itemExample = buildExampleFromSchema(schema.items);
+    if (itemExample !== undefined) return [itemExample];
+  }
+
+  if (schema.type === "object" && schema.properties) {
+    const example: Record<string, unknown> = {};
+    Object.entries(schema.properties).forEach(([key, propertySchema]) => {
+      const propertyExample = buildExampleFromSchema(propertySchema) ?? inferPrimitiveExample(propertySchema.type);
+      example[key] = propertyExample;
+    });
+    return example;
+  }
+
+  return inferPrimitiveExample(schema.type);
+};
+
+const inferPrimitiveExample = (type?: string): unknown => {
+  switch (type) {
+    case "string":
+      return "example";
+    case "number":
+    case "integer":
+      return 1;
+    case "boolean":
+      return true;
+    default:
+      return "sample";
+  }
+};
+
+const addResponseExamples = (paths: Record<string, unknown>): void => {
+  const methods = ["get", "post", "put", "patch", "delete"];
+
+  Object.values(paths).forEach((pathItem) => {
+    if (!pathItem || typeof pathItem !== "object") return;
+
+    methods.forEach((method) => {
+      const operation = (pathItem as Record<string, unknown>)[method] as
+        | { responses?: Record<string, { content?: Record<string, { schema?: SchemaObject; example?: unknown; examples?: unknown }> }> }
+        | undefined;
+
+      if (!operation?.responses) return;
+
+      Object.entries(operation.responses).forEach(([status, response]) => {
+        if (!response || typeof response !== "object") return;
+
+        const responseObj = response as {
+          content?: Record<string, { schema?: SchemaObject; example?: unknown; examples?: unknown }>;
+        };
+
+        if (!responseObj.content) {
+          responseObj.content = { "application/json": {} };
+        }
+
+        const jsonContent =
+          responseObj.content["application/json"] ?? (responseObj.content["application/json"] = {});
+
+        if (jsonContent.example || jsonContent.examples) {
+          return;
+        }
+
+        const schemaExample = buildExampleFromSchema(jsonContent.schema);
+        const statusExample = defaultResponseExamples[status];
+        const familyExample = getStatusFamily(status)
+          ? defaultResponseExamples[getStatusFamily(status) as string]
+          : undefined;
+
+        jsonContent.example = schemaExample ?? statusExample ?? familyExample ?? { message: "Sample response" };
+      });
+    });
+  });
+};
+
+addResponseExamples((swaggerOptions.definition?.paths ?? {}) as Record<string, unknown>);
 
 // ── Supplementary Schemas ──────────────────────────────────────────────────────
 // Injected after swaggerOptions so we can reference them cleanly.

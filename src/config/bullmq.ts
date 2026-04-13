@@ -26,6 +26,7 @@ export const getQueueConnection = () => {
  * Default queue options for all Arduino queues
  */
 export const defaultQueueOptions: QueueOptions = {
+  connection: getRedisClient(),
   defaultJobOptions: {
     attempts: 2, // Retry once on failure
     backoff: {

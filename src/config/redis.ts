@@ -1,7 +1,7 @@
 // ─── Redis Singleton Configuration ─────────────────────────────────────────
 // Single Redis connection shared across the application for BullMQ and caching
 
-import Redis from "ioredis";
+import Redis, { type RedisOptions } from "ioredis";
 
 let redisClient: Redis | null = null;
 
@@ -24,19 +24,17 @@ export function getRedisClient(): Redis {
       },
       enableReadyCheck: true,
       lazyConnect: false,
-    } satisfies Redis.RedisOptions;
+    } satisfies RedisOptions;
 
     if (redisUrl) {
       redisClient = new Redis(redisUrl, baseConfig);
     } else {
-      redisClient = new Redis(
-        {
-          host: redisHost,
-          port: redisPort,
-          password: redisPassword,
-        },
-        baseConfig
-      );
+      redisClient = new Redis({
+        host: redisHost,
+        port: redisPort,
+        password: redisPassword,
+        ...baseConfig,
+      });
     }
 
     // Event handlers

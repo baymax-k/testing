@@ -101,7 +101,8 @@ type PrismaMock = {
 };
 
 // Import after mocks
-const { prisma: prismaClient, auth } = await import("../../config/auth.js");
+const { prisma: prismaClient } = await import("../../config/prisma.js");
+const { auth } = await import("../../config/auth.js");
 const prisma = prismaClient as unknown as PrismaMock;
 const app = (await import("../../app.js")).default;
 

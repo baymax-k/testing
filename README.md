@@ -101,6 +101,16 @@ pnpm exec prisma migrate deploy --schema src/modules/prisma/schema.prisma
 pnpm run seed
 ```
 
+### Migration Policy (AWS DB)
+
+This repository now uses a baseline-forward migration strategy for the shared AWS database.
+
+- Current AWS schema is treated as baseline.
+- New database changes must be additive and forward-only.
+- Historical failed migration records are not used for release decisions.
+
+See full policy in [migration_policy.md](migration_policy.md).
+
 ### 5. Start Development Servers
 ```bash
 # Terminal 1: Main backend API (port 5000)

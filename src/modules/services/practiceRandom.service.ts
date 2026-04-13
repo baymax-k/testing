@@ -50,12 +50,9 @@ export async function generateRandomMcqSet(userId: string, opts: RandomOptions) 
   const fullCandidates = await prisma.question.findMany({ where, select: { id: true } });
   const fullIds = fullCandidates.map((r) => r.id);
 
-  // Fetch user's previously-correct MCQ answers to exclude
-  const solvedRows = await prisma.mcqPracticeAnswer.findMany({
-    where: { session: { userId }, isCorrect: true },
-    select: { questionId: true },
-  });
-  const solvedIds = new Set(solvedRows.map((r) => r.questionId));
+  // TODO: Fetch user's previously-correct MCQ answers to exclude
+  // This will need to be refactored to use session.answers (JSON) instead of mcqPracticeAnswer table
+  const solvedIds = new Set<string>();
 
   const explicitExcludes = new Set((opts.excludeIds ?? []).filter(Boolean));
 

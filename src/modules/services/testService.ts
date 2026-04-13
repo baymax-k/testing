@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma.js";
-import { TestStatus, QuestionType } from "../../generated/prisma/client.js";
+import { TestStatus, QuestionType } from "@prisma/client";
 
 export interface CreateTestInput {
   title: string;
@@ -7,6 +7,7 @@ export interface CreateTestInput {
   instructions?: string;
   durationMinutes?: number;
   maxAttempts?: number;
+  maximumMarks?: number;
   passingMarks?: number;
   scheduledStartTime?: Date;
   scheduledEndTime?: Date;
@@ -33,6 +34,9 @@ export interface UpdateTestInput {
 export interface CreateQuestionInput {
   type: QuestionType;
   content: string;
+  title?: string;
+  description?: string;
+  difficulty?: string;
   marks: number;
   options?: string[] | null;
   correctAnswer?: string | null;
@@ -59,6 +63,7 @@ export interface PaginationOptions {
 
 export interface TestFilters {
   status?: TestStatus;
+  collegeId?: string;
   departmentId?: string;
   batchId?: string;
   createdById?: string;
@@ -100,7 +105,7 @@ async function checkTestManagementPermission(
     throw new Error("User not found");
   }
 
-  // Super admins and college admins can manage all tests
+  // College super admins and college admins can manage all tests
   if (allowedRoles.includes(user.role) || user.role === "super_admin" || user.role === "college_admin") {
     return true;
   }
@@ -135,7 +140,7 @@ async function calculateTotalMarks(testId: string): Promise<number> {
     select: { marks: true },
   });
 
-  return questions.reduce((total, question) => total + question.marks, 0);
+  return questions.reduce((total, question) => total + (question.marks ?? 0), 0);
 }
 
 /**
@@ -221,7 +226,7 @@ export class TestService {
         status,
         durationMinutes: data.durationMinutes || 60,
         maxAttempts: data.maxAttempts || 1,
-        totalMarks: 0, // Will be calculated as questions are added
+        totalMarks: data.maximumMarks ?? 0, // Provided cap or will be calculated as questions are added
         passingMarks: data.passingMarks,
         scheduledStartTime: data.scheduledStartTime,
         scheduledEndTime: data.scheduledEndTime,
@@ -383,7 +388,7 @@ export class TestService {
   /**
    * Get test by ID
    */
-  static async getTestById(testId: string) {
+  static async getTestById(testId: string, collegeId?: string) {
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
@@ -400,6 +405,7 @@ export class TestService {
             id: true,
             name: true,
             code: true,
+            collegeId: true,
           },
         },
         batch: {
@@ -407,6 +413,11 @@ export class TestService {
             id: true,
             name: true,
             code: true,
+            department: {
+              select: {
+                collegeId: true,
+              },
+            },
           },
         },
         questions: {
@@ -422,6 +433,14 @@ export class TestService {
 
     if (!test) {
       throw new Error("Test not found");
+    }
+
+    if (collegeId) {
+      const testCollegeId =
+        test.department?.collegeId || test.batch?.department?.collegeId || null;
+      if (testCollegeId !== collegeId) {
+        throw new Error("Test not found");
+      }
     }
 
     return test;
@@ -456,6 +475,17 @@ export class TestService {
 
     if (filters.batchId) {
       where.batchId = filters.batchId;
+    }
+
+    if (filters.collegeId) {
+      where.AND = [
+        {
+          OR: [
+            { department: { collegeId: filters.collegeId } },
+            { batch: { department: { collegeId: filters.collegeId } } },
+          ],
+        },
+      ];
     }
 
     if (filters.createdById) {
@@ -597,12 +627,16 @@ export class TestService {
       data: {
         testId,
         type: data.type,
+        title: data.title || data.content?.substring(0, 100) || 'Question',
+        description: data.description || data.content || '',
+        difficulty: data.difficulty || 'medium',
         content: data.content,
         marks: data.marks,
         options: data.options ?? undefined,
-        correctAnswer: data.correctAnswer ?? undefined,
+        correctAnswer: typeof data.correctAnswer === 'string' ? parseInt(data.correctAnswer, 10) : data.correctAnswer ?? undefined,
         explanation: data.explanation ?? undefined,
         orderIndex: data.orderIndex ?? questionCount,
+        createdBy: 'system',
       },
     });
 
@@ -630,6 +664,12 @@ export class TestService {
       throw new Error("Question not found");
     }
 
+    if (!existingQuestion.test || !existingQuestion.testId) {
+      throw new Error("Question is not associated with any test");
+    }
+
+    const existingQuestionTestId = existingQuestion.testId;
+
     // Don't allow editing questions in active or completed tests
     if (
       existingQuestion.test.status === "active" ||
@@ -656,9 +696,9 @@ export class TestService {
 
     // Update test total marks if marks changed
     if (data.marks !== undefined) {
-      const totalMarks = await calculateTotalMarks(existingQuestion.testId);
+      const totalMarks = await calculateTotalMarks(existingQuestionTestId);
       await prisma.test.update({
-        where: { id: existingQuestion.testId },
+        where: { id: existingQuestionTestId },
         data: { totalMarks },
       });
     }
@@ -680,6 +720,12 @@ export class TestService {
       throw new Error("Question not found");
     }
 
+    if (!question.test || !question.testId) {
+      throw new Error("Question is not associated with any test");
+    }
+
+    const questionTestId = question.testId;
+
     // Don't allow deleting questions from active or completed tests
     if (question.test.status === "active" || question.test.status === "completed") {
       throw new Error(`Cannot delete questions from ${question.test.status} test`);
@@ -690,9 +736,9 @@ export class TestService {
     });
 
     // Update test total marks
-    const totalMarks = await calculateTotalMarks(question.testId);
+    const totalMarks = await calculateTotalMarks(questionTestId);
     await prisma.test.update({
-      where: { id: question.testId },
+      where: { id: questionTestId },
       data: { totalMarks },
     });
 

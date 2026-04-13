@@ -53,14 +53,14 @@ router.get(
   '/problems',
   ArduinoValidators.getProblems(),
   handleValidationErrors,
-  (req, res) => arduinoController.getProblems(req, res)
+  (req: Request, res: Response) => arduinoController.getProblems(req, res)
 );
 
 router.get(
   '/problems/:problemId',
   ArduinoValidators.getProblem(),
   handleValidationErrors,
-  (req, res) => arduinoController.getProblem(req, res)
+  (req: Request, res: Response) => arduinoController.getProblem(req, res)
 );
 
 // Compilation with stricter rate limiting
@@ -69,7 +69,7 @@ router.post(
   arduinoCompileRateLimit.middleware(),
   ArduinoValidators.submitCompile(),
   handleValidationErrors,
-  (req, res) => arduinoController.submitCompile(req, res)
+  (req: Request, res: Response) => arduinoController.submitCompile(req, res)
 );
 
 // Job management
@@ -77,21 +77,21 @@ router.get(
   '/jobs/:submissionId',
   ArduinoValidators.getJobStatus(),
   handleValidationErrors,
-  (req, res) => arduinoController.getJobStatus(req, res)
+  (req: Request, res: Response) => arduinoController.getJobStatus(req, res)
 );
 
 router.get(
   '/submissions',
   ArduinoValidators.getUserSubmissions(),
   handleValidationErrors,
-  (req, res) => arduinoController.getUserSubmissions(req, res)
+  (req: Request, res: Response) => arduinoController.getUserSubmissions(req, res)
 );
 
 router.delete(
   '/jobs/:submissionId',
   ArduinoValidators.cancelJob(),
   handleValidationErrors,
-  (req, res) => arduinoController.cancelJob(req, res)
+  (req: Request, res: Response) => arduinoController.cancelJob(req, res)
 );
 
 // Test case validation

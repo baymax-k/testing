@@ -6,7 +6,7 @@ import { prisma } from "./prisma.js";
 
 const mailTransporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || "2525", 10),
+  port: Number.parseInt(process.env.EMAIL_PORT || "2525", 10),
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -51,7 +51,8 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 600,
       allowedAttempts: 10,
-      sendVerificationOnSignUp: true,
+      // Keep OTP delivery explicit through forgot-password flows.
+      sendVerificationOnSignUp: false,
       async sendVerificationOTP({ email, otp, type }) {
         let subject = "";
         let body = "";

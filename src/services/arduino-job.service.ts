@@ -111,7 +111,7 @@ export class ArduinoJobService {
       if (await job.isWaiting()) {
         queueProgress = 0;
       } else if (await job.isActive()) {
-        queueProgress = job.progress || 50;
+        queueProgress = typeof job.progress === 'number' ? job.progress : 50;
       } else if (await job.isCompleted() || await job.isFailed()) {
         queueProgress = 100;
       }
@@ -127,9 +127,9 @@ export class ArduinoJobService {
     };
 
     // Include result if completed or failed
-    if (submission.status === 'compiled' || submission.status === 'failed') {
+    if (submission.status === 'accepted' || submission.status === 'compilation_error' || submission.status === 'runtime_error') {
       response.result = {
-        success: submission.status === 'compiled',
+        success: submission.status === 'accepted',
         hexCode: submission.hexFile || undefined,          // Use hexFile field
         error: submission.errorOutput || undefined,        // Use errorOutput field
         compileTime: submission.compileTime || 0,          // Use compileTime field
@@ -161,13 +161,13 @@ export class ArduinoJobService {
     return submissions.map(submission => ({
       id: submission.id,
       status: submission.status as any,
-      progress: submission.status === 'queued' ? 0 : 
-                submission.status === 'processing' ? 50 : 100,
+      progress: submission.status === 'processing' ? 0 : 
+                submission.status === 'accepted' ? 100 : 100,
       createdAt: submission.createdAt,
       processedAt: undefined,  // Field doesn't exist in schema
       completedAt: undefined,  // Field doesn't exist in schema
-      result: (submission.status === 'compiled' || submission.status === 'failed') ? {
-        success: submission.status === 'compiled',
+      result: (submission.status === 'accepted' || submission.status === 'compilation_error' || submission.status === 'runtime_error') ? {
+        success: submission.status === 'accepted',
         hexCode: submission.hexFile || undefined,          // Use hexFile field
         error: submission.errorOutput || undefined,        // Use errorOutput field
         compileTime: submission.compileTime || 0,          // Use compileTime field
@@ -197,7 +197,7 @@ export class ArduinoJobService {
       where: { id: submissionId, userId },
     });
 
-    if (!submission || submission.status !== 'queued') {
+    if (!submission || submission.status !== 'processing') {
       return false;
     }
 
@@ -211,7 +211,7 @@ export class ArduinoJobService {
     await prisma.arduinoSubmission.update({
       where: { id: submissionId },
       data: {
-        status: 'failed',
+        status: 'compilation_error',
         errorOutput: 'Cancelled by user'  // Use errorOutput field
       },
     });

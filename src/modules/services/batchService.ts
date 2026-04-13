@@ -157,6 +157,7 @@ export class BatchService {
    * Get all batches with optional filtering
    */
   static async getAllBatches(filters?: {
+    collegeId?: string;
     departmentId?: string;
     year?: number;
     semester?: number;
@@ -184,6 +185,12 @@ export class BatchService {
 
     if (filters?.mentorId) {
       where.mentorId = filters.mentorId;
+    }
+
+    if (filters?.collegeId) {
+      where.department = {
+        collegeId: filters.collegeId,
+      };
     }
 
     const [batches, total] = await Promise.all([
@@ -222,8 +229,13 @@ export class BatchService {
       prisma.batch.count({ where }),
     ]);
 
+    const batchesWithCounts = batches.map((batch) => ({
+      ...batch,
+      totalStudents: batch._count?.students ?? 0,
+    }));
+
     return {
-      batches,
+      batches: batchesWithCounts,
       pagination: {
         total,
         page,
@@ -236,7 +248,7 @@ export class BatchService {
   /**
    * Get batch by ID
    */
-  static async getBatchById(batchId: string) {
+  static async getBatchById(batchId: string, collegeId?: string) {
     const batch = await prisma.batch.findUnique({
       where: { id: batchId },
       include: {
@@ -245,6 +257,7 @@ export class BatchService {
             id: true,
             name: true,
             code: true,
+            collegeId: true,
           },
         },
         mentor: {
@@ -271,6 +284,10 @@ export class BatchService {
     });
 
     if (!batch) {
+      throw new Error("Batch not found");
+    }
+
+    if (collegeId && batch.department.collegeId !== collegeId) {
       throw new Error("Batch not found");
     }
 
@@ -582,6 +599,83 @@ export class BatchService {
       hasMentor: !!batch.mentorId,
       year: batch.year,
       semester: batch.semester,
+    };
+  }
+
+  /**
+   * List students mentored by a specific mentor (through batch assignment)
+   */
+  static async getStudentsByMentor(mentorId: string, options?: { page?: number; limit?: number }) {
+    const mentor = await prisma.user.findUnique({
+      where: { id: mentorId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        departmentId: true,
+      },
+    });
+
+    if (!mentor) {
+      throw new Error("Mentor not found");
+    }
+
+    if (mentor.role !== "mentor" && mentor.role !== "dept_admin" && mentor.role !== "hod") {
+      throw new Error("Only mentors, dept_admin, or HOD can have assigned students");
+    }
+
+    const page = options?.page && options.page > 0 ? options.page : 1;
+    const limit = options?.limit && options.limit > 0 ? options.limit : 20;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      role: "student" as const,
+      batch: {
+        mentorId,
+      },
+    };
+
+    const [students, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          batch: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              year: true,
+            },
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return {
+      mentor,
+      students,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 }

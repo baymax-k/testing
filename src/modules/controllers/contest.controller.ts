@@ -418,14 +418,14 @@ export const getContestMcqQuestions = async (req: Request, res: Response) => {
         };
       });
 
-    // Include Arduino questions in contest
+    // Include Arduino questions in contest (Arduino questions are stored as DSA type)
     const arduinoQuestions = contest.questions
-      .filter((cq) => cq.question.type === "arduino")
+      .filter((cq) => cq.question.type === "dsa")
       .map((cq) => ({
         questionId: cq.question.id,
         title: cq.question.title,
         description: cq.question.description,
-        type: cq.question.type,
+        type: "arduino",
         difficulty: cq.question.difficulty,
         order: cq.order,
         points: cq.points,
