@@ -54,6 +54,11 @@ const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email"),
 });
 
+const verifyForgotPasswordOtpSchema = z.object({
+  email: z.string().email("Invalid email"),
+  otp: z.string().length(6, "OTP must be 6 digits"),
+});
+
 const resetPasswordSchema = z.object({
   email: z.string().email("Invalid email"),
   otp: z.string().length(6, "OTP must be 6 digits"),
@@ -403,6 +408,48 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     }
     console.error("[forgotPassword]", err);
     res.status(500).json({ error: "Failed to initiate password reset" });
+  }
+}
+
+// ─── Verify Forgot Password OTP ──────────────────────────────────────────────
+
+/**
+ * POST /api/product-admin/auth/verify-forgot-password-otp
+ * Verifies password reset OTP before allowing password reset.
+ */
+export async function verifyForgotPasswordOtp(req: Request, res: Response): Promise<void> {
+  try {
+    const data = verifyForgotPasswordOtpSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { email: data.email } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.role !== "product_admin") {
+      res.status(403).json({ error: "This endpoint is for product admins only" });
+      return;
+    }
+
+    const otpResult = await verifyOTP(data.email, "forget-password", data.otp);
+    const isOtpValid = typeof otpResult === "boolean" ? otpResult : otpResult.valid;
+    if (!isOtpValid) {
+      res.status(400).json({ error: "Invalid or expired OTP" });
+      return;
+    }
+
+    res.status(200).json({
+      message: "OTP verified successfully",
+      verified: true,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Validation failed", details: err.issues });
+      return;
+    }
+    console.error("[verifyForgotPasswordOtp]", err);
+    res.status(500).json({ error: "Failed to verify OTP" });
   }
 }
 

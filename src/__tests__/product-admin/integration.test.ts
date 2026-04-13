@@ -439,6 +439,16 @@ describe("Product Admin API - Integration Tests", () => {
       expect(response.status).toBe(200);
     });
 
+    it("POST /auth/verify-forgot-password-otp", async () => {
+      const response = await request(testApp).post("/api/product-admin/auth/verify-forgot-password-otp").send({
+        email: "product.admin@example.com",
+        otp: "123456",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.verified).toBe(true);
+    });
+
     it("POST /auth/reset-password", async () => {
       const response = await request(testApp).post("/api/product-admin/auth/reset-password").send({
         email: "product.admin@example.com",

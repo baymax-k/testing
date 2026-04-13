@@ -43,6 +43,7 @@ const {
   verifyEmail,
   sendOtp,
   forgotPassword,
+  verifyForgotPasswordOtp,
   resetPassword,
   changePassword,
   signOut,
@@ -195,6 +196,21 @@ describe("Product Admin Auth Controller - Unit Tests", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(authService.sendOTPEmail).toHaveBeenCalled();
+  });
+
+  it("verifyForgotPasswordOtp validates reset OTP", async () => {
+    const req = {
+      body: {
+        email: "product.admin@example.com",
+        otp: "123456",
+      },
+    } as Request;
+    const res = createMockRes();
+
+    await verifyForgotPasswordOtp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(authService.verifyOTP).toHaveBeenCalledWith("product.admin@example.com", "forget-password", "123456");
   });
 
   it("resetPassword updates password", async () => {

@@ -10,6 +10,7 @@ import {
   refresh,
   verifyEmail,
   forgotPassword,
+  verifyForgotPasswordOtp,
   resetPassword,
   getCurrentUser,
   updateProfile,
@@ -37,6 +38,7 @@ router.post("/verify-email", verifyEmail);
 
 // Password reset
 router.post("/forgot-password", forgotPassword);
+router.post("/verify-forgot-password-otp", verifyForgotPasswordOtp);
 router.post("/reset-password", resetPassword);
 
 // ─── Authenticated routes ─────────────────────────────────────────────────────

@@ -2277,6 +2277,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       "/api/product-admin/auth/verify-email": {
         post: {
           summary: "Verify email with OTP",
+          description: "Verifies product-admin email using the 6-digit OTP sent during signup.",
           tags: ["Product Admin - Auth"],
           security: [],
           requestBody: {
@@ -2287,7 +2288,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   type: "object",
                   properties: {
                     email: { type: "string", format: "email" },
-                    otp: { type: "string", length: 6 },
+                    otp: { type: "string", minLength: 6, maxLength: 6 },
                   },
                   required: ["email", "otp"],
                 },
@@ -2295,7 +2296,20 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
           },
           responses: {
-            "200": { description: "Email verified successfully" },
+            "200": {
+              description: "Email verified successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string", example: "Email verified successfully" },
+                      user: { $ref: "#/components/schemas/User" },
+                    },
+                  },
+                },
+              },
+            },
             "400": { description: "Invalid or expired OTP" },
           },
         },
@@ -2323,8 +2337,66 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
           },
           responses: {
-            "200": { description: "If the account exists, a reset code has been sent" },
+            "200": {
+              description: "If the account exists, a reset code has been sent",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: {
+                        type: "string",
+                        example: "If this email exists, a password reset code has been sent",
+                      },
+                    },
+                  },
+                },
+              },
+            },
             "400": { description: "Validation failed" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/verify-forgot-password-otp": {
+        post: {
+          summary: "Verify forgot-password OTP",
+          description: "Verifies the password-reset OTP sent to product-admin email.",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    otp: { type: "string", minLength: 6, maxLength: 6 },
+                  },
+                  required: ["email", "otp"],
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "OTP verified successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string", example: "OTP verified successfully" },
+                      verified: { type: "boolean", example: true },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Validation failed or invalid OTP" },
+            "403": { description: "Forbidden for non product-admin user" },
+            "404": { description: "User not found" },
           },
         },
       },
@@ -2352,7 +2424,19 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
           },
           responses: {
-            "200": { description: "Password reset successfully" },
+            "200": {
+              description: "Password reset successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string", example: "Password reset successfully" },
+                    },
+                  },
+                },
+              },
+            },
             "400": { description: "Validation failed or invalid OTP" },
             "403": { description: "Forbidden for non product-admin user" },
             "404": { description: "User not found" },
