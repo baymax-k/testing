@@ -98,8 +98,6 @@ services:
     environment:
       - REDIS_HOST=judge0-redis
       - POSTGRES_HOST=judge0-db
-    deploy:
-      replicas: 3  # Run 3 worker instances for better throughput
     <<: *default-logging
     restart: unless-stopped
     networks:
@@ -186,15 +184,13 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - POSTGRES_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/codeethnics
       - ARDUINO_COMPILER_URL=http://arduino-compiler:3001
-      - CDN_API_KEY=${CDN_API_KEY}
-      - CDN_API_SECRET=${CDN_API_SECRET}
+      - CDN_API_KEY=${CDN_API_KEY:-}
+      - CDN_API_SECRET=${CDN_API_SECRET:-}
       - NODE_ENV=development
     depends_on:
       - postgres
       - redis
       - arduino-compiler
-    deploy:
-      replicas: 2  # Run 2 worker instances
     <<: *default-logging
     restart: unless-stopped
     networks:
