@@ -265,7 +265,7 @@ arduino-cli core install arduino:avr
 **4. Port 8080 already in use**
 ```bash
 # Change port using environment variable
-PORT=8081 npm run dev
+PORT=8081 pnpm run dev
 ```
 
 ### Debug Mode
@@ -273,7 +273,7 @@ PORT=8081 npm run dev
 Enable detailed logging:
 ```bash
 # Set environment variable
-DEBUG=true npm run dev
+DEBUG=true pnpm run dev
 ```
 
 ## Testing

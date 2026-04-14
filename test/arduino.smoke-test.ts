@@ -35,7 +35,7 @@ async function smokeTest() {
       }
     } catch (error) {
       console.log('   ❌ Arduino compiler service is not reachable');
-      console.log('      Make sure to run: npm run arduino:compiler');
+      console.log('      Make sure to run: pnpm run arduino:compiler');
     }
 
     // Test 4: Queue system
@@ -102,8 +102,8 @@ void loop() {
     
     console.log('\n🚀 Phase 3 Complete - Arduino Platform Ready!');
     console.log('\nNext steps:');
-    console.log('   • Start Arduino compiler: npm run arduino:compiler');
-    console.log('   • Start worker process: npm run worker:dev');
+    console.log('   • Start Arduino compiler: pnpm run arduino:compiler');
+    console.log('   • Start worker process: pnpm run worker:dev');
     console.log('   • Test API endpoints with Postman/curl');
     console.log('   • Create Arduino problems via admin panel');
 

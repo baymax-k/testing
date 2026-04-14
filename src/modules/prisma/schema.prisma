@@ -53,6 +53,7 @@ enum QuestionType {
   // Practice/contest problem types
   mcq
   dsa
+  arduino
   // Test management question types
   multiple_choice
   true_false

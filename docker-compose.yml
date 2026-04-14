@@ -13,10 +13,12 @@ services:
   # Main PostgreSQL database for the application
   postgres:
     image: postgres:16.2
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: codeethnics
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data/
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
@@ -35,13 +37,15 @@ services:
   # Redis for caching, rate limiting, and job queues
   redis:
     image: redis:7.2.4-alpine
+    env_file:
+      - .env
     command: [
       "redis-server",
       "--appendonly", "yes",
       "--appendfsync", "everysec",
       "--maxmemory", "256mb",
       "--maxmemory-policy", "allkeys-lru",
-      "--requirepass", "redis_password_123"
+      "--requirepass", "${REDIS_PASSWORD:-redis_default}"
     ]
     volumes:
       - redis_data:/data
@@ -146,9 +150,11 @@ services:
     build:
       context: ./arduino-compiler
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
-      - REDIS_URL=redis://redis:6379
-      - POSTGRES_URL=postgresql://postgres:password@postgres:5432/codeethnics
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - POSTGRES_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/codeethnics
       - NODE_ENV=development
     volumes:
       - arduino_cache:/app/cache
@@ -174,9 +180,11 @@ services:
       context: .
       dockerfile: Dockerfile.worker
       target: arduino-worker
+    env_file:
+      - .env
     environment:
-      - REDIS_URL=redis://redis:6379
-      - POSTGRES_URL=postgresql://postgres:password@postgres:5432/codeethnics
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - POSTGRES_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/codeethnics
       - ARDUINO_COMPILER_URL=http://arduino-compiler:3001
       - CDN_API_KEY=${CDN_API_KEY}
       - CDN_API_SECRET=${CDN_API_SECRET}

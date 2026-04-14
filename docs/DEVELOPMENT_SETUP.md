@@ -11,7 +11,8 @@ This guide will help you set up the complete development environment for the Cod
 
 ### Install pnpm
 ```bash
-npm install -g pnpm
+corepack enable
+corepack prepare pnpm@latest --activate
 ```
 
 ### Install Docker

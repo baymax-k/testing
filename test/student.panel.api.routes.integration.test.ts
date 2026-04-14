@@ -41,6 +41,17 @@ vi.mock("../src/modules/controllers/student.controller.js", () => ({
   }),
 }));
 
+vi.mock("../src/modules/controllers/student-dashboard.controller.js", () => ({
+  getStudentDashboardHandler: vi.fn((req: any, res: any) => {
+    res.status(200).json({
+      panel: "student",
+      user: {
+        role: req.user?.role ?? "student",
+      },
+    });
+  }),
+}));
+
 vi.mock("../src/modules/controllers/practice.controller.js", () => ({
   listPracticeProblems: vi.fn((_req: any, res: any) => res.status(200).json({ endpoint: "practice-list" })),
   getPracticeProblem: vi.fn((_req: any, res: any) => res.status(200).json({ endpoint: "practice-detail" })),

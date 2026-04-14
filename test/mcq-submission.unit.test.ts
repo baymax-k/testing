@@ -10,31 +10,10 @@ vi.mock("../src/config/prisma.js", () => {
         findUnique: vi.fn(),
         findMany: vi.fn(),
       },
-      mcqPracticeSession: {
+      mCQPracticeSession: {
         findFirst: vi.fn(),
         update: vi.fn(),
       },
-      mcqPracticeAnswer: {
-        deleteMany: vi.fn(),
-        createMany: vi.fn(),
-      },
-      $transaction: vi.fn((cb) => cb({
-        mcqPracticeAnswer: {
-          deleteMany: vi.fn(),
-          createMany: vi.fn(),
-        },
-        mcqPracticeSession: {
-          update: vi.fn().mockResolvedValue({
-            id: "session-1",
-            status: "submitted",
-            topics: ["strings"],
-            totalQuestions: 2,
-            correctCount: 1,
-            score: 10,
-            submittedAt: new Date(),
-          }),
-        }
-      })),
     }
   };
 });
@@ -133,7 +112,7 @@ describe("MCQ Submission Logic - Unit Tests", () => {
 
   describe("Batch Session MCQ Submit - submitMcqPracticeSession", () => {
     it("returns 404 if session not found", async () => {
-      (prisma.mcqPracticeSession.findFirst as any).mockResolvedValue(null);
+      (prisma.mCQPracticeSession.findFirst as any).mockResolvedValue(null);
 
       const res = await request(app)
         .post("/api/v1/practice/mcq/session")
@@ -143,7 +122,7 @@ describe("MCQ Submission Logic - Unit Tests", () => {
     });
 
     it("returns 400 if session is already submitted", async () => {
-      (prisma.mcqPracticeSession.findFirst as any).mockResolvedValue({
+      (prisma.mCQPracticeSession.findFirst as any).mockResolvedValue({
         id: "session-1",
         status: "submitted",
         questionIds: ["q1"],
@@ -158,9 +137,9 @@ describe("MCQ Submission Logic - Unit Tests", () => {
     });
 
     it("returns 400 if user answers are incomplete", async () => {
-      (prisma.mcqPracticeSession.findFirst as any).mockResolvedValue({
+      (prisma.mCQPracticeSession.findFirst as any).mockResolvedValue({
         id: "session-1",
-        status: "in-progress",
+        status: "in_progress",
         questionIds: ["q1", "q2"],
       });
 
@@ -173,10 +152,20 @@ describe("MCQ Submission Logic - Unit Tests", () => {
     });
 
     it("evaluates a completely valid session correctly", async () => {
-      (prisma.mcqPracticeSession.findFirst as any).mockResolvedValue({
+      (prisma.mCQPracticeSession.findFirst as any).mockResolvedValue({
         id: "session-1",
-        status: "in-progress",
+        status: "in_progress",
         questionIds: ["q1", "q2"],
+      });
+
+      (prisma.mCQPracticeSession.update as any).mockResolvedValue({
+        id: "session-1",
+        status: "submitted",
+        topics: ["strings"],
+        totalQuestions: 2,
+        correctCount: 1,
+        score: 10,
+        submittedAt: new Date(),
       });
 
       (prisma.question.findMany as any).mockResolvedValue([
@@ -206,8 +195,7 @@ describe("MCQ Submission Logic - Unit Tests", () => {
       expect(q2Review.isCorrect).toBe(false);
       expect(q2Review.points).toBe(0);
 
-      // Verify Prisma call behavior
-      expect(prisma.$transaction).toHaveBeenCalledOnce();
+      expect(prisma.mCQPracticeSession.update).toHaveBeenCalledOnce();
     });
   });
 });

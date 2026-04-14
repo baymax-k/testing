@@ -9,3 +9,5 @@ scripts/
 .claude/
 github/
 tests/
+/docs/session-artifacts
+/docs/nginx

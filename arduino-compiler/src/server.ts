@@ -32,6 +32,7 @@ interface SimulateRequest extends Request {
   body: {
     hexFile: string;
     testCases: ArduinoTestCase[];
+    code?: string;
   };
 }
 
@@ -287,7 +288,7 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
   const startTime = Date.now();
   
   try {
-    const { hexFile, testCases } = req.body;
+    const { hexFile, testCases, code } = req.body;
     
     if (!hexFile || !testCases || !Array.isArray(testCases)) {
       res.status(400).json({
@@ -299,15 +300,16 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
 
     // For now, implement smart pattern matching simulation
     // This analyzes code patterns to provide consistent, educational feedback
+    
+    // Normalize code for pattern matching - define once, use everywhere
+    const codeNormalized = (code || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    
     const results: TestResult[] = testCases.map((testCase: ArduinoTestCase) => {
       // Smart pattern matching based on actual code content
       let passed = false;
       let actualValue: string | number = '';
       let expectedValue: string | number = '';
       let error: string | undefined;
-      
-      // Normalize code for pattern matching
-      const codeNormalized = code.toLowerCase().replace(/\s+/g, ' ').trim();
 
       switch (testCase.type) {
         case 'pin_state':

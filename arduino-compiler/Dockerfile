@@ -16,20 +16,23 @@ RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/inst
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs
 
+# Enable pnpm via corepack
+RUN corepack enable
+
 # Create app directory and user early
 RUN useradd -m -s /bin/bash arduino
 WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package.json ./
-RUN npm install
+RUN pnpm install --no-frozen-lockfile
 
 # Copy TypeScript config and source code
 COPY tsconfig.json ./
 COPY src/ ./src/
 
 # Build TypeScript
-RUN npm run build
+RUN pnpm run build
 
 # Switch to arduino user for Arduino CLI setup
 USER arduino
@@ -63,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 USER arduino
 
 # Start server
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

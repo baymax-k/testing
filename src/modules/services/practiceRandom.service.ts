@@ -50,9 +50,37 @@ export async function generateRandomMcqSet(userId: string, opts: RandomOptions) 
   const fullCandidates = await prisma.question.findMany({ where, select: { id: true } });
   const fullIds = fullCandidates.map((r) => r.id);
 
-  // TODO: Fetch user's previously-correct MCQ answers to exclude
-  // This will need to be refactored to use session.answers (JSON) instead of mcqPracticeAnswer table
+  // Exclude previously solved MCQs for this user.
+  // Use current Prisma model first, and keep a legacy fallback for test/migration compatibility.
   const solvedIds = new Set<string>();
+  try {
+    const prismaAny = prisma as any;
+    if (prismaAny.mCQSessionAnswer?.findMany) {
+      const solvedRows = await prismaAny.mCQSessionAnswer.findMany({
+        where: {
+          isCorrect: true,
+          session: { userId },
+        },
+        select: { questionId: true },
+        distinct: ["questionId"],
+      });
+
+      for (const row of solvedRows as Array<{ questionId?: string }>) {
+        if (row?.questionId) solvedIds.add(row.questionId);
+      }
+    } else if (prismaAny.mcqPracticeAnswer?.findMany) {
+      const solvedRows = await prismaAny.mcqPracticeAnswer.findMany({
+        where: { userId, isCorrect: true },
+        select: { questionId: true },
+      });
+
+      for (const row of solvedRows as Array<{ questionId?: string }>) {
+        if (row?.questionId) solvedIds.add(row.questionId);
+      }
+    }
+  } catch {
+    // If solved-history lookup fails, continue with explicit excludes only.
+  }
 
   const explicitExcludes = new Set((opts.excludeIds ?? []).filter(Boolean));
 
