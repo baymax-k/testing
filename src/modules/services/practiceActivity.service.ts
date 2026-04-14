@@ -10,7 +10,7 @@ export async function recordPracticeActivity(
 ) {
   const today = getDateOnly(new Date());
 
-  const existing = await prisma.dailyPracticeActivity.findUnique({
+  const existing = await prisma.practiceActivity.findUnique({
     where: { userId_date: { userId, date: today } as any },
   });
 
@@ -20,7 +20,7 @@ export async function recordPracticeActivity(
     else if (opts.type === "dsa") data.dsaSolved = 1;
     else if (opts.type === "solve") data.problemsSolved = 1;
 
-    return prisma.dailyPracticeActivity.create({ data });
+    return prisma.practiceActivity.create({ data });
   }
 
   const updateData: any = {};
@@ -28,7 +28,7 @@ export async function recordPracticeActivity(
   else if (opts.type === "dsa") updateData.dsaSolved = { increment: 1 } as any;
   else if (opts.type === "solve") updateData.problemsSolved = { increment: 1 } as any;
 
-  return prisma.dailyPracticeActivity.update({
+  return prisma.practiceActivity.update({
     where: { id: existing.id },
     data: updateData,
   });
@@ -36,7 +36,7 @@ export async function recordPracticeActivity(
 
 export async function getPracticeActivity(userId: string, date?: Date) {
   const target = date ? getDateOnly(date) : getDateOnly(new Date());
-  const row = await prisma.dailyPracticeActivity.findUnique({
+  const row = await prisma.practiceActivity.findUnique({
     where: { userId_date: { userId, date: target } as any },
   });
 
@@ -56,7 +56,7 @@ export async function getPracticeActivityRange(userId: string, days = 30) {
   const end = getDateOnly(new Date());
   const start = new Date(end.getTime() - (days - 1) * 86400000);
 
-  const rows = await prisma.dailyPracticeActivity.findMany({
+  const rows = await prisma.practiceActivity.findMany({
     where: { userId, date: { gte: start, lte: end } },
     orderBy: { date: "asc" },
   });

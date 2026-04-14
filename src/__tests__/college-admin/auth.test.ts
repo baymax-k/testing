@@ -90,7 +90,8 @@ vi.mock("../../middleware/auth.js", () => ({
 }));
 
 // Import after mocks
-const { prisma, auth } = await import("../../config/auth.js");
+ const { prisma } = await import("../../config/prisma.js");
+const { auth } = await import("../../config/auth.js");
 const { prisma: appPrisma } = await import("../../config/prisma.js");
 const authService = await import("../../modules/auth/auth.service.js");
 const app = (await import("../../app.js")).default;

@@ -1,4 +1,4 @@
-import { prisma } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 import { TestStatus, QuestionType } from "@prisma/client";
 
 export interface CreateTestInput {
@@ -34,6 +34,9 @@ export interface UpdateTestInput {
 export interface CreateQuestionInput {
   type: QuestionType;
   content: string;
+  title?: string;
+  description?: string;
+  difficulty?: string;
   marks: number;
   options?: string[] | null;
   correctAnswer?: string | null;
@@ -137,7 +140,7 @@ async function calculateTotalMarks(testId: string): Promise<number> {
     select: { marks: true },
   });
 
-  return questions.reduce((total, question) => total + question.marks, 0);
+  return questions.reduce((total, question) => total + (question.marks ?? 0), 0);
 }
 
 /**
@@ -624,12 +627,16 @@ export class TestService {
       data: {
         testId,
         type: data.type,
+        title: data.title || data.content?.substring(0, 100) || 'Question',
+        description: data.description || data.content || '',
+        difficulty: data.difficulty || 'medium',
         content: data.content,
         marks: data.marks,
         options: data.options ?? undefined,
-        correctAnswer: data.correctAnswer ?? undefined,
+        correctAnswer: typeof data.correctAnswer === 'string' ? parseInt(data.correctAnswer, 10) : data.correctAnswer ?? undefined,
         explanation: data.explanation ?? undefined,
         orderIndex: data.orderIndex ?? questionCount,
+        createdBy: 'system',
       },
     });
 

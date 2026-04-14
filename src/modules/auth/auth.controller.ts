@@ -629,3 +629,35 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     res.status(500).json({ error: "Failed to change password" });
   }
 }
+
+/**
+ * GET /api/v1/auth/status  
+ * @summary Check authentication status
+ */
+export async function authStatus(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (req.user) {
+      res.json({
+        success: true,
+        authenticated: true,
+        user: {
+          id: req.user.id,
+          email: req.user.email,
+          role: req.user.role,
+          name: req.user.name
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        authenticated: false
+      });
+    }
+  } catch (error) {
+    console.error('[authStatus]', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check authentication status'
+    });
+  }
+}

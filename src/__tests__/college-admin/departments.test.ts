@@ -78,7 +78,7 @@ vi.mock("../../modules/services/departmentService.js", () => ({
 }));
 
 // Import after mocks
-const { prisma } = await import("../../config/auth.js");
+const { prisma } = await import("../../config/prisma.js");
 const { DepartmentService } = await import("../../modules/services/departmentService.js");
 const app = (await import("../../app.js")).default;
 

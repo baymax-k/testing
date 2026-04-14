@@ -4,8 +4,8 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
-import { auth, prisma } from "../../config/auth.js";
-import { prisma as appPrisma } from "../../config/prisma.js";
+import { auth } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 import { generateAndStoreOTP, sendOTPEmail, hashPassword, validateOTP, verifyOTP } from "../auth/auth.service.js";
 import { UserService } from "../services/userService.js";
 import { DepartmentService } from "../services/departmentService.js";
@@ -2091,7 +2091,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
     console.log(`[college-admin/auth/forgot-password] Processing password reset request for: ${email}`);
 
     // Check if user exists and is college_admin
-    const user = await appPrisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email },
     });
 
@@ -2166,7 +2166,7 @@ router.post("/auth/verify-otp", async (req: AuthRequest, res: Response): Promise
 
     const { email, otp } = validation.data;
 
-    const user = await appPrisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       res.status(400).json({
         error: "Invalid or expired OTP",
@@ -2223,7 +2223,7 @@ router.put("/auth/reset-password", async (req: AuthRequest, res: Response): Prom
 
     const { password, email, otp } = validation.data;
 
-    const user = await appPrisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       res.status(400).json({
         error: "Invalid or expired OTP",
@@ -2251,12 +2251,12 @@ router.put("/auth/reset-password", async (req: AuthRequest, res: Response): Prom
     }
 
     const passwordHash = await hashPassword(password);
-    await appPrisma.user.update({
+    await prisma.user.update({
       where: { id: user.id },
       data: { passwordHash },
     });
-    if (appPrisma.refreshToken?.deleteMany) {
-      await appPrisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    if (prisma.refreshToken?.deleteMany) {
+      await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
     }
 
     res.json({

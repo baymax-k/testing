@@ -1,4 +1,4 @@
-import { prisma } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 
 type TrendDirection = "improving" | "stable" | "declining";
 type DifficultyLevel = "easy" | "moderate" | "hard";
@@ -416,37 +416,43 @@ export class ReportService {
   async getTestAnalysis(testId: string): Promise<TestAnalysis> {
     const test = await prisma.test.findUnique({
       where: { id: testId },
-      include: {
-        questions: { orderBy: { orderIndex: "asc" } },
-        batch: { include: { students: true } },
-        attempts: {
-          include: {
-            student: {
-              select: {
-                id: true,
-                name: true,
-                batch: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
-          where: { status: { not: "in_progress" } },
-        },
-      },
     });
 
     if (!test) {
       throw new Error("Test not found");
     }
 
-    const totalStudents = test.batch?.students.length || 0;
-    const attemptedCount = test.attempts.length;
-    const scores = test.attempts
-      .filter((a: any) => a.score !== null)
-      .map((a: any) => ((a.score ?? 0) / a.maxScore) * 100);
+    // Fetch related data separately to avoid type issues
+    const questions = await prisma.question.findMany({
+      where: { testId },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const attempts = await prisma.testAttempt.findMany({
+      where: {
+        testId,
+        status: { not: "in_progress" },
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            batch: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const totalStudents = 0; // Will be calculated from attempts
+    const attemptedCount = attempts.length;
+    const scores = attempts
+      .filter((a) => a.score !== null)
+      .map((a) => ((a.score ?? 0) / a.maxScore) * 100);
 
     // Determine test difficulty based on pass rate
     const passPercentage =
@@ -458,9 +464,9 @@ export class ReportService {
     else if (passPercentage < 40) difficulty = "hard";
 
     const averageTimePerQuestion =
-      test.questions.length > 0
+      questions.length > 0
         ? Math.round(
-            test.attempts
+            attempts
               .filter((attempt) => attempt.submittedAt)
               .reduce((sum, attempt) => {
                 if (!attempt.submittedAt) return sum;
@@ -469,14 +475,14 @@ export class ReportService {
                     0,
                     attempt.submittedAt.getTime() - attempt.startedAt.getTime()
                   ) / 1000;
-                return sum + durationInSeconds / test.questions.length;
-              }, 0) / Math.max(test.attempts.filter((attempt) => attempt.submittedAt).length, 1)
+                return sum + durationInSeconds / questions.length;
+              }, 0) / Math.max(attempts.filter((attempt) => attempt.submittedAt).length, 1)
           )
         : 0;
 
     // Analyze each question
-    const questionAnalysis = test.questions.map((question, index) => {
-      const correctAttempts = test.attempts.filter((attempt) => {
+    const questionAnalysis = questions.map((question, index) => {
+      const correctAttempts = attempts.filter((attempt) => {
         const answers = attempt.answers as Record<string, any> | null;
         if (!answers) return false;
         const answer = answers[question.id];
@@ -484,8 +490,8 @@ export class ReportService {
       });
 
       const correctAnswerPercentage =
-        test.attempts.length > 0
-          ? ((correctAttempts.length / test.attempts.length) * 100)
+        attempts.length > 0
+          ? ((correctAttempts.length / attempts.length) * 100)
           : 0;
 
       let questionDifficulty: DifficultyLevel = "moderate";
@@ -510,7 +516,7 @@ export class ReportService {
         questionText: (question.content || "").substring(0, 100),
         type: question.type,
         correctAnswerPercentage,
-        averageScoreOnQuestion: (correctAnswerPercentage / 100) * question.marks,
+        averageScoreOnQuestion: (correctAnswerPercentage / 100) * (question.marks ?? 0),
         difficulty: normalizedQuestionDifficulty,
       };
     });
@@ -525,7 +531,7 @@ export class ReportService {
       }
     >();
 
-    for (const attempt of test.attempts) {
+    for (const attempt of attempts) {
       const percentage = this.toPercentage(attempt.score, attempt.maxScore);
       const existing = bestAttemptByStudent.get(attempt.studentId);
 

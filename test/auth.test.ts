@@ -1,6 +1,6 @@
 /**
  * Auth integration test
- * Run: npx tsx test/auth.test.ts
+ * Run: pnpm tsx test/auth.test.ts
  * Requires the server to be running on localhost:5000
  */
 

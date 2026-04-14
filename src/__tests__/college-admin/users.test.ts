@@ -81,7 +81,8 @@ vi.mock("../../middleware/auth.js", () => ({
 }));
 
 // Import after mocks
-const { prisma, auth } = await import("../../config/auth");
+const { prisma } = await import("../../config/prisma.js");
+const { auth } = await import("../../config/auth.js");
 const app = (await import("../../app.js")).default;
 
 describe("College Admin - User Management Endpoints", () => {

@@ -14,6 +14,7 @@ import {
   forgotPassword,
   resetPassword,
   changePassword,
+  authStatus,
 } from "./auth.controller.js";
 
 const router: Router = Router();
@@ -37,6 +38,9 @@ router.get("/google-client-id", (_req, res) => {
 // Token management
 router.post("/sign-out", signOut);
 router.post("/refresh", refresh);
+
+// Auth status check
+router.get("/status", authStatus);
 
 // Email verification
 router.post("/verify-email", verifyEmail);

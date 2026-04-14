@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("../src/config/prisma.js", () => {
   return {
     prisma: {
-      dailyPracticeActivity: {
+      practiceActivity: {
         findUnique: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
@@ -42,8 +42,8 @@ describe("Track Daily Practice Activity - Config Unit Tests", () => {
   it("creates a new activity row if none exists today", async () => {
     vi.setSystemTime(new Date("2023-11-20T12:00:00Z"));
     
-    (prisma.dailyPracticeActivity.findUnique as any).mockResolvedValue(null);
-    (prisma.dailyPracticeActivity.create as any).mockResolvedValue({
+    (prisma.practiceActivity.findUnique as any).mockResolvedValue(null);
+    (prisma.practiceActivity.create as any).mockResolvedValue({
       id: "act-1",
       userId: "user-123",
       mcqSolved: 1,
@@ -54,20 +54,20 @@ describe("Track Daily Practice Activity - Config Unit Tests", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.activity.mcqSolved).toBe(1);
-    expect(prisma.dailyPracticeActivity.create).toHaveBeenCalled();
+    expect(prisma.practiceActivity.create).toHaveBeenCalled();
   });
 
   it("updates existing activity row if one exists", async () => {
     vi.setSystemTime(new Date("2023-11-20T12:00:00Z"));
 
-    (prisma.dailyPracticeActivity.findUnique as any).mockResolvedValue({
+    (prisma.practiceActivity.findUnique as any).mockResolvedValue({
       id: "act-old",
       userId: "user-123",
       dsaSolved: 5,
       date: new Date("2023-11-20T00:00:00Z"),
     });
 
-    (prisma.dailyPracticeActivity.update as any).mockResolvedValue({
+    (prisma.practiceActivity.update as any).mockResolvedValue({
       id: "act-old",
       userId: "user-123",
       dsaSolved: 6,
@@ -76,7 +76,7 @@ describe("Track Daily Practice Activity - Config Unit Tests", () => {
     const res = await request(app).post("/api/v1/practice/activity").send({ type: "dsa" });
 
     expect(res.status).toBe(200);
-    expect(prisma.dailyPracticeActivity.update).toHaveBeenCalledWith(
+    expect(prisma.practiceActivity.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { dsaSolved: { increment: 1 } }
       })
@@ -84,7 +84,7 @@ describe("Track Daily Practice Activity - Config Unit Tests", () => {
   });
 
   it("fetching range gets multiple days of activity", async () => {
-    (prisma.dailyPracticeActivity.findMany as any).mockResolvedValue([
+    (prisma.practiceActivity.findMany as any).mockResolvedValue([
       { date: new Date("2023-11-19T00:00:00Z"), dsaSolved: 1 },
       { date: new Date("2023-11-20T00:00:00Z"), dsaSolved: 2 },
     ]);
@@ -93,11 +93,11 @@ describe("Track Daily Practice Activity - Config Unit Tests", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.activity).toHaveLength(2);
-    expect(prisma.dailyPracticeActivity.findMany).toHaveBeenCalled();
+    expect(prisma.practiceActivity.findMany).toHaveBeenCalled();
   });
 
   it("fetching current day activity specifically", async () => {
-    (prisma.dailyPracticeActivity.findUnique as any).mockResolvedValue({
+    (prisma.practiceActivity.findUnique as any).mockResolvedValue({
       mcqSolved: 5,
       dsaSolved: 2,
     });
@@ -106,6 +106,6 @@ describe("Track Daily Practice Activity - Config Unit Tests", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.activity.mcqSolved).toBe(5);
-    expect(prisma.dailyPracticeActivity.findUnique).toHaveBeenCalled();
+    expect(prisma.practiceActivity.findUnique).toHaveBeenCalled();
   });
 });

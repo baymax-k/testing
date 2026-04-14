@@ -2,7 +2,7 @@
 import "dotenv/config";
 
 import { beforeAll, afterAll, afterEach } from "vitest";
-import { prisma } from "../config/auth.js";
+import { prisma } from "../config/prisma.js";
 
 // Clean up database before all tests
 beforeAll(async () => {

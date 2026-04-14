@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino Platform Test Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        .auth-section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-section h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        input, select, textarea, button {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: 'Courier New', monospace;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .response-box {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .success {
+            background: #f0fff4;
+            border-color: #9ae6b4;
+            color: #22543d;
+        }
+
+        .error {
+            background: #fff5f5;
+            border-color: #feb2b2;
+            color: #742a2a;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-queued { background: #fbb6ce; }
+        .status-processing { background: #90cdf4; }
+        .status-compiled { background: #9ae6b4; }
+        .status-failed { background: #feb2b2; }
+
+        .job-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 5px 0;
+        }
+
+        .job-item h4 {
+            margin-bottom: 5px;
+            color: #4a5568;
+        }
+
+        .job-meta {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .auth-status {
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .auth-success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+        }
+
+        .auth-error {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #742a2a;
+        }
+
+        .polling-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .code-example {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Arduino Platform Test Interface</h1>
+            <p>Comprehensive testing interface for Arduino compilation API</p>
+        </div>
+
+        <!-- Authentication Section -->
+        <div class="auth-section">
+            <h3>🔐 Authentication</h3>
+            <div id="authStatus" class="auth-status auth-error">
+                Not authenticated - Using mock token for testing
+            </div>
+            <div class="form-group">
+                <label>Bearer Token (mock for testing):</label>
+                <input type="text" id="authToken" value="mock-test-token-123" placeholder="Enter bearer token">
+            </div>
+            <button onclick="updateAuthStatus()">Update Auth</button>
+        </div>
+
+        <div class="test-grid">
+            <!-- Problems Section -->
+            <div class="test-section">
+                <h3>📚 Arduino Problems</h3>
+                <div class="form-group">
+                    <label>Difficulty Filter:</label>
+                    <select id="difficultyFilter">
+                        <option value="">All</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                <button onclick="getProblems()">Get Problems</button>
+                <div id="problemsResponse" class="response-box"></div>
+            </div>
+
+            <!-- Compilation Section -->
+            <div class="test-section">
+                <h3>⚡ Code Compilation</h3>
+                <div class="form-group">
+                    <label>Problem ID:</label>
+                    <input type="text" id="problemId" placeholder="Enter problem UUID or use 'test-problem'">
+                </div>
+                <div class="form-group">
+                    <label>Board Type:</label>
+                    <select id="boardType">
+                        <option value="uno">Arduino Uno</option>
+                        <option value="mega">Arduino Mega</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Arduino Code:</label>
+                    <textarea id="arduinoCode" placeholder="Enter your Arduino code here...">
+void setup() {
+  pinMode(13, OUTPUT);
+  Serial.begin(9600);
+  Serial.println("Arduino started!");
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}</textarea>
+                </div>
+                <button onclick="submitCompilation()">Submit for Compilation</button>
+                <div id="compileResponse" class="response-box"></div>
+            </div>
+
+            <!-- Job Status Section -->
+            <div class="test-section">
+                <h3>📊 Job Status</h3>
+                <div class="form-group">
+                    <label>Submission ID:</label>
+                    <input type="text" id="submissionId" placeholder="Enter submission ID">
+                </div>
+                <button onclick="getJobStatus()">Get Status</button>
+                <button onclick="togglePolling()" id="pollingBtn">Start Auto-Polling</button>
+                <div id="jobStatusResponse" class="response-box"></div>
+            </div>
+
+            <!-- User Submissions Section -->
+            <div class="test-section">
+                <h3>📝 User Submissions</h3>
+                <div class="form-group">
+                    <label>Problem ID Filter (optional):</label>
+                    <input type="text" id="submissionsProblemId" placeholder="Filter by problem ID">
+                </div>
+                <div class="form-group">
+                    <label>Limit:</label>
+                    <input type="number" id="submissionsLimit" value="10" min="1" max="100">
+                </div>
+                <button onclick="getUserSubmissions()">Get My Submissions</button>
+                <div id="submissionsResponse" class="response-box"></div>
+            </div>
+
+            <!-- Queue Stats Section -->
+            <div class="test-section">
+                <h3>📈 Queue Statistics (Admin)</h3>
+                <p><em>Requires admin role</em></p>
+                <button onclick="getQueueStats()">Get Queue Stats</button>
+                <div id="queueStatsResponse" class="response-box"></div>
+            </div>
+
+            <!-- Test Examples Section -->
+            <div class="test-section">
+                <h3>💡 Code Examples</h3>
+                <label>Blink LED (Basic):</label>
+                <div class="code-example">void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}</div>
+                
+                <label>Serial Communication:</label>
+                <div class="code-example">void setup() {
+  Serial.begin(9600);
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  Serial.println("Hello Arduino!");
+  digitalWrite(13, HIGH);
+  delay(500);
+  digitalWrite(13, LOW);
+  delay(500);
+}</div>
+
+                <label>Invalid Code (for testing errors):</label>
+                <div class="code-example">void setup() {
+  invalid_function_call();
+  missing_semicolon
+}
+
+void loop() {
+  undefined_variable = 123;
+}</div>
+                <button onclick="loadExample(0)">Load Blink</button>
+                <button onclick="loadExample(1)">Load Serial</button>
+                <button onclick="loadExample(2)">Load Invalid</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1/arduino';
+        let pollingInterval = null;
+        let isPolling = false;
+
+        const examples = [
+            `void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}`,
+            `void setup() {
+  Serial.begin(9600);
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  Serial.println("Hello Arduino!");
+  digitalWrite(13, HIGH);
+  delay(500);
+  digitalWrite(13, LOW);
+  delay(500);
+}`,
+            `void setup() {
+  invalid_function_call();
+  missing_semicolon
+}
+
+void loop() {
+  undefined_variable = 123;
+}`
+        ];
+
+        function getAuthHeaders() {
+            const token = document.getElementById('authToken').value;
+            return {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        function updateResponse(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(data, null, 2);
+            element.className = `response-box ${isSuccess ? 'success' : 'error'}`;
+        }
+
+        function updateAuthStatus() {
+            const token = document.getElementById('authToken').value;
+            const statusEl = document.getElementById('authStatus');
+            
+            if (token && token.trim()) {
+                statusEl.textContent = `Authenticated with token: ${token.substring(0, 20)}...`;
+                statusEl.className = 'auth-status auth-success';
+            } else {
+                statusEl.textContent = 'No authentication token provided';
+                statusEl.className = 'auth-status auth-error';
+            }
+        }
+
+        async function getProblems() {
+            try {
+                const difficulty = document.getElementById('difficultyFilter').value;
+                const url = difficulty ? `${API_BASE}/problems?difficulty=${difficulty}` : `${API_BASE}/problems`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                updateResponse('problemsResponse', data, response.ok);
+                
+                // Auto-populate first problem ID if available
+                if (data.success && data.data.problems.length > 0) {
+                    document.getElementById('problemId').value = data.data.problems[0].id;
+                }
+            } catch (error) {
+                updateResponse('problemsResponse', { error: error.message }, false);
+            }
+        }
+
+        async function submitCompilation() {
+            try {
+                const problemId = document.getElementById('problemId').value || 'test-problem-id';
+                const boardType = document.getElementById('boardType').value;
+                const code = document.getElementById('arduinoCode').value;
+
+                const response = await fetch(`${API_BASE}/compile`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        problemId,
+                        boardType,
+                        code
+                    })
+                });
+
+                const data = await response.json();
+                updateResponse('compileResponse', data, response.ok);
+                
+                // Auto-populate submission ID for status checking
+                if (data.success && data.data.submissionId) {
+                    document.getElementById('submissionId').value = data.data.submissionId;
+                }
+            } catch (error) {
+                updateResponse('compileResponse', { error: error.message }, false);
+            }
+        }
+
+        async function getJobStatus() {
+            try {
+                const submissionId = document.getElementById('submissionId').value;
+                if (!submissionId) {
+                    updateResponse('jobStatusResponse', { error: 'Please enter a submission ID' }, false);
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE}/jobs/${submissionId}`, {
+                    headers: getAuthHeaders()
+                });
+
+                const data = await response.json();
+                updateResponse('jobStatusResponse', data, response.ok);
+            } catch (error) {
+                updateResponse('jobStatusResponse', { error: error.message }, false);
+            }
+        }
+
+        function togglePolling() {
+            const btn = document.getElementById('pollingBtn');
+            
+            if (isPolling) {
+                clearInterval(pollingInterval);
+                isPolling = false;
+                btn.textContent = 'Start Auto-Polling';
+                btn.innerHTML = 'Start Auto-Polling';
+            } else {
+                isPolling = true;
+                btn.innerHTML = 'Stop Auto-Polling <span class="polling-indicator"></span>';
+                
+                pollingInterval = setInterval(async () => {
+                    const submissionId = document.getElementById('submissionId').value;
+                    if (submissionId) {
+                        await getJobStatus();
+                    }
+                }, 2000); // Poll every 2 seconds
+            }
+        }
+
+        async function getUserSubmissions() {
+            try {
+                const problemId = document.getElementById('submissionsProblemId').value;
+                const limit = document.getElementById('submissionsLimit').value;
+                
+                let url = `${API_BASE}/submissions?limit=${limit}`;
+                if (problemId) {
+                    url += `&problemId=${problemId}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+
+                const data = await response.json();
+                updateResponse('submissionsResponse', data, response.ok);
+            } catch (error) {
+                updateResponse('submissionsResponse', { error: error.message }, false);
+            }
+        }
+
+        async function getQueueStats() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/queue/stats`, {
+                    headers: getAuthHeaders()
+                });
+
+                const data = await response.json();
+                updateResponse('queueStatsResponse', data, response.ok);
+            } catch (error) {
+                updateResponse('queueStatsResponse', { error: error.message }, false);
+            }
+        }
+
+        function loadExample(index) {
+            document.getElementById('arduinoCode').value = examples[index];
+        }
+
+        // Initialize
+        updateAuthStatus();
+        
+        // Auto-load problems on page load
+        setTimeout(() => {
+            getProblems();
+        }, 1000);
+    </script>
+</body>
+</html>

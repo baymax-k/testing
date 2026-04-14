@@ -72,7 +72,7 @@ export async function getStudentProfile(userId: string): Promise<StudentProfileR
       distinct: ["problemId"],
       select: { problemId: true },
     }),
-    prisma.mcqPracticeSession.count({
+    prisma.mCQPracticeSession.count({
       where: { userId, status: "submitted" },
     }),
     prisma.userStreak.findUnique({

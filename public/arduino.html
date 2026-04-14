@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino Platform - CodeEthnics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #00979d 0%, #0077be 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 32px;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .sidebar h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            border-bottom: 2px solid #00979d;
+            padding-bottom: 10px;
+        }
+
+        .problem-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .problem-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .problem-item:hover {
+            background: #e9ecef;
+            border-left-color: #00979d;
+        }
+
+        .problem-item.active {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+
+        .problem-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .problem-meta {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .difficulty-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 5px;
+        }
+
+        .difficulty-easy { background: #d4edda; color: #155724; }
+        .difficulty-medium { background: #fff3cd; color: #856404; }
+        .difficulty-hard { background: #f8d7da; color: #721c24; }
+
+        .main-content {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .content-section {
+            margin-bottom: 25px;
+        }
+
+        .content-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .code-editor {
+            width: 100%;
+            min-height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 15px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #00979d;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #007a7f;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status-box {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .status-info { background: #d1ecf1; color: #0c5460; }
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-warning { background: #fff3cd; color: #856404; }
+        .status-loading { background: #cce7ff; color: #004085; }
+
+        .result-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .board-selector {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Arduino Platform</h1>
+            <p>Write, compile, and test Arduino code in real-time</p>
+        </div>
+
+        <!-- Simple Auth Panel -->
+        <div id="auth-panel" class="main-content">
+            <h3>🔐 Test Authentication</h3>
+            <p>Enter test credentials to access Arduino compiler:</p>
+            <div style="display: flex; gap: 10px; margin: 20px 0;">
+                <input type="text" id="test-email" placeholder="student" value="student" style="flex: 1; padding: 8px;">
+                <input type="password" id="test-password" placeholder="Student@1234" value="Student@1234" style="flex: 1; padding: 8px;">
+                <button onclick="authenticateUser()" class="btn-primary" style="padding: 8px 20px;">Login</button>
+            </div>
+            <div id="auth-status" style="margin-top: 10px; color: #6c757d;">Note: Use identifier "student" and password "Student@1234" for testing</div>
+        </div>
+
+        <div id="main-app" class="hidden">
+        <div class="main-grid">
+            <!-- Sidebar: Problem List -->
+            <div class="sidebar">
+                <h3>📚 Arduino Problems</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span>Problems</span>
+                    <button onclick="logoutUser()" style="padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 3px;">Logout</button>
+                </div>
+                <div id="problems-loading" class="empty-state">
+                    <p>Loading problems...</p>
+                </div>
+                <div id="problem-list" class="problem-list hidden"></div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="main-content">
+                <div id="empty-state" class="empty-state">
+                    <h3>👈 Select a problem to get started</h3>
+                    <p>Choose any Arduino problem from the sidebar</p>
+                </div>
+
+                <div id="problem-workspace" class="hidden">
+                    <!-- Problem Description -->
+                    <div class="content-section">
+                        <h3 id="problem-title">Problem Title</h3>
+                        <div id="problem-description" style="white-space: pre-wrap; line-height: 1.6;"></div>
+                    </div>
+
+                    <!-- Board Selection & Controls -->
+                    <div class="content-section">
+                        <h3>⚙️ Configuration</h3>
+                        <div style="margin-bottom: 15px;">
+                            <label for="board-select"><strong>Board:</strong></label>
+                            <select id="board-select" class="board-selector">
+                                <option value="uno">Arduino Uno (ATmega328P)</option>
+                                <option value="mega">Arduino Mega 2560 (ATmega2560)</option>
+                            </select>
+                        </div>
+                        <div id="status-box" class="status-box status-info hidden"></div>
+                    </div>
+
+                    <!-- Code Editor -->
+                    <div class="content-section">
+                        <h3>💻 Code Editor</h3>
+                        <textarea id="code-editor" class="code-editor" placeholder="Write your Arduino code here..."></textarea>
+                        
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="compileCode()" id="compile-btn">
+                                🔨 Compile Code
+                            </button>
+                            <button class="btn-success" onclick="validateSubmission()" id="validate-btn" disabled>
+                                ✅ Validate & Submit
+                            </button>
+                            <button class="btn-secondary" onclick="resetCode()">
+                                🔄 Reset Code
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Compilation Result -->
+                    <div class="content-section" id="result-section" class="hidden">
+                        <h3>📊 Compilation Result</h3>
+                        <div id="compilation-result" class="result-box"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div> <!-- End main-app -->
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1/arduino';
+        let currentProblem = null;
+        let currentSubmissionId = null;
+        let starterCode = '';
+
+        // Authentication functions
+        async function authenticateUser() {
+            const identifier = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            const statusEl = document.getElementById('auth-status');
+
+            statusEl.textContent = 'Logging in...';
+            statusEl.style.color = '#007bff';
+
+            try {
+                const response = await fetch('/api/v1/auth/sign-in', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ identifier, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusEl.textContent = '✅ Login successful!';
+                    statusEl.style.color = '#28a745';
+                    
+                    // Hide auth panel and show main app
+                    document.getElementById('auth-panel').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden');
+                    
+                    // Load problems
+                    loadProblems();
+                } else {
+                    statusEl.textContent = `❌ Login failed: ${data.error || 'Unknown error'}`;
+                    statusEl.style.color = '#dc3545';
+                }
+            } catch (error) {
+                statusEl.textContent = `❌ Network error: ${error.message}`;
+                statusEl.style.color = '#dc3545';
+                console.error('Auth error:', error);
+            }
+        }
+
+        function logoutUser() {
+            // Clear session
+            fetch('/api/v1/auth/sign-out', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            
+            // Show auth panel
+            document.getElementById('auth-panel').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+            
+            // Reset form
+            document.getElementById('auth-status').textContent = '';
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            console.log('🚀 Arduino Platform initialized');
+            // Check if user is already logged in, otherwise show auth panel
+            checkAuthStatus();
+        });
+
+        // Check authentication status
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/v1/auth/status', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.authenticated) {
+                        // User is logged in, show main app
+                        document.getElementById('auth-panel').classList.add('hidden');
+                        document.getElementById('main-app').classList.remove('hidden');
+                        loadProblems();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log('Auth status check failed:', error);
+            }
+            
+            // Show auth panel if not authenticated
+            document.getElementById('auth-panel').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+        }
+
+        // Load all Arduino problems
+        async function loadProblems() {
+            try {
+                const response = await fetch(`${API_BASE}/problems`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load problems');
+                }
+
+                const problems = data.data.problems;
+                console.log(`✅ Loaded ${problems.length} problems`);
+
+                const listContainer = document.getElementById('problem-list');
+                const loadingEl = document.getElementById('problems-loading');
+
+                if (problems.length === 0) {
+                    loadingEl.innerHTML = '<p>No problems available. Run: pnpm run seed</p>';
+                    return;
+                }
+
+                loadingEl.classList.add('hidden');
+                listContainer.classList.remove('hidden');
+                listContainer.innerHTML = '';
+
+                problems.forEach(problem => {
+                    const item = createProblemItem(problem);
+                    listContainer.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error('❌ Error loading problems:', error);
+                document.getElementById('problems-loading').innerHTML = 
+                    `<p style="color: #dc3545;">Error: ${error.message}</p>
+                     <button onclick="loadProblems()">Retry</button>`;
+            }
+        }
+
+        function createProblemItem(problem) {
+            const div = document.createElement('div');
+            div.className = 'problem-item';
+            div.setAttribute('data-problem-id', problem.id);
+            div.onclick = (event) => selectProblem(problem, event);
+
+            const difficulty = problem.question.difficulty;
+            div.innerHTML = `
+                <div class="problem-title">${problem.question.title}</div>
+                <div class="problem-meta">
+                    <span class="difficulty-badge difficulty-${difficulty}">${difficulty}</span>
+                    <span>Board: ${problem.board.toUpperCase()}</span>
+                </div>
+            `;
+
+            return div;
+        }
+
+        async function selectProblem(problem, event) {
+            console.log('📝 Selected problem:', problem.question.title);
+            currentProblem = problem;
+            currentSubmissionId = null;
+
+            // Update UI
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('problem-workspace').classList.remove('hidden');
+            document.getElementById('problem-title').textContent = problem.question.title;
+            document.getElementById('problem-description').textContent = problem.question.description;
+
+            // Set board type in selector
+            if (problem.board) {
+                document.getElementById('board-select').value = problem.board;
+            }
+
+            // Load full problem details with starter code
+            try {
+                const response = await fetch(`${API_BASE}/problems/${problem.id}`);
+                const data = await response.json();
+
+                if (data.success && data.data.starterCode) {
+                    starterCode = data.data.starterCode;
+                    document.getElementById('code-editor').value = starterCode;
+                } else {
+                    // Default starter code if not provided
+                    starterCode = `void setup() {\n  // Initialize pins and serial\n  \n}\n\nvoid loop() {\n  // Main code here\n  \n}`;
+                    document.getElementById('code-editor').value = starterCode;
+                }
+            } catch (error) {
+                console.warn('Could not load starter code:', error);
+                starterCode = `void setup() {\n  // Initialize pins and serial\n  \n}\n\nvoid loop() {\n  // Main code here\n  \n}`;
+                document.getElementById('code-editor').value = starterCode;
+            }
+
+            // Highlight selected problem
+            document.querySelectorAll('.problem-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            if (event && event.target) {
+                const problemItem = event.target.closest('.problem-item');
+                if (problemItem) {
+                    problemItem.classList.add('active');
+                }
+            }
+
+            // Reset status
+            showStatus('Ready to compile', 'info');
+            document.getElementById('result-section').classList.add('hidden');
+            document.getElementById('validate-btn').disabled = true;
+        }
+
+        function resetCode() {
+            if (confirm('Reset code to starter template?')) {
+                document.getElementById('code-editor').value = starterCode;
+                currentSubmissionId = null;
+                document.getElementById('validate-btn').disabled = true;
+                showStatus('Code reset to starter template', 'info');
+            }
+        }
+
+        async function compileCode() {
+            if (!currentProblem) {
+                alert('Please select a problem first');
+                return;
+            }
+
+            const code = document.getElementById('code-editor').value.trim();
+            if (!code) {
+                alert('Please write some code first');
+                return;
+            }
+
+            const boardType = document.getElementById('board-select').value;
+            const compileBtn = document.getElementById('compile-btn');
+            
+            compileBtn.disabled = true;
+            compileBtn.innerHTML = '<span class="loading-spinner"></span> Compiling...';
+            showStatus('Submitting code for compilation...', 'loading');
+
+            try {
+                // Submit compilation job (no auth header needed - uses cookies)
+                const response = await fetch(`${API_BASE}/compile`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include', // Include cookies for auth
+                    body: JSON.stringify({
+                        problemId: currentProblem.id,
+                        code: code,
+                        boardType: boardType
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    // Show detailed validation errors
+                    const errorMsg = data.details 
+                        ? data.details.map(e => `${e.param}: ${e.msg}`).join('\n')
+                        : (data.error || 'Compilation submission failed');
+                    throw new Error(errorMsg);
+                }
+
+                currentSubmissionId = data.data.submissionId;
+                console.log('✅ Job submitted:', currentSubmissionId);
+
+                showStatus('Compilation job queued. Polling for results...', 'loading');
+
+                // Poll for compilation result
+                pollCompilationStatus(currentSubmissionId);
+
+            } catch (error) {
+                console.error('❌ Compilation error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                compileBtn.disabled = false;
+                compileBtn.textContent = '🔨 Compile Code';
+            }
+        }
+
+        async function pollCompilationStatus(submissionId) {
+            const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds max
+            let attempts = 0;
+
+            const poll = async () => {
+                attempts++;
+
+                try {
+                    const response = await fetch(`${API_BASE}/jobs/${submissionId}`, {
+                        credentials: 'include' // Use cookies instead of auth header
+                    });
+
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        throw new Error('Failed to get job status');
+                    }
+
+                    const status = data.data.status;
+                    console.log(`📊 Status (attempt ${attempts}):`, status);
+
+                    if (status === 'accepted' || status === 'compiled') {
+                        // Success!
+                        handleCompilationSuccess(data.data);
+                    } else if (status === 'wrong_answer' || status === 'compile_error' || status === 'runtime_error') {
+                        // Failed
+                        handleCompilationFailure(data.data);
+                    } else if (attempts >= maxAttempts) {
+                        throw new Error('Compilation timeout');
+                    } else {
+                        // Still processing, poll again
+                        showStatus(`Compiling... (${status})`, 'loading');
+                        setTimeout(poll, 2000);
+                    }
+
+                } catch (error) {
+                    console.error('❌ Polling error:', error);
+                    handleCompilationFailure({ error: error.message });
+                }
+            };
+
+            poll();
+        }
+
+        function handleCompilationSuccess(result) {
+            console.log('✅ Compilation successful!', result);
+            
+            const compileBtn = document.getElementById('compile-btn');
+            compileBtn.disabled = false;
+            compileBtn.textContent = '🔨 Compile Code';
+
+            showStatus('✅ Compilation successful!', 'success');
+            
+            const resultBox = document.getElementById('compilation-result');
+            resultBox.textContent = `✅ COMPILATION SUCCESSFUL
+
+Hex File Generated: ${result.hexCode ? 'Yes' : 'No'}
+Hex File Size: ${result.hexCode ? (result.hexCode.length + ' bytes') : 'N/A'}
+Compile Time: ${result.compileTime || 'N/A'} ms
+Test Cases Passed: ${result.testCasesPassed || 0}/${result.totalTestCases || 0}
+
+Status: ${result.status}
+
+${result.hexCode ? 'Hex File Preview:\n' + result.hexCode.substring(0, 200) + '...' : ''}`;
+
+            document.getElementById('result-section').classList.remove('hidden');
+
+            // Enable validation button
+            document.getElementById('validate-btn').disabled = false;
+        }
+
+        function handleCompilationFailure(result) {
+            console.log('❌ Compilation failed:', result);
+            
+            const compileBtn = document.getElementById('compile-btn');
+            compileBtn.disabled = false;
+            compileBtn.textContent = '🔨 Compile Code';
+
+            showStatus('❌ Compilation failed', 'error');
+            
+            const resultBox = document.getElementById('compilation-result');
+            resultBox.textContent = `❌ COMPILATION FAILED
+
+Error: ${result.error || 'Unknown error'}
+
+Status: ${result.status || 'failed'}
+
+Please check your code for syntax errors.`;
+
+            document.getElementById('result-section').classList.remove('hidden');
+            document.getElementById('validate-btn').disabled = true;
+        }
+
+        async function validateSubmission() {
+            if (!currentSubmissionId) {
+                alert('No submission to validate');
+                return;
+            }
+
+            const validateBtn = document.getElementById('validate-btn');
+            validateBtn.disabled = true;
+            validateBtn.textContent = 'Validating...';
+
+            try {
+                const response = await fetch(`${API_BASE}/validate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include', // Use cookies instead of auth header
+                    body: JSON.stringify({
+                        submissionId: currentSubmissionId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.data.allTestsPassed) {
+                    showStatus(`🎉 Problem solved! ${data.data.testResults.passed}/${data.data.testResults.total} tests passed!`, 'success');
+                    alert('🎉 Congratulations! You solved this problem!');
+                } else {
+                    showStatus(`Some tests failed: ${data.data?.testResults?.passed || 0}/${data.data?.testResults?.total || 0} passed`, 'warning');
+                }
+
+            } catch (error) {
+                console.error('Validation error:', error);
+                showStatus('Validation error: ' + error.message, 'error');
+            } finally {
+                validateBtn.disabled = false;
+                validateBtn.textContent = '✅ Validate & Submit';
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusBox = document.getElementById('status-box');
+            statusBox.textContent = message;
+            statusBox.className = `status-box status-${type}`;
+            statusBox.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -72,7 +72,7 @@ vi.mock("../src/config/prisma.js", () => {
           options: ["A", "B", "C"],
         })),
       },
-      mcqPracticeSession: {
+      mCQPracticeSession: {
         create: vi.fn(async () => sessionRecord),
         findFirst: vi.fn(async () => sessionRecord),
         update: vi.fn(async () => ({
@@ -83,28 +83,6 @@ vi.mock("../src/config/prisma.js", () => {
           submittedAt: new Date(),
         })),
       },
-      mcqPracticeAnswer: {
-        deleteMany: vi.fn(async () => ({ count: 0 })),
-        createMany: vi.fn(async () => ({ count: 2 })),
-      },
-      $transaction: vi.fn(async (fn) => {
-        const tx = {
-          mcqPracticeAnswer: {
-            deleteMany: vi.fn(async () => ({ count: 0 })),
-            createMany: vi.fn(async () => ({ count: 2 })),
-          },
-          mcqPracticeSession: {
-            update: vi.fn(async () => ({
-              ...sessionRecord,
-              status: "submitted",
-              correctCount: 1,
-              score: 10,
-              submittedAt: new Date(),
-            })),
-          },
-        };
-        return fn(tx);
-      }),
     },
   };
 });

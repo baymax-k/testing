@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Auth Models ─────────────────────────────────────────────────────────────
@@ -54,6 +53,7 @@ enum QuestionType {
   // Practice/contest problem types
   mcq
   dsa
+  arduino
   // Test management question types
   multiple_choice
   true_false
@@ -85,15 +85,15 @@ enum ProctoringSeverity {
 }
 
 model User {
-  id            String      @id @default(cuid())
-  email         String      @unique
-  username      String      @unique @default(cuid())
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
   name          String
-  passwordHash  String      @default("")
-  role          Role        @default(student)
-  emailVerified Boolean     @default(false)
-  image         String?
+  passwordHash  String
+  role          Role      @default(student)
+  emailVerified Boolean   @default(false)
   phone         String?
+  image         String?
   collegeId     String?
   college       College?    @relation(fields: [collegeId], references: [id], onDelete: SetNull)
   departmentId  String?
@@ -103,21 +103,18 @@ model User {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  // JWT auth flow
-  refreshTokens RefreshToken[]
-
-  // Better Auth flow
-  sessions Session[]
-  accounts Account[]
-
-  // Practice/contest flow
-  submissions    Submission[]
-  participations ContestParticipation[]
-  mcqSessions    McqPracticeSession[]
-  dailySolves    DailyChallengeSolve[]
-  streak         UserStreak?
-  dailyPracticeActivities DailyPracticeActivity[]
-  practiceRandomSets      PracticeRandomSet[]
+  refreshTokens       RefreshToken[]
+  sessions            Session[]
+  accounts            Account[]
+  submissions         Submission[]
+  participations      ContestParticipation[]
+  arduinoSubmissions  ArduinoSubmission[]
+  codeDrafts          CodeDraft[]
+  dailyChallengeSolves DailyChallengeSolve[]
+  userStreak          UserStreak?
+  mcqPracticeSessions MCQPracticeSession[]
+  practiceActivities  PracticeActivity[]
+  practiceRandomSets  PracticeRandomSet[]
 
   // College-admin flow
   mentoredBatches Batch[]      @relation("BatchMentor")
@@ -134,9 +131,11 @@ model User {
   @@map("user")
 }
 
+// Stores active refresh tokens (one per device/session).
+// Deleted on sign-out or when a new sign-in invalidates all previous sessions.
 model RefreshToken {
   id        String   @id @default(cuid())
-  jti       String   @unique
+  jti       String   @unique   // JWT ID — used to look up and revoke tokens
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -147,42 +146,9 @@ model RefreshToken {
   @@map("refresh_token")
 }
 
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([token])
-  @@index([userId])
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  @@index([userId])
-  @@map("account")
-}
-
+// Stores temporary OTP codes for email verification and password reset.
+// identifier = "<email>:<type>"  e.g. "user@example.com:email-verification"
+// value      = SHA-256 hash of the 6-digit OTP
 model Verification {
   id         String   @id
   identifier String
@@ -193,6 +159,45 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ─── Better-Auth Models ──────────────────────────────────────────────────────
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("session")
+}
+
+model Account {
+  id                 String   @id
+  accountId          String
+  providerId         String
+  userId             String
+  accessToken        String?  @db.Text
+  refreshToken       String?  @db.Text
+  idToken            String?  @db.Text
+  expiresAt          DateTime?
+  password           String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerId])
+  @@index([userId])
+  @@map("account")
 }
 
 model College {
@@ -259,12 +264,14 @@ enum McqSessionStatus {
   submitted
 }
 
-// ─── Problem Models ──────────────────────────────────────────────────────────
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+
 
 model Tag {
   id        String     @id @default(cuid())
   name      String     @unique
-  type      String
+  type      String     // "topic" or "company"
   questions Question[]
 
   @@map("tag")
@@ -273,46 +280,44 @@ model Tag {
 model Question {
   id          String       @id @default(cuid())
   type        QuestionType
-
-  // Practice/contest problem fields
-  title       String?
-  description String?
-  difficulty  String?
+  title       String
+  content     String?      // markdown for DSA, text for MCQ (alternate to description)
+  description String       // markdown for DSA, text for MCQ
+  difficulty  String       // "easy", "medium", "hard"
   tags        Tag[]
   company     String?
-  createdBy   String?
+  createdBy   String       // admin user ID
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Test relationship
+  testId      String?
+  test        Test?        @relation(fields: [testId], references: [id], onDelete: Cascade)
 
-  // Shared/answer fields
-  options       Json?
-  correctAnswer String?
-  correctOption Int?
-  explanation   String?
+  // Marks and ordering for tests
+  marks       Int?         // Points for this question in a test
+  orderIndex  Int?         // Order of question within test
+
+  // MCQ-specific
+  options       Json?  // ["A) Option 1", ...]
+  correctAnswer Int?   // 0-3
+  explanation   String? // Explanation for the correct answer
 
   // DSA-specific
-  timeLimit       Int?
-  memoryLimit     Int?
-  sampleTestCases Json?
-  hiddenTestCases Json?
+  timeLimit       Int?   // seconds
+  memoryLimit     Int?   // KB
+  sampleTestCases Json?  // [{input, output, explanation}]
+  hiddenTestCases Json?  // [{input, expectedOutput}]
 
-  // Contest relation
   contests ContestQuestion[]
-  mcqAnswers McqPracticeAnswer[]
+  arduinoProblem ArduinoProblem?
   dailyChallenges DailyChallenge[]
+  mcqSessionAnswers MCQSessionAnswer[]
 
-  // Test-management relation
-  testId     String?
-  test       Test?      @relation(fields: [testId], references: [id], onDelete: Cascade)
-  content    String?
-  marks      Int        @default(1)
-  orderIndex Int        @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([testId])
-  @@index([orderIndex])
   @@map("question")
 }
+
+// ─── Contest Models ──────────────────────────────────────────────────────────
 
 model Contest {
   id          String      @id @default(cuid())
@@ -321,8 +326,8 @@ model Contest {
   type        ContestType @default(contest)
   startTime   DateTime?
   endTime     DateTime?
-  duration    Int?
-  createdBy   String
+  duration    Int?        // minutes
+  createdBy   String      // admin user ID
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -335,8 +340,8 @@ model Contest {
 model ContestQuestion {
   contestId  String
   questionId String
-  order      Int
-  points     Int
+  order      Int    // display order
+  points     Int    // points awarded
 
   contest  Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -352,29 +357,32 @@ model ContestParticipation {
   startedAt   DateTime  @default(now())
   submittedAt DateTime?
   score       Int       @default(0)
-  mcqAnswers  Json?
+  mcqAnswers  Json?     // {questionId: selectedOptionIndex}
 
-  dsaSubmissions Submission[]
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  contest        Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  dsaSubmissions     Submission[]
+  arduinoSubmissions ArduinoSubmission[]
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contest            Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contestId])
   @@map("contest_participation")
 }
 
+// ─── Submission Model ─────────────────────────────────────────────────────────
+
 model Submission {
   id              String           @id @default(cuid())
   userId          String
-  problemId       String
+  problemId       String           // references JSON slug (will migrate to questionId)
   language        String?
   languageId      Int?
   sourceCode      String?
   status          SubmissionStatus @default(processing)
   testCasesPassed Int              @default(0)
   totalTestCases  Int              @default(0)
-  failedAt        Int?
+  failedAt        Int?             // 1-indexed test case that failed
   runtime         String?
-  memory          Int?
+  memory          Int?             // peak memory in KB
   errorOutput     String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -421,6 +429,76 @@ model Test {
   @@map("test")
 }
 
+// ─── Arduino Models ──────────────────────────────────────────────────────────
+
+model ArduinoProblem {
+  id               String   @id @default(cuid())
+  questionId       String   @unique
+  board            String   // "uno" | "mega"
+  fqbn             String   // "arduino:avr:uno" | "arduino:avr:mega"
+  libraries        String[] // ["Servo.h", "Wire.h"]
+  starterCode      String   @db.Text
+  simulationConfig Json     // Wokwi diagram JSON
+  timeLimitMs      Int      @default(2000)
+  memoryLimitKb    Int      @default(256)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  testCases    ArduinoTestCase[]
+  submissions  ArduinoSubmission[]
+  question     Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("arduino_problem")
+}
+
+model ArduinoTestCase {
+  id             String  @id @default(cuid())
+  problemId      String
+  label          String  // "LED blinks every 1 second"
+  type           String  // "pin_state" | "toggle_count" | "serial_output"
+  isHidden       Boolean @default(false)
+  pin            Int?
+  expectedState  String? // "HIGH" | "LOW"
+  atMs           Int?
+  toleranceMs    Int?    @default(100)
+  minToggles     Int?
+  withinMs       Int?
+  expectedOutput String? @db.Text
+  order          Int
+
+  problem ArduinoProblem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([problemId])
+  @@map("arduino_test_case")
+}
+
+model ArduinoSubmission {
+  id              String           @id @default(cuid())
+  userId          String
+  problemId       String
+  sourceCode      String           @db.Text
+  status          SubmissionStatus @default(processing)
+  hexFile         String?          @db.Text // Updated to store hex content instead of URL
+  verdict         Json?            // Detailed test results
+  testCasesPassed Int              @default(0)
+  totalTestCases  Int              @default(0)
+  compileTime     Int?             // milliseconds
+  runtime         String?          // simulated execution time
+  errorOutput     String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  contestParticipationId String?
+  contestParticipation   ContestParticipation? @relation(fields: [contestParticipationId], references: [id])
+  user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem                ArduinoProblem        @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([problemId])
+  @@index([userId, problemId])
+  @@map("arduino_submission")
+}
+
 model TestAttempt {
   id            String    @id @default(cuid())
   testId        String
@@ -446,6 +524,73 @@ model TestAttempt {
   @@index([status])
   @@map("test_attempt")
 }
+
+model CodeDraft {
+  id        String   @id @default(cuid())
+  userId    String
+  problemId String
+  code      String   @db.Text
+  language  String?  // "cpp" for Arduino, or Judge0 language for DSA
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@index([userId])
+  @@map("code_draft")
+}
+
+// ─── Student POTD Models ─────────────────────────────────────────────────────
+
+model DailyChallenge {
+  id        String   @id @default(cuid())
+  questionId String
+  date      DateTime @db.Date
+  createdBy String
+  createdAt DateTime @default(now())
+
+  solves   DailyChallengeSolve[]
+  question Question              @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([date])
+  @@index([date])
+  @@map("daily_challenge")
+}
+
+model DailyChallengeSolve {
+  id               String  @id @default(cuid())
+  userId           String
+  dailyChallengeId String
+  selectedOption   Int?
+  isCorrect        Boolean
+  attempts         Int     @default(1)
+  languageId       Int?
+  sourceCode       String? @db.Text
+  solvedAt         DateTime @default(now())
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyChallenge  DailyChallenge  @relation(fields: [dailyChallengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dailyChallengeId])
+  @@index([userId])
+  @@index([dailyChallengeId])
+  @@map("daily_challenge_solve")
+}
+
+model UserStreak {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  lastSolveDate  DateTime? @db.Date
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_streak")
+}
+
+// ─── MCQ Practice Models ─────────────────────────────────────────────────────
 
 model ProctoringVideo {
   id            String                 @id @default(cuid())
@@ -483,31 +628,31 @@ model ProctoringVideo {
   @@map("proctoring_video")
 }
 
-model McqPracticeSession {
-  id             String           @id @default(cuid())
-  userId         String
-  topics         Json
-  difficulty     String?
-  requestedCount Int
-  totalQuestions Int
-  questionIds    Json
-  status         McqSessionStatus @default(in_progress)
-  score          Int              @default(0)
-  correctCount   Int              @default(0)
-  submittedAt    DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+model MCQPracticeSession {
+  id              String           @id @default(cuid())
+  userId          String
+  topics          Json
+  difficulty      String?
+  requestedCount  Int
+  totalQuestions  Int
+  questionIds     Json
+  status          McqSessionStatus @default(in_progress)
+  score           Int              @default(0)
+  correctCount    Int              @default(0)
+  submittedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers McqPracticeAnswer[]
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers MCQSessionAnswer[]
 
   @@index([userId])
   @@index([userId, createdAt])
   @@map("mcq_practice_session")
 }
 
-model McqPracticeAnswer {
-  id             String   @id @default(cuid())
+model MCQSessionAnswer {
+  id             String @id @default(cuid())
   sessionId      String
   questionId     String
   selectedOption Int
@@ -516,7 +661,7 @@ model McqPracticeAnswer {
   points         Int      @default(0)
   createdAt      DateTime @default(now())
 
-  session  McqPracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session  MCQPracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   question Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, questionId])
@@ -525,56 +670,9 @@ model McqPracticeAnswer {
   @@map("mcq_practice_answer")
 }
 
-// ─── Problem of the Day Models ───────────────────────────────────────────────
+// ─── Practice Activity Models ────────────────────────────────────────────────
 
-model DailyChallenge {
-  id         String   @id @default(cuid())
-  questionId String
-  date       DateTime @unique @db.Date
-  createdBy  String   // admin user ID or "system" for auto-select
-  createdAt  DateTime @default(now())
-
-  question Question              @relation(fields: [questionId], references: [id])
-  solves   DailyChallengeSolve[]
-
-  @@index([date])
-  @@map("daily_challenge")
-}
-
-model DailyChallengeSolve {
-  id               String   @id @default(cuid())
-  userId           String
-  dailyChallengeId String
-  selectedOption   Int?
-  languageId       Int?     // for DSA code submissions
-  sourceCode       String?  // for DSA code submissions
-  isCorrect        Boolean
-  attempts         Int      @default(1)
-  solvedAt         DateTime @default(now())
-
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dailyChallenge DailyChallenge @relation(fields: [dailyChallengeId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, dailyChallengeId])
-  @@index([userId])
-  @@map("daily_challenge_solve")
-}
-
-model UserStreak {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  currentStreak Int       @default(0)
-  longestStreak Int       @default(0)
-  lastSolveDate DateTime? @db.Date
-  updatedAt     DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_streak")
-}
-
-// ─── Daily Practice Activity ─────────────────────────────────────────────────
-model DailyPracticeActivity {
+model PracticeActivity {
   id             String   @id @default(cuid())
   userId         String
   date           DateTime @db.Date
@@ -591,15 +689,14 @@ model DailyPracticeActivity {
   @@map("daily_practice_activity")
 }
 
-// ─── Random Practice Sets (Ephemeral, persisted for auditing) ───────────────
 model PracticeRandomSet {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   seed        String?
-  filters     Json     // { topics: string[], difficulty?: string }
-  questionIds Json     // [questionId]
+  filters     Json
+  questionIds Json
   count       Int
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   expiresAt   DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

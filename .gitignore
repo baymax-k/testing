@@ -4,9 +4,11 @@ dist
 local_files
 /src/generated/prisma
 .vscode
-docs
 certs/
 scripts/
 .claude/
 github/
 tests/
+/docs/session-artifacts
+/docs/nginx
+/docs

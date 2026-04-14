@@ -1,4 +1,4 @@
-import { prisma } from "../../config/auth.js";
+import { prisma } from "../../config/prisma.js";
 
 export interface DashboardMetrics {
   totalStudents: number;
