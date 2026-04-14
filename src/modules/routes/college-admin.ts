@@ -6,7 +6,20 @@ import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { auth, prisma } from "../../config/auth.js";
 import { prisma as appPrisma } from "../../config/prisma.js";
-import { generateAndStoreOTP, sendOTPEmail, hashPassword, validateOTP, verifyOTP } from "../auth/auth.service.js";
+import {
+  generateAndStoreOTP,
+  sendOTPEmail,
+  hashPassword,
+  validateOTP,
+  verifyOTP,
+  issueTokens,
+  verifyRefreshToken,
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+  accessCookieOptions,
+  refreshCookieOptions,
+  clearCookieOptions,
+} from "../auth/auth.service.js";
 import { UserService } from "../services/userService.js";
 import { DepartmentService } from "../services/departmentService.js";
 import { BatchService } from "../services/batchService.js";
@@ -18,6 +31,23 @@ import type { Role, TestStatus } from "../../generated/prisma/client.js";
 const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;
 const isProd = process.env.NODE_ENV === "production";
+
+const collegeAdminRefreshCookiePath = "/api/college-admin/auth/refresh-token";
+
+const collegeAdminRefreshCookieOptions = {
+  ...refreshCookieOptions,
+  path: collegeAdminRefreshCookiePath,
+};
+
+function setCollegeAdminJwtCookies(res: Response, accessToken: string, refreshToken: string): void {
+  res.cookie(ACCESS_TOKEN_COOKIE, accessToken, accessCookieOptions);
+  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, collegeAdminRefreshCookieOptions);
+}
+
+function clearCollegeAdminJwtCookies(res: Response): void {
+  res.clearCookie(ACCESS_TOKEN_COOKIE, clearCookieOptions);
+  res.clearCookie(REFRESH_TOKEN_COOKIE, { ...clearCookieOptions, path: collegeAdminRefreshCookiePath });
+}
 
 // ─── Validation Schemas ─────────────────────────────────────────────────────────
 
@@ -1713,6 +1743,15 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const { accessToken, refreshToken } = await issueTokens({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+    });
+    setCollegeAdminJwtCookies(res, accessToken, refreshToken);
+
     res.json({
       success: true,
       message: "Login successful",
@@ -1724,7 +1763,10 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
         emailVerified: user.emailVerified,
         image: user.image,
       },
-      token: sessionToken,
+      token: accessToken,
+      accessToken,
+      refreshToken,
+      sessionToken,
     });
   } catch (error) {
     console.error("[college-admin/auth/login] Error:", error);
@@ -1741,6 +1783,18 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
  */
 router.post("/auth/logout", requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+    if (refreshToken) {
+      try {
+        const payload = verifyRefreshToken(refreshToken);
+        await appPrisma.refreshToken.deleteMany({ where: { jti: payload.jti } });
+      } catch {
+        // Ignore invalid refresh token and continue logout cleanup.
+      }
+    }
+
+    clearCollegeAdminJwtCookies(res);
+
     await auth.api.signOut({
       headers: req.headers as Record<string, string>,
     });
@@ -1760,44 +1814,92 @@ router.post("/auth/logout", requireAuth, async (req: AuthRequest, res: Response)
 
 /**
  * POST /api/college-admin/auth/refresh-token
- * Refresh session token
+ * Refresh JWT token pair using refresh token rotation.
  */
-router.post("/auth/refresh-token", requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/auth/refresh-token", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const user = req.user!;
-
-    // Get current session
-    const session = await auth.api.getSession({
-      headers: req.headers as Record<string, string>,
-    });
-
-    if (session?.session) {
-      res.json({
-        success: true,
-        message: "Token refreshed successfully",
-        session: {
-          token: session.session.token,
-          expiresAt: session.session.expiresAt,
-        },
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          emailVerified: user.emailVerified,
-          image: user.image,
-        },
-      });
-    } else {
+    const incomingRefreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] || req.body?.refreshToken;
+    if (!incomingRefreshToken) {
       res.status(401).json({
-        error: "Session not found",
+        error: "No refresh token",
         message: "Please login again",
       });
+      return;
     }
+
+    const payload = verifyRefreshToken(incomingRefreshToken);
+
+    const stored = await appPrisma.refreshToken.findUnique({ where: { jti: payload.jti } });
+    if (!stored || stored.expiresAt < new Date()) {
+      clearCollegeAdminJwtCookies(res);
+      res.status(401).json({
+        error: "Refresh token expired or revoked",
+        message: "Please login again",
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        image: true,
+      },
+    });
+
+    if (!user) {
+      clearCollegeAdminJwtCookies(res);
+      res.status(401).json({
+        error: "User not found",
+        message: "Please login again",
+      });
+      return;
+    }
+
+    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    if (!allowedRoles.includes(user.role)) {
+      clearCollegeAdminJwtCookies(res);
+      res.status(403).json({
+        error: "Access denied",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    await appPrisma.refreshToken.deleteMany({ where: { jti: payload.jti } });
+    const { accessToken, refreshToken } = await issueTokens({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+    });
+    setCollegeAdminJwtCookies(res, accessToken, refreshToken);
+
+    res.json({
+      success: true,
+      message: "Token refreshed successfully",
+      token: accessToken,
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        image: user.image,
+      },
+    });
   } catch (error) {
+    clearCollegeAdminJwtCookies(res);
     console.error("[college-admin/auth/refresh-token] Error:", error);
-    res.status(500).json({
-      error: "Internal server error",
+    res.status(401).json({
+      error: "Invalid refresh token",
       message: "An error occurred while refreshing token",
     });
   }
