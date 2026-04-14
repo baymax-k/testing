@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getRedisClient } from '../config/redis';
+import { getRedisClient } from '../config/redis.js';
 
 const redisClient = getRedisClient();
 

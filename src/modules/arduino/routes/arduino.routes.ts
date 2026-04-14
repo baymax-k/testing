@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { ArduinoController } from '../controllers/arduino.controller';
-import { ArduinoHardwareController } from '../controllers/arduino-hardware.controller';
-import { ArduinoValidators } from '../validators/arduino.validators';
-import { arduinoCompileRateLimit, generalArduinoRateLimit } from '../../../middleware/rate-limiter';
+import { ArduinoController } from '../controllers/arduino.controller.js';
+import { ArduinoHardwareController } from '../controllers/arduino-hardware.controller.js';
+import { ArduinoValidators } from '../validators/arduino.validators.js';
+import { arduinoCompileRateLimit, generalArduinoRateLimit } from '../../../middleware/rate-limiter.js';
 import { validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
-import { requireAuth } from '../../../middleware/auth';
+import { requireAuth } from '../../../middleware/auth.js';
 
 // Validation middleware
 const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {

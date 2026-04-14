@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import type { AuthRequest } from '../../../middleware/auth';
+import type { AuthRequest } from '../../../middleware/auth.js';
 
 export class ArduinoHardwareController {
 

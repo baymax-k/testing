@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { getRedisClient } from '../config/redis';
+import { getRedisClient } from '../config/redis.js';
 import { prisma } from '../config/prisma.js';
 // Remove UUID - use Prisma's default CUID generation
 const redisClient = getRedisClient();

@@ -61,7 +61,11 @@ class ArduinoCompilerService {
 
   constructor() {
     // Get Arduino compiler service URL from environment or default
-    this.baseUrl = process.env.ARDUINO_COMPILER_URL || 'http://localhost:8080';
+    this.baseUrl =
+      process.env.ARDUINO_COMPILER_URL ||
+      process.env.ARDUINO_SERVICE_URL ||
+      process.env.COMPILER_SERVICE_URL ||
+      'http://localhost:8080';
     this.timeout = parseInt(process.env.ARDUINO_COMPILER_TIMEOUT || '30000');
   }
 

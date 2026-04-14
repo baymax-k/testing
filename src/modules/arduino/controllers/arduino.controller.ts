@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { arduinoCompilerService } from '../../../services/arduino-compiler.service';
-import { arduinoJobService } from '../../../services/arduino-job.service';
+import { arduinoCompilerService } from '../../../services/arduino-compiler.service.js';
+import { arduinoJobService } from '../../../services/arduino-job.service.js';
 import { prisma } from '../../../config/prisma.js';
-import type { AuthRequest } from '../../../middleware/auth';
+import type { AuthRequest } from '../../../middleware/auth.js';
 
 export class ArduinoController {
   // Get supported Arduino boards

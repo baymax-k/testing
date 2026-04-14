@@ -1,7 +1,7 @@
 import { Worker, Job } from 'bullmq';
-import { getRedisClient } from '../config/redis';
+import { getRedisClient } from '../config/redis.js';
 import { prisma } from '../config/prisma.js';
-import { cdnService } from '../services/cdn.service';
+import { cdnService } from '../services/cdn.service.js';
 
 const redisClient = getRedisClient();
 
@@ -40,14 +40,18 @@ interface CompileResult {
 
 class ArduinoWorker {
   private worker: Worker;
-  private readonly ARDUINO_SERVICE_URL = process.env.ARDUINO_SERVICE_URL || 'http://localhost:3001';
+  private readonly ARDUINO_SERVICE_URL =
+    process.env.ARDUINO_SERVICE_URL ||
+    process.env.ARDUINO_COMPILER_URL ||
+    process.env.COMPILER_SERVICE_URL ||
+    'http://localhost:3001';
 
   constructor() {
     this.worker = new Worker('arduino-compile', this.processJob.bind(this), {
       connection: redisClient,
       concurrency: parseInt(process.env.ARDUINO_WORKER_CONCURRENCY || '5'),
-      removeOnComplete: 50,
-      removeOnFail: 100,
+      removeOnComplete: { count: 50 },
+      removeOnFail: { count: 100 },
     });
 
     this.worker.on('completed', (job) => {
@@ -149,7 +153,7 @@ class ArduinoWorker {
         await prisma.arduinoSubmission.update({
           where: { id: submissionId },
           data: {
-            status: 'compiled',
+            status: 'accepted',
             hexFile: hexFileReference,        // Either CDN URL or hex content
             compileTime: compileTime,         // Use compileTime field  
             runtime: JSON.stringify({
@@ -181,7 +185,7 @@ class ArduinoWorker {
       await prisma.arduinoSubmission.update({
         where: { id: submissionId },
         data: {
-          status: 'failed',
+          status: 'compilation_error',
           errorOutput: errorMessage,         // Use errorOutput field
           compileTime: compileTime          // Use compileTime field
         }
