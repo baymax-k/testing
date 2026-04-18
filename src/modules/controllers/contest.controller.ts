@@ -20,6 +20,21 @@ const submitContestMcqSchema = z.object({
   answers: z.record(z.string(), z.number().int().min(0)),
 });
 
+function parseCorrectAnswerIndex(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
 // List contests with pagination and filters
 export const listContests = async (req: Request, res: Response) => {
   try {
@@ -472,10 +487,14 @@ export const submitContestMcq = async (req: Request, res: Response) => {
 
       attempted += 1;
 
-      if (
-        typeof cq.question.correctAnswer === "number" &&
-        selectedOption === cq.question.correctAnswer
-      ) {
+      const correctAnswer = parseCorrectAnswerIndex(cq.question.correctAnswer);
+      if (correctAnswer === null || correctAnswer >= options.length) {
+        return res.status(400).json({
+          error: `MCQ correct answer missing for questionId: ${questionId}`,
+        });
+      }
+
+      if (selectedOption === correctAnswer) {
         correct += 1;
         score += cq.points;
       }

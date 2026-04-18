@@ -43,6 +43,21 @@ const mcqHistoryQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
+function parseCorrectAnswerIndex(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
 // ─── List MCQ Topics ───────────────────────────────────────────────────────────
 export async function listMcqTopics(req: Request, res: Response): Promise<void> {
   try {
@@ -292,12 +307,18 @@ export async function submitMcqPractice(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const isCorrect = selectedOption === question.correctAnswer;
+    const correctAnswer = parseCorrectAnswerIndex(question.correctAnswer);
+    if (correctAnswer === null || correctAnswer >= options.length) {
+      res.status(400).json({ error: "MCQ correct answer is invalid for this question" });
+      return;
+    }
+
+    const isCorrect = selectedOption === correctAnswer;
     const points = isCorrect ? 10 : 0; // Simple scoring
 
     res.json({
       isCorrect,
-      correctAnswer: question.correctAnswer, // Show correct answer
+      correctAnswer, // Show correct answer
       points,
       explanation: isCorrect ? "Correct!" : "Incorrect.",
     });
@@ -412,19 +433,20 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
         return;
       }
 
-      if (typeof question.correctAnswer !== "number") {
+      const correctAnswer = parseCorrectAnswerIndex(question.correctAnswer);
+      if (correctAnswer === null || correctAnswer >= options.length) {
         res.status(400).json({ error: `MCQ correct answer missing for questionId: ${questionId}` });
         return;
       }
 
-      const isCorrect = selectedOption === question.correctAnswer;
+      const isCorrect = selectedOption === correctAnswer;
       reviewRows.push({
         questionId,
         title: question.title,
         selectedOption,
         selectedOptionText: options[selectedOption] ?? `Option ${selectedOption}`,
-        correctAnswer: question.correctAnswer,
-        correctOptionText: options[question.correctAnswer] ?? `Option ${question.correctAnswer}`,
+        correctAnswer,
+        correctOptionText: options[correctAnswer] ?? `Option ${correctAnswer}`,
         isCorrect,
         points: isCorrect ? 10 : 0,
       });

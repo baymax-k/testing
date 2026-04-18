@@ -25,188 +25,134 @@ const users = [
   },
 ];
 
-const mcqQuestions = [
-  {
-    id: "mcq-practice-001",
-    title: "JavaScript Event Loop Basics",
-    description: "Which queue gets executed before macrotasks in JavaScript runtime?",
-    difficulty: "easy",
-    tags: ["javascript", "runtime"],
-    options: ["Callback queue", "Microtask queue", "Timer queue", "Render queue"],
-    correctAnswer: 1,
-  },
-  {
-    id: "mcq-practice-002",
-    title: "SQL Aggregate Clause",
-    description: "Which clause is used to filter grouped records after aggregation?",
-    difficulty: "easy",
-    tags: ["sql", "database"],
-    options: ["WHERE", "HAVING", "GROUP", "ORDER BY"],
-    correctAnswer: 1,
-  },
-  {
-    id: "mcq-practice-003",
-    title: "Time Complexity of Binary Search",
-    description: "What is the worst-case time complexity of binary search on a sorted array?",
-    difficulty: "easy",
-    tags: ["dsa", "arrays"],
-    options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"],
-    correctAnswer: 1,
-  },
-  {
-    id: "mcq-practice-004",
-    title: "HTTP Idempotent Method",
-    description: "Which HTTP method is idempotent by definition?",
-    difficulty: "medium",
-    tags: ["backend", "http"],
-    options: ["POST", "PATCH", "PUT", "CONNECT"],
-    correctAnswer: 2,
-  },
-  {
-    id: "mcq-practice-005",
-    title: "Normalization Concept",
-    description: "Which normal form eliminates transitive dependency?",
-    difficulty: "medium",
-    tags: ["sql", "database"],
-    options: ["1NF", "2NF", "3NF", "BCNF"],
-    correctAnswer: 2,
-  },
-  {
-    id: "mcq-practice-006",
-    title: "TypeScript Utility Type",
-    description: "Which utility type makes all properties in a type optional?",
-    difficulty: "easy",
-    tags: ["typescript", "frontend"],
-    options: ["Required<T>", "Readonly<T>", "Partial<T>", "Pick<T, K>"],
-    correctAnswer: 2,
-  },
-  {
-    id: "mcq-practice-007",
-    title: "OOP Principle",
-    description: "Which OOP principle allows deriving a new class from an existing class?",
-    difficulty: "easy",
-    tags: ["oops", "fundamentals"],
-    options: ["Encapsulation", "Inheritance", "Polymorphism", "Abstraction"],
-    correctAnswer: 1,
-  },
-  {
-    id: "mcq-practice-008",
-    title: "Redis Use Case",
-    description: "Which is the most common use case for Redis in backend systems?",
-    difficulty: "medium",
-    tags: ["redis", "backend"],
-    options: ["Relational joins", "Long-term cold storage", "Caching hot data", "Compile TypeScript"],
-    correctAnswer: 2,
-  },
-  {
-    id: "mcq-practice-009",
-    title: "Prisma Migration Command",
-    description: "Which Prisma command creates and applies a new migration in development?",
-    difficulty: "medium",
-    tags: ["prisma", "backend"],
-    options: ["prisma generate", "prisma db push", "prisma migrate deploy", "prisma migrate dev"],
-    correctAnswer: 3,
-  },
-  {
-    id: "mcq-practice-010",
-    title: "Big-O for Hash Map Lookup",
-    description: "Average-case time complexity for hash map key lookup is:",
-    difficulty: "easy",
-    tags: ["dsa", "hashmap"],
-    options: ["O(1)", "O(log n)", "O(n)", "O(n^2)"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-011",
-    title: "Array Insert at End",
-    description: "In a dynamic array (amortized), appending an element is usually:",
-    difficulty: "easy",
-    tags: ["arrays", "dsa"],
-    options: ["O(1)", "O(log n)", "O(n)", "O(n^2)"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-012",
-    title: "Two Pointer Technique",
-    description: "Two pointers works best when input is typically:",
-    difficulty: "easy",
-    tags: ["arrays", "dsa"],
-    options: ["Sorted", "Randomized", "Graph", "Tree"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-013",
-    title: "Prefix Sum Use Case",
-    description: "Prefix sums are mainly used to optimize:",
-    difficulty: "medium",
-    tags: ["arrays", "dsa"],
-    options: ["Range sum queries", "Sorting", "Hash collisions", "Tree traversal"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-014",
-    title: "Kadane's Algorithm",
-    description: "Kadane's algorithm solves which problem in O(n)?",
-    difficulty: "medium",
-    tags: ["arrays", "dsa"],
-    options: ["Maximum subarray sum", "Median of stream", "Topological sort", "Shortest path"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-015",
-    title: "Sliding Window",
-    description: "Fixed-size sliding window is useful for:",
-    difficulty: "easy",
-    tags: ["arrays", "dsa"],
-    options: ["Consecutive segment computation", "Tree balancing", "Union-find", "Heap merge"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-016",
-    title: "Array Index Bounds",
-    description: "Valid index range for array of length n is:",
-    difficulty: "easy",
-    tags: ["arrays", "fundamentals"],
-    options: ["1 to n", "0 to n", "0 to n-1", "1 to n-1"],
-    correctAnswer: 2,
-  },
-  {
-    id: "mcq-practice-017",
-    title: "In-place Reversal",
-    description: "Reversing array in-place typically uses:",
-    difficulty: "easy",
-    tags: ["arrays", "dsa"],
-    options: ["Two pointers swap", "Hash map", "Priority queue", "DFS recursion"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-018",
-    title: "Duplicate Detection",
-    description: "Fastest average approach to detect duplicates in an array is:",
-    difficulty: "medium",
-    tags: ["arrays", "hashmap"],
-    options: ["Hash set lookup", "Nested loops", "Binary tree always", "Bubble sort first"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-019",
-    title: "Rotation by k",
-    description: "Array rotation by k can be done in-place using:",
-    difficulty: "medium",
-    tags: ["arrays", "dsa"],
-    options: ["Three reversals", "Only extra array", "Only linked list", "Heapify twice"],
-    correctAnswer: 0,
-  },
-  {
-    id: "mcq-practice-020",
-    title: "Frequency Count",
-    description: "To compute frequency of elements efficiently, preferred structure is:",
-    difficulty: "easy",
-    tags: ["arrays", "hashmap"],
-    options: ["Hash map", "Stack", "Queue", "Trie"],
-    correctAnswer: 0,
-  },
-] as const;
+type McqOptionPayload = {
+  id: string;
+  text: string;
+};
+
+type McqQuestionPayload = {
+  id: string;
+  question: string;
+  options: McqOptionPayload[];
+  correct: string[];
+  explanation?: string;
+};
+
+type McqSetPayload = {
+  id: string;
+  type: string;
+  title: string;
+  difficulty: "easy" | "medium" | "hard";
+  tags: string[];
+  content?: {
+    description?: string;
+  };
+  interaction_type?: string;
+  questions: McqQuestionPayload[];
+  passing_score?: number;
+};
+
+type SeedMcqQuestion = {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: "easy" | "medium" | "hard";
+  tags: string[];
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+};
+
+function toAscii(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]/g, "")
+    .trim();
+}
+
+function normalizeTagName(tag: string): string {
+  return toAscii(tag).toLowerCase();
+}
+
+function resolveCorrectOptionIndex(
+  options: McqOptionPayload[],
+  correctIds: string[],
+  questionLabel: string
+): number {
+  if (!Array.isArray(correctIds) || correctIds.length === 0) {
+    throw new Error(`MCQ ${questionLabel} is missing a correct answer id`);
+  }
+
+  const optionIndexById = new Map<string, number>();
+  options.forEach((option, index) => {
+    optionIndexById.set(toAscii(option.id).toLowerCase(), index);
+  });
+
+  const firstCorrect = toAscii(correctIds[0] ?? "").toLowerCase();
+  const mappedIndex = firstCorrect ? optionIndexById.get(firstCorrect) : undefined;
+  if (typeof mappedIndex === "number") {
+    return mappedIndex;
+  }
+
+  const numericIndex = Number(firstCorrect);
+  if (Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < options.length) {
+    return numericIndex;
+  }
+
+  throw new Error(`MCQ ${questionLabel} has invalid correct option reference: ${correctIds[0]}`);
+}
+
+async function loadMcqQuestionsFromJson(): Promise<SeedMcqQuestion[]> {
+  const { default: rawMcqData } = await import("../../mcq_questions.json", {
+    with: { type: "json" },
+  });
+
+  if (!Array.isArray(rawMcqData)) {
+    throw new Error("mcq_questions.json must export an array");
+  }
+
+  const normalizedQuestions: SeedMcqQuestion[] = [];
+
+  for (const item of rawMcqData as McqSetPayload[]) {
+    if (item.type !== "mcq") {
+      continue;
+    }
+
+    const normalizedTags = Array.from(
+      new Set((item.tags ?? []).map(normalizeTagName).filter(Boolean))
+    );
+
+    const setQuestions = Array.isArray(item.questions) ? item.questions : [];
+    for (const question of setQuestions) {
+      const optionTexts = (question.options ?? [])
+        .map((option) => toAscii(option.text))
+        .filter(Boolean);
+
+      if (optionTexts.length < 2) {
+        throw new Error(`MCQ ${item.id}/${question.id} must have at least 2 options`);
+      }
+
+      const correctAnswer = resolveCorrectOptionIndex(question.options ?? [], question.correct ?? [], `${item.id}/${question.id}`);
+      const description =
+        toAscii(question.question ?? "") ||
+        toAscii(item.content?.description ?? "") ||
+        toAscii(item.title);
+
+      normalizedQuestions.push({
+        id: setQuestions.length === 1 ? item.id : `${item.id}-${question.id}`,
+        title: toAscii(item.title),
+        description,
+        difficulty: item.difficulty,
+        tags: normalizedTags,
+        options: optionTexts,
+        correctAnswer,
+        explanation: toAscii(question.explanation ?? "") || undefined,
+      });
+    }
+  }
+
+  return normalizedQuestions;
+}
 
 const dsaQuestions = [
   {
@@ -278,6 +224,8 @@ async function seed() {
     throw new Error("Unable to find product_admin user for MCQ seed");
   }
 
+  const mcqQuestions = await loadMcqQuestionsFromJson();
+
   const uniqueTagNames = Array.from(new Set(mcqQuestions.flatMap((question) => question.tags)));
   for (const tagName of uniqueTagNames) {
     await prisma.tag.upsert({
@@ -302,7 +250,8 @@ async function seed() {
         difficulty: question.difficulty,
         createdBy: adminUserId,
         options: question.options,
-        correctAnswer: question.correctAnswer,
+        correctAnswer: String(question.correctAnswer),
+        explanation: question.explanation,
         tags: {
           set: [],
           connect: tagConnections,
@@ -316,7 +265,8 @@ async function seed() {
         difficulty: question.difficulty,
         createdBy: adminUserId,
         options: question.options,
-        correctAnswer: question.correctAnswer,
+        correctAnswer: String(question.correctAnswer),
+        explanation: question.explanation,
         tags: {
           connect: tagConnections,
         },

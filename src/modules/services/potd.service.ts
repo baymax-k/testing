@@ -4,6 +4,21 @@
 import { prisma } from "../../config/prisma.js";
 import { executeTestCases } from "./judge0.service.js";
 
+function parseCorrectAnswerIndex(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Get today's daily challenge. If none exists, auto-select one from the
  * question pool (preferring questions not used in the last 30 days).
@@ -133,7 +148,12 @@ export async function solveDailyChallenge(
       throw new ValidationError("Selected option out of range");
     }
 
-    const isCorrect = selectedOption === challenge.question.correctAnswer;
+    const correctAnswer = parseCorrectAnswerIndex(challenge.question.correctAnswer);
+    if (correctAnswer === null || correctAnswer >= options.length) {
+      throw new ValidationError("MCQ correct answer is invalid for this challenge");
+    }
+
+    const isCorrect = selectedOption === correctAnswer;
 
     await prisma.dailyChallengeSolve.create({
       data: {
@@ -149,7 +169,7 @@ export async function solveDailyChallenge(
 
     return {
       isCorrect,
-      correctAnswer: challenge.question.correctAnswer,
+      correctAnswer,
       selectedOption,
       streak,
     };

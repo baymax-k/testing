@@ -13,6 +13,8 @@
     "stack:down": "docker compose down -v",
     "stack:logs": "docker compose logs -f --tail=200",
     "seed": "tsx src/scripts/seed.ts",
+    "seed:mcq": "tsx src/scripts/seed-mcq.ts",
+    "seed:coding": "tsx src/scripts/seed-coding.ts",
     "seed:product": "tsx src/scripts/product-seed.ts",
     "db:tables": "tsx src/scripts/show-tables.ts",
     "vercel-build": "prisma generate && tsc",
