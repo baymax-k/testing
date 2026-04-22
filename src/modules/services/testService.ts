@@ -7,6 +7,7 @@ export interface CreateTestInput {
   instructions?: string;
   durationMinutes?: number;
   maxAttempts?: number;
+  maximumMarks?: number;
   passingMarks?: number;
   scheduledStartTime?: Date;
   scheduledEndTime?: Date;
@@ -221,7 +222,7 @@ export class TestService {
         status,
         durationMinutes: data.durationMinutes || 60,
         maxAttempts: data.maxAttempts || 1,
-        totalMarks: 0, // Will be calculated as questions are added
+        totalMarks: data.maximumMarks ?? 0, // Provided cap or will be calculated as questions are added
         passingMarks: data.passingMarks,
         scheduledStartTime: data.scheduledStartTime,
         scheduledEndTime: data.scheduledEndTime,
@@ -630,12 +631,19 @@ export class TestService {
       throw new Error("Question not found");
     }
 
+    if (!existingQuestion.test || !existingQuestion.testId) {
+      throw new Error("Question is not associated with a test");
+    }
+
+    const questionTest = existingQuestion.test;
+    const questionTestId = existingQuestion.testId;
+
     // Don't allow editing questions in active or completed tests
     if (
-      existingQuestion.test.status === "active" ||
-      existingQuestion.test.status === "completed"
+      questionTest.status === "active" ||
+      questionTest.status === "completed"
     ) {
-      throw new Error(`Cannot edit questions in ${existingQuestion.test.status} test`);
+      throw new Error(`Cannot edit questions in ${questionTest.status} test`);
     }
 
     const updateData: any = { ...data };
@@ -656,9 +664,9 @@ export class TestService {
 
     // Update test total marks if marks changed
     if (data.marks !== undefined) {
-      const totalMarks = await calculateTotalMarks(existingQuestion.testId);
+      const totalMarks = await calculateTotalMarks(questionTestId);
       await prisma.test.update({
-        where: { id: existingQuestion.testId },
+        where: { id: questionTestId },
         data: { totalMarks },
       });
     }
@@ -680,9 +688,16 @@ export class TestService {
       throw new Error("Question not found");
     }
 
+    if (!question.test || !question.testId) {
+      throw new Error("Question is not associated with a test");
+    }
+
+    const questionTest = question.test;
+    const questionTestId = question.testId;
+
     // Don't allow deleting questions from active or completed tests
-    if (question.test.status === "active" || question.test.status === "completed") {
-      throw new Error(`Cannot delete questions from ${question.test.status} test`);
+    if (questionTest.status === "active" || questionTest.status === "completed") {
+      throw new Error(`Cannot delete questions from ${questionTest.status} test`);
     }
 
     await prisma.question.delete({
@@ -690,9 +705,9 @@ export class TestService {
     });
 
     // Update test total marks
-    const totalMarks = await calculateTotalMarks(question.testId);
+    const totalMarks = await calculateTotalMarks(questionTestId);
     await prisma.test.update({
-      where: { id: question.testId },
+      where: { id: questionTestId },
       data: { totalMarks },
     });
 

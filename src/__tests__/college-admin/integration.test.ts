@@ -20,6 +20,7 @@ describe("College Admin API - Integration Tests", () => {
   let testMentor: any;
   let reportDepartment: any;
   let restrictedDepartment: any;
+  let reportCollege: any;
   let reportBatch: any;
   let reportAdminUser: any;
   let restrictedDeptAdmin: any;
@@ -43,11 +44,30 @@ describe("College Admin API - Integration Tests", () => {
     reportSessionToken = `report-session-${randomUUID()}`;
     restrictedSessionToken = `restricted-session-${randomUUID()}`;
 
+    reportAdminUser = await prisma.user.create({
+      data: {
+        email: `report-admin-${suffix}@example.com`,
+        name: "Report Admin",
+        role: "college_admin",
+        emailVerified: true,
+      },
+    });
+
+    reportCollege = await prisma.college.create({
+      data: {
+        name: `Integration College ${suffix}`,
+        code: `IC${suffix.slice(-6)}`,
+        description: "College for report integration tests",
+        createdById: reportAdminUser.id,
+      },
+    });
+
     reportDepartment = await prisma.department.create({
       data: {
         name: `Integration Reports ${suffix}`,
         code: `IR${suffix.slice(-4)}`,
         description: "Department for report integration tests",
+        collegeId: reportCollege.id,
       },
     });
 
@@ -56,15 +76,7 @@ describe("College Admin API - Integration Tests", () => {
         name: `Restricted Reports ${suffix}`,
         code: `RR${suffix.slice(-4)}`,
         description: "Department for permission validation",
-      },
-    });
-
-    reportAdminUser = await prisma.user.create({
-      data: {
-        email: `report-admin-${suffix}@example.com`,
-        name: "Report Admin",
-        role: "college_admin",
-        emailVerified: true,
+        collegeId: reportCollege.id,
       },
     });
 
@@ -251,10 +263,6 @@ describe("College Admin API - Integration Tests", () => {
         await prisma.user.delete({ where: { id: restrictedDeptAdmin.id } }).catch(() => {});
       }
 
-      if (reportAdminUser) {
-        await prisma.user.delete({ where: { id: reportAdminUser.id } }).catch(() => {});
-      }
-
       if (reportBatch) {
         await prisma.batch.delete({ where: { id: reportBatch.id } }).catch(() => {});
       }
@@ -265,6 +273,14 @@ describe("College Admin API - Integration Tests", () => {
 
       if (reportDepartment) {
         await prisma.department.delete({ where: { id: reportDepartment.id } }).catch(() => {});
+      }
+
+      if (reportCollege) {
+        await prisma.college.delete({ where: { id: reportCollege.id } }).catch(() => {});
+      }
+
+      if (reportAdminUser) {
+        await prisma.user.delete({ where: { id: reportAdminUser.id } }).catch(() => {});
       }
 
       // Delete test students
@@ -386,10 +402,10 @@ describe("College Admin API - Integration Tests", () => {
       });
     });
 
-    describe("POST /api/college-admin/auth/reset-password", () => {
-      it("should require token and new password", async () => {
+    describe("PUT /api/college-admin/auth/reset-password", () => {
+      it("should require email, otp and new password", async () => {
         const response = await request(testApp)
-          .post("/api/college-admin/auth/reset-password")
+          .put("/api/college-admin/auth/reset-password")
           .send({});
 
         expect(response.status).toBe(400);
@@ -398,9 +414,10 @@ describe("College Admin API - Integration Tests", () => {
 
       it("should validate password strength", async () => {
         const response = await request(testApp)
-          .post("/api/college-admin/auth/reset-password")
+          .put("/api/college-admin/auth/reset-password")
           .send({
-            token: "dummy-token",
+            email: "test@example.com",
+            otp: "123456",
             password: "weak",
           });
 

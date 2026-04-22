@@ -251,6 +251,29 @@ export async function verifyOTP(
   return { valid: true };
 }
 
+// Validate OTP without consuming it (used for pre-flight verification flows)
+export async function validateOTP(
+  email: string,
+  type: OtpType,
+  otp: string
+): Promise<{ valid: boolean; reason?: string }> {
+  const identifier = otpIdentifier(email, type);
+
+  const record = await prisma.verification.findFirst({ where: { identifier } });
+
+  if (!record) return { valid: false, reason: "Invalid or expired OTP" };
+  if (record.expiresAt < new Date()) {
+    return { valid: false, reason: "OTP has expired" };
+  }
+
+  const inputHash = hashOtp(otp);
+  if (inputHash !== record.value) {
+    return { valid: false, reason: "Incorrect OTP" };
+  }
+
+  return { valid: true };
+}
+
 // ─── Email sending ────────────────────────────────────────────────────────────
 
 export async function sendOTPEmail(
@@ -274,7 +297,7 @@ export async function sendOTPEmail(
   const { subject, heading, label } = templates[type];
 
   await mailTransporter.sendMail({
-    from: process.env.EMAIL_FROM || `"CodeEthnics" <no-reply@codeethnics.com>`,
+    from: process.env.EMAIL_FROM || "noreply@codeethnics.com",
     to: email,
     subject,
     html: `

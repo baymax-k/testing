@@ -98,7 +98,7 @@ model User {
   collegeId     String?
   college       College?    @relation("CollegeUsers", fields: [collegeId], references: [id], onDelete: SetNull)
   departmentId  String?
-  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department    Department? @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
   batchId       String?
   batch         Batch?      @relation(fields: [batchId], references: [id], onDelete: SetNull)
   createdAt     DateTime    @default(now())
@@ -130,6 +130,7 @@ model User {
   testAttempts    TestAttempt[] @relation("StudentTestAttempts")
   productAdminSettings ProductAdminSettings?
   productAdminPagePermissions ProductAdminPagePermission[] @relation("ProductAdminPagePermissions")
+  departmentAsHod Department?  @relation("DepartmentHod")
 
   // Hackathon management
   hackathonsCreated HackathonTeam[] @relation("HackathonTeamLead")
@@ -277,9 +278,10 @@ model Department {
   collegeId   String
   college     College   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   hodId       String?   @unique
+  hod         User?     @relation("DepartmentHod", fields: [hodId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  users       User[]
+  users       User[]    @relation("UserDepartment")
   batches     Batch[]
   tests       Test[]
 

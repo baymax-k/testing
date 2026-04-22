@@ -3,8 +3,9 @@ import { prisma } from "../../config/auth.js";
 export interface CreateDepartmentInput {
   name: string;
   code: string;
+  collegeId: string;
   description?: string;
-  hodId?: string;
+  hodId?: string | null;
 }
 
 export interface UpdateDepartmentInput {
@@ -65,6 +66,24 @@ async function validateHodAssignment(hodId: string | null | undefined): Promise<
   }
 }
 
+/**
+ * Helper: Update HOD user's department assignment
+ * When a HOD is assigned to a department, ensure the HOD user's departmentId matches the department ID
+ */
+async function updateHodDepartmentAssignment(
+  hodId: string | null | undefined,
+  departmentId: string
+): Promise<void> {
+  if (!hodId) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: hodId },
+    data: { departmentId },
+  });
+}
+
 export class DepartmentService {
   /**
    * Create a new department
@@ -73,6 +92,7 @@ export class DepartmentService {
     // Check if code or name already exists
     const existing = await prisma.department.findFirst({
       where: {
+        collegeId: data.collegeId,
         OR: [{ code: data.code }, { name: data.name }],
       },
     });
@@ -100,8 +120,22 @@ export class DepartmentService {
       }
     }
 
-    return prisma.department.create({
+    // Create department first to get its ID
+    const department = await prisma.department.create({
       data,
+      include: {
+        users: true,
+      },
+    });
+
+    // Update HOD's departmentId to match this department's ID
+    if (data.hodId) {
+      await updateHodDepartmentAssignment(data.hodId, department.id);
+    }
+
+    // Return updated department (refetch to ensure we have latest data)
+    return prisma.department.findUnique({
+      where: { id: department.id },
       include: {
         users: true,
       },
@@ -148,8 +182,44 @@ export class DepartmentService {
       prisma.department.count({ where }),
     ]);
 
+    const departmentIds = departments.map((dept) => dept.id);
+
+    const [studentCounts, batchCounts] = await Promise.all([
+      prisma.user.groupBy({
+        by: ["departmentId"],
+        where: {
+          departmentId: { in: departmentIds },
+          role: "student",
+        },
+        _count: { _all: true },
+      }),
+      prisma.batch.groupBy({
+        by: ["departmentId"],
+        where: {
+          departmentId: { in: departmentIds },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const studentCountMap = studentCounts.reduce<Record<string, number>>((acc, curr) => {
+      if (curr.departmentId) acc[curr.departmentId] = curr._count._all;
+      return acc;
+    }, {});
+
+    const batchCountMap = batchCounts.reduce<Record<string, number>>((acc, curr) => {
+      if (curr.departmentId) acc[curr.departmentId] = curr._count._all;
+      return acc;
+    }, {});
+
+    const departmentsWithCounts = departments.map((dept) => ({
+      ...dept,
+      totalStudents: studentCountMap[dept.id] || 0,
+      totalBatches: batchCountMap[dept.id] || 0,
+    }));
+
     return {
-      departments,
+      departments: departmentsWithCounts,
       pagination: {
         page,
         limit,
@@ -163,7 +233,7 @@ export class DepartmentService {
    * Get department by ID
    */
   static async getDepartmentById(deptId: string) {
-    return prisma.department.findUnique({
+    const department = await prisma.department.findUnique({
       where: { id: deptId },
       include: {
         users: {
@@ -178,6 +248,19 @@ export class DepartmentService {
         },
       },
     });
+
+    if (!department) return null;
+
+    const [totalStudents, totalBatches] = await Promise.all([
+      prisma.user.count({ where: { departmentId: deptId, role: "student" } }),
+      prisma.batch.count({ where: { departmentId: deptId } }),
+    ]);
+
+    return {
+      ...department,
+      totalStudents,
+      totalBatches,
+    };
   }
 
   /**
@@ -197,6 +280,16 @@ export class DepartmentService {
 
     // Validate HOD assignment using helper
     await validateHodAssignment(data.hodId);
+
+    // If hodId is being changed, update the new HOD's departmentId
+    if (data.hodId !== undefined && data.hodId !== department.hodId) {
+      if (data.hodId) {
+        // New HOD is being assigned - update their departmentId
+        await updateHodDepartmentAssignment(data.hodId, deptId);
+      }
+      // Note: If hodId is being set to null, we don't clear the previous HOD's departmentId
+      // as they might have other roles or responsibilities in that department
+    }
 
     return prisma.department.update({
       where: { id: deptId },

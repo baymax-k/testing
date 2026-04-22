@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
+import { PrismaClient } from "@prisma/client";
 import nodemailer from "nodemailer";
 import { getConfiguredOrigins, normalizeOrigin } from "./origins.js";
 import { prisma } from "./prisma.js";
@@ -52,7 +53,8 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 600,
       allowedAttempts: 10,
-      sendVerificationOnSignUp: true,
+      // Keep OTP delivery explicit through forgot-password flows.
+      sendVerificationOnSignUp: false,
       async sendVerificationOTP({ email, otp, type }) {
         let subject = "";
         let body = "";

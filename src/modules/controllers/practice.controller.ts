@@ -442,7 +442,7 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
       const isCorrect = selectedOption === correctAnswer;
       reviewRows.push({
         questionId,
-        title: question.title,
+        title: question.title ?? "Untitled question",
         selectedOption,
         selectedOptionText: options[selectedOption] ?? `Option ${selectedOption}`,
         correctAnswer,

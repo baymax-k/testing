@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Admin - Department Management Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .breadcrumb {
+            color: #999;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .session-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .session-info.active {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            background: #f0f8ff;
+            border-left: 4px solid #667eea;
+        }
+
+        .session-item {
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .session-item .label {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .session-item .value {
+            color: #333;
+            margin-top: 5px;
+            word-break: break-all;
+            font-size: 0.95rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #ddd;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result.success {
+            border-left-color: #28a745;
+            background: #f0f8f4;
+        }
+
+        .result.error {
+            border-left-color: #dc3545;
+            background: #fef5f5;
+        }
+
+        .result pre {
+            margin: 0;
+            overflow: auto;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .alert.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(450px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #856404;
+            margin-bottom: 15px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e9ecef;
+            color: #495057;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-right: 5px;
+            margin-bottom: 10px;
+        }
+
+        .badge.auth {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.roles {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .section-divider {
+            margin: 25px 0;
+            border: none;
+            border-top: 2px solid #ddd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🏢 College Admin - Department Management</h1>
+            <p>Comprehensive testing interface for college-admin department management endpoints</p>
+            <div class="breadcrumb">API Base: /api/college-admin</div>
+        </header>
+
+        <div class="session-info" id="sessionInfo">
+            <div class="session-item">
+                <div class="label">User ID</div>
+                <div class="value" id="userId">-</div>
+            </div>
+            <div class="session-item">
+                <div class="label">Role</div>
+                <div class="value" id="userRole">-</div>
+            </div>
+            <div class="session-item">
+                <div class="label">Department</div>
+                <div class="value" id="userDept">-</div>
+            </div>
+            <div class="session-item">
+                <div class="label">Token Status</div>
+                <div class="value" id="tokenStatus">No token</div>
+            </div>
+        </div>
+
+        <div class="alert" id="globalAlert"></div>
+
+        <div class="grid">
+            <!-- Create Department -->
+            <div class="card">
+                <h2>➕ Create Department</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal</span>
+
+                <form id="form-create-dept" class="form">
+                    <div class="form-group">
+                        <label>Department Name *</label>
+                        <input type="text" id="cd-name" placeholder="Computer Science" required maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Department Code *</label>
+                        <input type="text" id="cd-code" placeholder="CS" required minlength="2" maxlength="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Description (optional)</label>
+                        <textarea id="cd-description" placeholder="Department description" maxlength="500" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>HOD User ID (optional)</label>
+                        <input type="text" id="cd-hodId" placeholder="HOD's user CUID">
+                    </div>
+                    <button type="submit">Create Department</button>
+                </form>
+                <div class="result" id="create-dept-result"></div>
+            </div>
+
+            <!-- List Departments -->
+            <div class="card">
+                <h2>📋 List Departments</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Most roles</span>
+
+                <div class="note"><strong>Note:</strong> HOD/Dept Admin/Mentor can only view their own department</div>
+
+                <form id="form-list-depts" class="form">
+                    <div class="form-group">
+                        <label>Search (name/code)</label>
+                        <input type="text" id="ld-search" placeholder="Search by name or code">
+                    </div>
+                    <div class="form-group">
+                        <label>Page</label>
+                        <input type="number" id="ld-page" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Limit per page</label>
+                        <input type="number" id="ld-limit" value="10" min="1" max="100">
+                    </div>
+                    <button type="submit">Fetch Departments</button>
+                </form>
+                <div class="result" id="list-depts-result"></div>
+            </div>
+
+            <!-- Get Department by ID -->
+            <div class="card">
+                <h2>🔍 Get Department by ID</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Most roles</span>
+
+                <form id="form-get-dept" class="form">
+                    <div class="form-group">
+                        <label>Department ID *</label>
+                        <input type="text" id="gd-deptId" placeholder="Department CUID" required>
+                    </div>
+                    <button type="submit">Get Department</button>
+                </form>
+                <div class="result" id="get-dept-result"></div>
+            </div>
+
+            <!-- Update Department -->
+            <div class="card">
+                <h2>✏️ Update Department</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal</span>
+
+                <form id="form-update-dept" class="form">
+                    <div class="form-group">
+                        <label>Department ID *</label>
+                        <input type="text" id="ud-deptId" placeholder="Department CUID" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Department Name (optional)</label>
+                        <input type="text" id="ud-name" placeholder="New department name" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Department Code (optional)</label>
+                        <input type="text" id="ud-code" placeholder="New code" minlength="2" maxlength="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Description (optional)</label>
+                        <textarea id="ud-description" placeholder="New description" maxlength="500" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>HOD User ID (optional, null to remove)</label>
+                        <input type="text" id="ud-hodId" placeholder="User CUID or null">
+                    </div>
+                    <button type="submit">Update Department</button>
+                </form>
+                <div class="result" id="update-dept-result"></div>
+            </div>
+
+            <!-- Delete Department -->
+            <div class="card">
+                <h2>🗑️ Delete Department</h2>
+                <span class="badge auth">Requires Auth</span>
+                <span class="badge roles">Roles: SA, CA, Principal</span>
+
+                <div class="note"><strong>Warning:</strong> This action cannot be undone. All associated data may be affected.</div>
+
+                <form id="form-delete-dept" class="form">
+                    <div class="form-group">
+                        <label>Department ID *</label>
+                        <input type="text" id="dd-deptId" placeholder="Department CUID" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dd-confirm">
+                            <input type="checkbox" id="dd-confirm" required> I confirm I want to delete this department
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-danger">Delete Department</button>
+                </form>
+                <div class="result" id="delete-dept-result"></div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="card">
+                <h2>⚙️ Configuration</h2>
+
+                <div class="form-group">
+                    <label>API Base URL</label>
+                    <input type="text" id="api-base-url" value="http://localhost:5000/api" placeholder="http://localhost:5000/api">
+                </div>
+
+                <div class="form-group">
+                    <label>Bearer Token</label>
+                    <input type="password" id="auth-token" placeholder="Paste your JWT token here">
+                </div>
+
+                <div class="form-group">
+                    <label for="auto-save">
+                        <input type="checkbox" id="auto-save" checked> Auto-save configuration
+                    </label>
+                </div>
+
+                <button id="btn-clear-storage" class="btn-danger">Clear All Data</button>
+                <div class="result" id="config-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ──────────────────────────────────────────────────────────────────────────
+        // Configuration & State
+        // ──────────────────────────────────────────────────────────────────────────
+
+        const API_BASE_URL = () => document.getElementById('api-base-url').value || 'http://localhost:5000/api';
+        const getAuthToken = () => document.getElementById('auth-token').value;
+
+        let currentUser = null;
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Utility Functions
+        // ──────────────────────────────────────────────────────────────────────────
+
+        function showResult(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            element.classList.add('active');
+            element.classList.toggle('success', isSuccess);
+            element.classList.toggle('error', !isSuccess);
+
+            const formattedData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            element.innerHTML = `<pre>${escapeHtml(formattedData)}</pre>`;
+        }
+
+        function clearResult(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.classList.remove('active', 'success', 'error');
+                element.innerHTML = '';
+            }
+        }
+
+        function showAlert(message, isSuccess = true) {
+            const alert = document.getElementById('globalAlert');
+            alert.textContent = message;
+            alert.classList.add('active');
+            alert.classList.toggle('success', isSuccess);
+            alert.classList.toggle('error', !isSuccess);
+
+            setTimeout(() => {
+                alert.classList.remove('active');
+            }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function saveToStorage() {
+            if (!document.getElementById('auto-save').checked) return;
+
+            localStorage.setItem('ca-dept-api-url', API_BASE_URL());
+            localStorage.setItem('ca-dept-token', getAuthToken());
+            if (currentUser) localStorage.setItem('ca-dept-user', JSON.stringify(currentUser));
+        }
+
+        function loadFromStorage() {
+            const savedUrl = localStorage.getItem('ca-dept-api-url');
+            const savedToken = localStorage.getItem('ca-dept-token');
+            const savedUser = localStorage.getItem('ca-dept-user');
+
+            if (savedUrl) document.getElementById('api-base-url').value = savedUrl;
+            if (savedToken) document.getElementById('auth-token').value = savedToken;
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateSessionInfo();
+            }
+        }
+
+        function updateSessionInfo() {
+            const sessionInfo = document.getElementById('sessionInfo');
+            if (!currentUser || !getAuthToken()) {
+                sessionInfo.classList.remove('active');
+                return;
+            }
+
+            sessionInfo.classList.add('active');
+            document.getElementById('userId').textContent = currentUser.id || '-';
+            document.getElementById('userRole').textContent = currentUser.role || '-';
+            document.getElementById('userDept').textContent = currentUser.departmentId || 'Not assigned';
+            document.getElementById('tokenStatus').textContent = `${getAuthToken().substring(0, 20)}...`;
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // API Requests
+        // ──────────────────────────────────────────────────────────────────────────
+
+        async function apiCall(endpoint, method = 'GET', body = null, resultElementId = null) {
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    showAlert('No authentication token provided', false);
+                    return { success: false };
+                }
+
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                };
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_BASE_URL()}/college-admin${endpoint}`, options);
+                const data = await response.json();
+
+                const isSuccess = response.ok;
+
+                if (resultElementId) {
+                    showResult(resultElementId, data, isSuccess);
+                }
+
+                if (!isSuccess) {
+                    showAlert(`Error: ${data.error || 'Unknown error'}`, false);
+                    return { success: false, data };
+                }
+
+                showAlert('Request successful!', true);
+                return { success: true, data };
+            } catch (error) {
+                const errorMsg = error.message;
+                showAlert(`Network Error: ${errorMsg}`, false);
+                if (resultElementId) {
+                    showResult(resultElementId, errorMsg, false);
+                }
+                return { success: false, data: { error: errorMsg } };
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Event Listeners - Department Management
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('form-create-dept').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('create-dept-result');
+
+            const body = {
+                name: document.getElementById('cd-name').value,
+                code: document.getElementById('cd-code').value,
+            };
+
+            const description = document.getElementById('cd-description').value;
+            if (description) body.description = description;
+
+            const hodId = document.getElementById('cd-hodId').value;
+            if (hodId) body.hodId = hodId;
+
+            await apiCall('/departments', 'POST', body, 'create-dept-result');
+        });
+
+        document.getElementById('form-list-depts').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('list-depts-result');
+
+            const params = new URLSearchParams();
+            const search = document.getElementById('ld-search').value;
+            const page = document.getElementById('ld-page').value;
+            const limit = document.getElementById('ld-limit').value;
+
+            if (search) params.append('search', search);
+            if (page) params.append('page', page);
+            if (limit) params.append('limit', limit);
+
+            const endpoint = `/departments${params.toString() ? '?' + params.toString() : ''}`;
+            await apiCall(endpoint, 'GET', null, 'list-depts-result');
+        });
+
+        document.getElementById('form-get-dept').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('get-dept-result');
+
+            const deptId = document.getElementById('gd-deptId').value;
+            await apiCall(`/departments/${deptId}`, 'GET', null, 'get-dept-result');
+        });
+
+        document.getElementById('form-update-dept').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('update-dept-result');
+
+            const deptId = document.getElementById('ud-deptId').value;
+            const body = {};
+
+            const name = document.getElementById('ud-name').value;
+            if (name) body.name = name;
+
+            const code = document.getElementById('ud-code').value;
+            if (code) body.code = code;
+
+            const description = document.getElementById('ud-description').value;
+            if (description) body.description = description;
+
+            const hodId = document.getElementById('ud-hodId').value;
+            if (hodId !== '') body.hodId = hodId === 'null' ? null : hodId;
+
+            await apiCall(`/departments/${deptId}`, 'PUT', body, 'update-dept-result');
+        });
+
+        document.getElementById('form-delete-dept').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearResult('delete-dept-result');
+
+            const deptId = document.getElementById('dd-deptId').value;
+            await apiCall(`/departments/${deptId}`, 'DELETE', {}, 'delete-dept-result');
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Configuration
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.getElementById('btn-clear-storage').addEventListener('click', () => {
+            localStorage.clear();
+            location.reload();
+        });
+
+        document.getElementById('auto-save').addEventListener('change', saveToStorage);
+        document.getElementById('api-base-url').addEventListener('change', saveToStorage);
+        document.getElementById('auth-token').addEventListener('change', () => {
+            saveToStorage();
+            updateSessionInfo();
+        });
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // Initialization
+        // ──────────────────────────────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            console.log('🏢 College Admin - Department Management Tester Initialized');
+            console.log(`API Base URL: ${API_BASE_URL()}`);
+        });
+    </script>
+</body>
+
+</html>
