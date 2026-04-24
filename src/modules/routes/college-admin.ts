@@ -2291,6 +2291,14 @@ router.get(
           roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Manage student records, bulk operations"
         },
+        {
+          name: "Mentor Management",
+          status: "active",
+          endpoint: "/api/college-admin/users?role=mentor&departmentId=" + (user.departmentId || ""),
+          roles: ["hod"],
+          description: "Create and manage mentors in your department",
+          requireDepartment: true
+        },
         { 
           name: "Test Management", 
           status: "active", 
@@ -2336,6 +2344,13 @@ router.get(
           roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "View scheduled upcoming tests"
         },
+        {
+          name: "Performance",
+          status: "active",
+          endpoint: "/api/college-admin/report",
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          description: "View student and batch performance insights"
+        },
         { 
           name: "My Mentees", 
           status: "coming soon", 
@@ -2360,11 +2375,81 @@ router.get(
       ];
 
       // Filter sections based on role and department requirement
-      return allSections.filter(section => {
+      const roleSections = allSections.filter(section => {
         const hasRoleAccess = section.roles.includes(role);
         const hasDepartmentAccess = !section.requireDepartment || (section.requireDepartment && user.departmentId);
         return hasRoleAccess && hasDepartmentAccess;
       }).map(({ roles, requireDepartment, ...section }) => section);
+
+      // HOD dashboard should only expose the requested four management sections.
+      if (role === "hod") {
+        const hodAllowedSections = new Set([
+          "Batch Management",
+          "Student Management",
+          "Test Management",
+          "Mentor Management",
+          "Performance",
+        ]);
+        return roleSections.filter((section) => hodAllowedSections.has(section.name));
+      }
+
+      // Mentor dashboard should only expose view-only student management and performance.
+      if (role === "mentor") {
+        const mentorAllowedSections = new Set([
+          "Student Management",
+          "Performance",
+        ]);
+
+        return roleSections
+          .filter((section) => mentorAllowedSections.has(section.name))
+          .map((section) => {
+            if (section.name === "Student Management") {
+              return {
+                ...section,
+                description: "View-only access to student records in your department",
+                access: "view_only",
+              };
+            }
+
+            return section;
+          });
+      }
+
+      // Principal dashboard should hide the last two test summary cards
+      // and expose remaining sections as view-only.
+      if (role === "principal") {
+        const principalHiddenSections = new Set([
+          "Active Tests",
+          "Upcoming Tests",
+        ]);
+
+        return roleSections
+          .filter((section) => !principalHiddenSections.has(section.name))
+          .map((section) => ({
+            ...section,
+            description: `View-only access. ${section.description}`,
+            access: "view_only",
+          }));
+      }
+
+      // Super admin dashboard should hide the last two test summary cards
+      // and expose remaining sections with CRUD access.
+      if (role === "product_admin") {
+        const superAdminHiddenSections = new Set([
+          "Active Tests",
+          "Upcoming Tests",
+        ]);
+
+        return roleSections
+          .filter((section) => !superAdminHiddenSections.has(section.name))
+          .map((section) => ({
+            ...section,
+            description: `CRUD access. ${section.description}`,
+            access: "crud",
+          }));
+      }
+
+      return roleSections;
     };
 
     // Get role-specific greeting and statistics
