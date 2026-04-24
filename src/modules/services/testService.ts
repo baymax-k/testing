@@ -435,12 +435,25 @@ export class TestService {
     filters: TestFilters = {},
     options: PaginationOptions = {}
   ) {
-    const {
-      page = 1,
-      limit = 20,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-    } = options;
+    const rawPage = options.page ?? 1;
+    const rawLimit = options.limit ?? 20;
+    const rawSortBy = options.sortBy ?? "createdAt";
+    const rawSortOrder = options.sortOrder ?? "desc";
+
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 100) : 20;
+
+    const allowedSortFields = new Set([
+      "createdAt",
+      "updatedAt",
+      "title",
+      "status",
+      "scheduledStartTime",
+      "scheduledEndTime",
+      "totalMarks",
+    ]);
+    const sortBy = allowedSortFields.has(rawSortBy) ? rawSortBy : "createdAt";
+    const sortOrder: "asc" | "desc" = rawSortOrder === "asc" ? "asc" : "desc";
 
     const skip = (page - 1) * limit;
 

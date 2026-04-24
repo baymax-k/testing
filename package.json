@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "predev": "prisma generate",
+    "db:patch:test-public-columns": "prisma db execute --schema src/modules/prisma/schema.prisma --file src/modules/prisma/migrations/20260414123000_add_missing_test_public_columns/migration.sql",
+    "predev": "pnpm run db:patch:test-public-columns && prisma generate",
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/src/server.js",
@@ -19,7 +20,7 @@
     "seed:college:performance": "tsx src/scripts/college-performance-seed.ts",
     "seed:product": "tsx src/scripts/product-seed.ts",
     "db:tables": "tsx src/scripts/show-tables.ts",
-    "vercel-build": "prisma generate && tsc",
+    "vercel-build": "pnpm run db:patch:test-public-columns && prisma generate && tsc",
     "test": "vitest run",
     "test:auth": "tsx test/auth.test.ts",
     "test:judge0": "RUN_JUDGE0_INTEGRATION=true vitest run test/judge0.integration.test.ts",

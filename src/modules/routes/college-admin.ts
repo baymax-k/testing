@@ -26,7 +26,8 @@ import { BatchService } from "../services/batchService.js";
 import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
-import type { Role, TestStatus } from "../../generated/prisma/client.js";
+import { TestStatus } from "../../generated/prisma/client.js";
+import type { Role } from "../../generated/prisma/client.js";
 
 const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;
@@ -4466,6 +4467,109 @@ const reorderQuestionsSchema = z.object({
   questionIds: z.array(z.string()).min(1),
 });
 
+const LIST_TESTS_ALLOWED_SORT_BY = new Set([
+  "createdAt",
+  "updatedAt",
+  "title",
+  "status",
+  "scheduledStartTime",
+  "scheduledEndTime",
+  "totalMarks",
+]);
+
+const LIST_TESTS_ALLOWED_TIME_FILTERS = new Set(["upcoming", "active", "past", "all"]);
+
+type ParsedListTestsQuery = {
+  page: number;
+  limit: number;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  status?: TestStatus;
+  departmentId?: string;
+  batchId?: string;
+  search?: string;
+  timeFilter?: "upcoming" | "active" | "past" | "all";
+};
+
+type TimeFilter = NonNullable<ParsedListTestsQuery["timeFilter"]>;
+
+function getQueryStringValue(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+    return value[0];
+  }
+
+  return undefined;
+}
+
+function isTestStatus(value: string): value is TestStatus {
+  return Object.values(TestStatus).includes(value as TestStatus);
+}
+
+function isTimeFilter(value: string): value is TimeFilter {
+  return LIST_TESTS_ALLOWED_TIME_FILTERS.has(value);
+}
+
+function parseListTestsQuery(query: AuthRequest["query"]): { data?: ParsedListTestsQuery; error?: string } {
+  const pageRaw = getQueryStringValue(query.page) ?? "1";
+  const limitRaw = getQueryStringValue(query.limit) ?? "20";
+  const sortByRaw = getQueryStringValue(query.sortBy) ?? "createdAt";
+  const sortOrderRaw = getQueryStringValue(query.sortOrder) ?? "desc";
+  const statusRaw = getQueryStringValue(query.status);
+  const departmentId = getQueryStringValue(query.departmentId);
+  const batchId = getQueryStringValue(query.batchId);
+  const search = getQueryStringValue(query.search);
+  const timeFilterRaw = getQueryStringValue(query.timeFilter);
+
+  const page = Number.parseInt(pageRaw, 10);
+  const limit = Number.parseInt(limitRaw, 10);
+
+  if (Number.isNaN(page) || page < 1) {
+    return { error: "Invalid page value. Must be an integer >= 1" };
+  }
+
+  if (Number.isNaN(limit) || limit < 1 || limit > 100) {
+    return { error: "Invalid limit value. Must be an integer between 1 and 100" };
+  }
+
+  if (!LIST_TESTS_ALLOWED_SORT_BY.has(sortByRaw)) {
+    return {
+      error: `Invalid sortBy value. Allowed values: ${Array.from(LIST_TESTS_ALLOWED_SORT_BY).join(", ")}`,
+    };
+  }
+
+  if (sortOrderRaw !== "asc" && sortOrderRaw !== "desc") {
+    return { error: "Invalid sortOrder value. Allowed values: asc, desc" };
+  }
+
+  if (statusRaw && !isTestStatus(statusRaw)) {
+    return {
+      error: `Invalid status value. Allowed values: ${Object.values(TestStatus).join(", ")}`,
+    };
+  }
+
+  if (timeFilterRaw && !isTimeFilter(timeFilterRaw)) {
+    return { error: "Invalid timeFilter value. Allowed values: upcoming, active, past, all" };
+  }
+
+  return {
+    data: {
+      page,
+      limit,
+      sortBy: sortByRaw,
+      sortOrder: sortOrderRaw,
+      status: statusRaw,
+      departmentId,
+      batchId,
+      search,
+      timeFilter: timeFilterRaw,
+    },
+  };
+}
+
 // ─── Test CRUD Endpoints ────────────────────────────────────────────────────────
 
 /**
@@ -4537,17 +4641,23 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
+      const parsedQuery = parseListTestsQuery(req.query);
+      if (!parsedQuery.data) {
+        res.status(400).json({ error: parsedQuery.error ?? "Invalid query parameters" });
+        return;
+      }
+
       const {
-        page = "1",
-        limit = "20",
-        sortBy = "createdAt",
-        sortOrder = "desc",
+        page,
+        limit,
+        sortBy,
+        sortOrder,
         status,
         departmentId,
         batchId,
         search,
-        timeFilter, // upcoming, active, past, all
-      } = req.query;
+        timeFilter,
+      } = parsedQuery.data;
 
       const filters: any = {};
 
@@ -4558,19 +4668,19 @@ router.get(
 
       // Override with query params if product_admin/college_admin/principal
       if (user.role === "product_admin" || user.role === "college_admin" || user.role === "principal") {
-        if (departmentId) filters.departmentId = departmentId as string;
-        if (batchId) filters.batchId = batchId as string;
+        if (departmentId) filters.departmentId = departmentId;
+        if (batchId) filters.batchId = batchId;
       }
 
-      if (status) filters.status = status as TestStatus;
-      if (search) filters.search = search as string;
-      if (timeFilter) filters.timeFilter = timeFilter as "upcoming" | "active" | "past" | "all";
+      if (status) filters.status = status;
+      if (search) filters.search = search;
+      if (timeFilter) filters.timeFilter = timeFilter;
 
       const result = await TestService.getTests(filters, {
-        page: Number.parseInt(page as string, 10),
-        limit: Number.parseInt(limit as string, 10),
-        sortBy: sortBy as string,
-        sortOrder: sortOrder as "asc" | "desc",
+        page,
+        limit,
+        sortBy,
+        sortOrder,
       });
 
       res.json(result);
