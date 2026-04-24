@@ -2281,7 +2281,7 @@ router.get(
           name: "User Management", 
           status: "active", 
           endpoint: "/api/college-admin/users",
-          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin"],
+          roles: ["product_admin", "college_admin", "principal", "dept_admin"],
           description: "Create and manage users (Principal, HOD, Mentors, Students)"
         },
         { 
@@ -2303,14 +2303,14 @@ router.get(
           name: "Test Management", 
           status: "active", 
           endpoint: "/api/college-admin/tests",
-          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin"],
           description: "Create, schedule and manage tests"
         },
         { 
           name: "My Department", 
           status: "active", 
           endpoint: `/api/college-admin/departments/${user.departmentId}`,
-          roles: ["hod", "dept_admin"],
+          roles: ["dept_admin"],
           description: "View and manage your department",
           requireDepartment: true
         },
@@ -2318,7 +2318,7 @@ router.get(
           name: "Department Users", 
           status: "active", 
           endpoint: "/api/college-admin/users?departmentId=" + (user.departmentId || ""),
-          roles: ["hod", "dept_admin", "mentor"],
+          roles: ["dept_admin"],
           description: "View users in your department",
           requireDepartment: true
         },
@@ -2326,7 +2326,7 @@ router.get(
           name: "Department Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?departmentId=" + (user.departmentId || ""),
-          roles: ["hod", "dept_admin", "mentor"],
+          roles: [ "dept_admin"],
           description: "View tests in your department",
           requireDepartment: true
         },
@@ -2334,43 +2334,30 @@ router.get(
           name: "Active Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=active",
-          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "dept_admin"],
           description: "View currently active tests"
         },
         { 
           name: "Upcoming Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=upcoming",
-          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "dept_admin"],
           description: "View scheduled upcoming tests"
         },
         {
           name: "Performance",
           status: "active",
           endpoint: "/api/college-admin/report",
-          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "dept_admin"],
           description: "View student and batch performance insights"
         },
-        { 
-          name: "My Mentees", 
-          status: "coming soon", 
-          endpoint: "/api/college-admin/mentees",
-          roles: ["mentor"],
-          description: "View and manage your assigned students"
-        },
+    
         { 
           name: "Performance Analytics", 
-          status: "coming soon", 
+          status: "active", 
           endpoint: "/api/college-admin/analytics",
-          roles: ["product_admin", "college_admin", "principal", "hod"],
+          roles: ["product_admin", "college_admin","principal", "hod", "mentor"],
           description: "View performance metrics and analytics"
-        },
-        { 
-          name: "Reports", 
-          status: "coming soon", 
-          endpoint: "/api/college-admin/reports",
-          roles: ["product_admin", "college_admin", "principal", "hod"],
-          description: "Generate and view reports"
         },
       ];
 
@@ -2397,7 +2384,7 @@ router.get(
       if (role === "mentor") {
         const mentorAllowedSections = new Set([
           "Student Management",
-          "Performance",
+          "Performance Analytics",
         ]);
 
         return roleSections
