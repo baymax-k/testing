@@ -437,8 +437,23 @@ async function createSingleStudentAccount(
       },
     });
 
-    if (!signUpResult) {
+    const signUpError = (signUpResult as any)?.error;
+    const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
+    if (!signUpResult || signUpError) {
       return { success: false, error: "Failed to create account" };
+    }
+
+    let targetUserId = createdUserId;
+    if (!targetUserId) {
+      const createdUser = await prisma.user.findUnique({
+        where: { email: String(studentData.email).trim().toLowerCase() },
+        select: { id: true },
+      });
+      targetUserId = createdUser?.id;
+    }
+
+    if (!targetUserId) {
+      return { success: false, error: "Student account was created but could not be finalized" };
     }
 
     const passwordHash = await hashPassword(studentData.password);
@@ -449,7 +464,7 @@ async function createSingleStudentAccount(
 
     // Update the user with additional fields
     const student = await prisma.user.update({
-      where: { email: studentData.email },
+      where: { id: targetUserId },
       data: {
         passwordHash,
         role: "student",
@@ -2375,7 +2390,7 @@ router.get(
           "Student Management",
           "Test Management",
           "Mentor Management",
-          "Performance",
+          "Performance Analytics",
         ]);
         return roleSections.filter((section) => hodAllowedSections.has(section.name));
       }
@@ -4079,9 +4094,27 @@ router.post(
         },
       });
 
-      if (!signUpResult) {
+      const signUpError = (signUpResult as any)?.error;
+      const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
+      if (!signUpResult || signUpError) {
         res.status(500).json({
           error: "Failed to create student account",
+        });
+        return;
+      }
+
+      let targetUserId = createdUserId;
+      if (!targetUserId) {
+        const createdUser = await prisma.user.findUnique({
+          where: { email: email.trim().toLowerCase() },
+          select: { id: true },
+        });
+        targetUserId = createdUser?.id;
+      }
+
+      if (!targetUserId) {
+        res.status(500).json({
+          error: "Student account was created but could not be finalized",
         });
         return;
       }
@@ -4090,7 +4123,7 @@ router.post(
 
       // Update the user with additional fields
       const student = await prisma.user.update({
-        where: { email },
+        where: { id: targetUserId },
         data: {
           passwordHash,
           role: "student",

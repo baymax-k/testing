@@ -417,7 +417,16 @@ export class ReportService {
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
-        questions: { orderBy: { orderIndex: "asc" } },
+        questions: {
+          orderBy: { orderIndex: "asc" },
+          select: {
+            id: true,
+            content: true,
+            difficulty: true,
+            type: true,
+            marks: true,
+          },
+        },
         batch: { include: { students: true } },
         attempts: {
           include: {
@@ -441,6 +450,18 @@ export class ReportService {
     if (!test) {
       throw new Error("Test not found");
     }
+
+    const questionAnswerRows = await prisma.$queryRaw<
+      Array<{ id: string; correctAnswerText: string | null }>
+    >`
+      SELECT id, "correctAnswer"::text AS "correctAnswerText"
+      FROM "question"
+      WHERE "testId" = ${testId}
+    `;
+
+    const correctAnswerByQuestionId = new Map(
+      questionAnswerRows.map((row) => [row.id, row.correctAnswerText])
+    );
 
     const totalStudents = test.batch?.students.length || 0;
     const attemptedCount = test.attempts.length;
@@ -476,11 +497,13 @@ export class ReportService {
 
     // Analyze each question
     const questionAnalysis = test.questions.map((question, index) => {
+      const correctAnswer = correctAnswerByQuestionId.get(question.id);
+
       const correctAttempts = test.attempts.filter((attempt) => {
         const answers = attempt.answers as Record<string, any> | null;
         if (!answers) return false;
         const answer = answers[question.id];
-        return answer === question.correctAnswer;
+        return this.answersMatch(answer, correctAnswer);
       });
 
       const correctAnswerPercentage =
@@ -938,6 +961,68 @@ export class ReportService {
       return (sorted[mid - 1] + sorted[mid]) / 2;
     }
     return sorted[mid];
+  }
+
+  private normalizeAnswerValue(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      return normalized.length > 0 ? normalized : null;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value).toLowerCase();
+    }
+
+    return null;
+  }
+
+  private buildAnswerAliases(normalized: string): Set<string> {
+    const aliases = new Set<string>([normalized]);
+
+    const letterToIndex: Record<string, string> = {
+      a: "0",
+      b: "1",
+      c: "2",
+      d: "3",
+      e: "4",
+      f: "5",
+    };
+
+    const mappedIndex = letterToIndex[normalized];
+    if (mappedIndex !== undefined) {
+      aliases.add(mappedIndex);
+    }
+
+    const numericValue = Number.parseInt(normalized, 10);
+    if (!Number.isNaN(numericValue) && String(numericValue) === normalized && numericValue >= 0 && numericValue < 26) {
+      aliases.add(String.fromCharCode(97 + numericValue));
+    }
+
+    return aliases;
+  }
+
+  private answersMatch(submittedAnswer: unknown, correctAnswer: string | null | undefined): boolean {
+    const normalizedSubmitted = this.normalizeAnswerValue(submittedAnswer);
+    const normalizedCorrect = this.normalizeAnswerValue(correctAnswer);
+
+    if (!normalizedSubmitted || !normalizedCorrect) {
+      return false;
+    }
+
+    const submittedAliases = this.buildAnswerAliases(normalizedSubmitted);
+    const correctAliases = this.buildAnswerAliases(normalizedCorrect);
+
+    for (const alias of submittedAliases) {
+      if (correctAliases.has(alias)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private extractTopic(

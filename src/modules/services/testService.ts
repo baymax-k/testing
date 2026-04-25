@@ -169,6 +169,19 @@ function determineTestStatus(
   }
 }
 
+const TEST_QUESTION_SELECT = {
+  id: true,
+  type: true,
+  content: true,
+  marks: true,
+  options: true,
+  correctAnswer: true,
+  explanation: true,
+  orderIndex: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export class TestService {
   /**
    * Create a new test
@@ -253,7 +266,9 @@ export class TestService {
             code: true,
           },
         },
-        questions: true,
+        questions: {
+          select: TEST_QUESTION_SELECT,
+        },
       },
     });
 
@@ -344,6 +359,7 @@ export class TestService {
         },
         questions: {
           orderBy: { orderIndex: "asc" },
+          select: TEST_QUESTION_SELECT,
         },
       },
     });
@@ -412,6 +428,7 @@ export class TestService {
         },
         questions: {
           orderBy: { orderIndex: "asc" },
+          select: TEST_QUESTION_SELECT,
         },
         _count: {
           select: {
@@ -618,6 +635,7 @@ export class TestService {
         explanation: data.explanation ?? undefined,
         orderIndex: data.orderIndex ?? questionCount,
       },
+      select: TEST_QUESTION_SELECT,
     });
 
     // Update test total marks
@@ -637,7 +655,15 @@ export class TestService {
     // Verify question exists
     const existingQuestion = await prisma.question.findUnique({
       where: { id: questionId },
-      include: { test: true },
+      select: {
+        id: true,
+        testId: true,
+        test: {
+          select: {
+            status: true,
+          },
+        },
+      },
     });
 
     if (!existingQuestion) {
@@ -673,6 +699,7 @@ export class TestService {
     const question = await prisma.question.update({
       where: { id: questionId },
       data: updateData,
+      select: TEST_QUESTION_SELECT,
     });
 
     // Update test total marks if marks changed
@@ -694,7 +721,15 @@ export class TestService {
     // Verify question exists
     const question = await prisma.question.findUnique({
       where: { id: questionId },
-      include: { test: true },
+      select: {
+        id: true,
+        testId: true,
+        test: {
+          select: {
+            status: true,
+          },
+        },
+      },
     });
 
     if (!question) {
@@ -715,6 +750,7 @@ export class TestService {
 
     await prisma.question.delete({
       where: { id: questionId },
+      select: { id: true },
     });
 
     // Update test total marks
@@ -743,6 +779,7 @@ export class TestService {
     const questions = await prisma.question.findMany({
       where: { testId },
       orderBy: { orderIndex: "asc" },
+      select: TEST_QUESTION_SELECT,
     });
 
     return questions;
@@ -772,6 +809,7 @@ export class TestService {
         id: { in: questionIds },
         testId,
       },
+      select: { id: true },
     });
 
     if (questions.length !== questionIds.length) {
@@ -783,6 +821,7 @@ export class TestService {
       prisma.question.update({
         where: { id: questionId },
         data: { orderIndex: index },
+        select: { id: true },
       })
     );
 
@@ -907,6 +946,7 @@ export class TestService {
         },
         questions: {
           orderBy: { orderIndex: "asc" },
+          select: TEST_QUESTION_SELECT,
         },
       },
     });
