@@ -417,16 +417,6 @@ export class ReportService {
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
-        questions: {
-          orderBy: { orderIndex: "asc" },
-          select: {
-            id: true,
-            content: true,
-            difficulty: true,
-            type: true,
-            marks: true,
-          },
-        },
         batch: { include: { students: true } },
         attempts: {
           include: {
@@ -451,16 +441,10 @@ export class ReportService {
       throw new Error("Test not found");
     }
 
-    const questionAnswerRows = await prisma.$queryRaw<
-      Array<{ id: string; correctAnswerText: string | null }>
-    >`
-      SELECT id, "correctAnswer"::text AS "correctAnswerText"
-      FROM "question"
-      WHERE "testId" = ${testId}
-    `;
+    const questions = await this.getQuestionsForAnalysis(testId);
 
     const correctAnswerByQuestionId = new Map(
-      questionAnswerRows.map((row) => [row.id, row.correctAnswerText])
+      questions.map((row) => [row.id, row.correctAnswerText])
     );
 
     const totalStudents = test.batch?.students.length || 0;
@@ -479,7 +463,7 @@ export class ReportService {
     else if (passPercentage < 40) difficulty = "hard";
 
     const averageTimePerQuestion =
-      test.questions.length > 0
+      questions.length > 0
         ? Math.round(
             test.attempts
               .filter((attempt) => attempt.submittedAt)
@@ -490,13 +474,13 @@ export class ReportService {
                     0,
                     attempt.submittedAt.getTime() - attempt.startedAt.getTime()
                   ) / 1000;
-                return sum + durationInSeconds / test.questions.length;
+                return sum + durationInSeconds / questions.length;
               }, 0) / Math.max(test.attempts.filter((attempt) => attempt.submittedAt).length, 1)
           )
         : 0;
 
     // Analyze each question
-    const questionAnalysis = test.questions.map((question, index) => {
+    const questionAnalysis = questions.map((question, index) => {
       const correctAnswer = correctAnswerByQuestionId.get(question.id);
 
       const correctAttempts = test.attempts.filter((attempt) => {
@@ -825,6 +809,77 @@ export class ReportService {
   }
 
   // Helper methods
+  private async getQuestionsForAnalysis(testId: string): Promise<Array<{
+    id: string;
+    content: string | null;
+    difficulty: string | null;
+    type: string;
+    marks: number;
+    correctAnswerText: string | null;
+  }>> {
+    const columnRows = await prisma.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'question'
+    `;
+
+    const availableColumns = new Set(columnRows.map((row) => row.column_name));
+    if (!availableColumns.has("testId")) {
+      return [];
+    }
+
+    const contentExpr = availableColumns.has("content")
+      ? "COALESCE(\"content\", '')"
+      : "''";
+    const typeExpr = availableColumns.has("type")
+      ? '"type"::text'
+      : "'multiple_choice'";
+    const marksExpr = availableColumns.has("marks")
+      ? 'COALESCE("marks", 1)'
+      : "1";
+    const difficultyExpr = availableColumns.has("difficulty")
+      ? '"difficulty"'
+      : "NULL::text";
+    const correctAnswerExpr = availableColumns.has("correctAnswer")
+      ? '"correctAnswer"::text'
+      : "NULL::text";
+    const orderExpr = availableColumns.has("orderIndex")
+      ? '"orderIndex"'
+      : '"id"';
+
+    const sql = `
+      SELECT
+        "id",
+        ${contentExpr} AS "content",
+        ${typeExpr} AS "type",
+        ${marksExpr}::int AS "marks",
+        ${difficultyExpr} AS "difficulty",
+        ${correctAnswerExpr} AS "correctAnswerText"
+      FROM "question"
+      WHERE "testId" = $1
+      ORDER BY ${orderExpr} ASC, "id" ASC
+    `;
+
+    const questionRows = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      content: string | null;
+      difficulty: string | null;
+      type: string | null;
+      marks: number | null;
+      correctAnswerText: string | null;
+    }>>(sql, testId);
+
+    return questionRows.map((row) => ({
+      id: row.id,
+      content: row.content ?? "",
+      difficulty: row.difficulty,
+      type: row.type ?? "multiple_choice",
+      marks: row.marks ?? 1,
+      correctAnswerText: row.correctAnswerText,
+    }));
+  }
+
   private toPercentage(score: number | null, maxScore: number): number {
     if (!maxScore || maxScore <= 0) {
       return 0;
