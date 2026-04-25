@@ -26,6 +26,8 @@ import { BatchService } from "../services/batchService.js";
 import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
+import { parseAvatarUpload } from "../../middleware/avatarUpload.js";
+import { uploadAvatarToS3 } from "../../utils/avatarUpload.js";
 import { TestStatus } from "../../generated/prisma/client.js";
 import type { Role } from "../../generated/prisma/client.js";
 
@@ -2225,6 +2227,66 @@ router.put(
       res.status(500).json({
         error: "Internal server error",
         message: "An error occurred while updating profile",
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/college-admin/avatar
+ * Upload and set profile avatar
+ */
+router.post(
+  "/avatar",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  parseAvatarUpload,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user;
+
+      if (!user?.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      if (!req.file) {
+        res.status(400).json({ error: "Avatar file is required (field name: avatar)" });
+        return;
+      }
+
+      const uploadedAvatar = await uploadAvatarToS3({
+        fileBuffer: req.file.buffer,
+        mimeType: req.file.mimetype,
+        userId: user.id,
+        scope: "college-admin",
+      });
+
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { image: uploadedAvatar.url },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          emailVerified: true,
+          image: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Avatar uploaded successfully",
+        avatarUrl: uploadedAvatar.url,
+        profile: updatedUser,
+      });
+    } catch (error: any) {
+      console.error("[college-admin/avatar] Error:", error);
+      res.status(500).json({
+        error: error?.message || "Failed to upload avatar",
       });
     }
   }

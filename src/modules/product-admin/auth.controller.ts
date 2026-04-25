@@ -20,6 +20,7 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from "../auth/auth.service.js";
+import { uploadAvatarToS3 } from "../../utils/avatarUpload.js";
 
 // ─── Product Admin Validators ─────────────────────────────────────────────────
 
@@ -708,6 +709,66 @@ export async function updateProfile(req: AuthRequest, res: Response): Promise<vo
   } catch (err: any) {
     console.error("[updateProfile]", err);
     res.status(500).json({ error: err.message || "Failed to update profile" });
+  }
+}
+
+/**
+ * POST /api/product-admin/avatar
+ * Upload and set profile avatar for authenticated product admin.
+ */
+export async function uploadAvatar(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: "Avatar file is required (field name: avatar)" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.role !== "product_admin") {
+      res.status(403).json({ error: "This endpoint is for product admins only" });
+      return;
+    }
+
+    const uploadedAvatar = await uploadAvatarToS3({
+      fileBuffer: req.file.buffer,
+      mimeType: req.file.mimetype,
+      userId: user.id,
+      scope: "product-admin",
+    });
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { image: uploadedAvatar.url },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        image: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Avatar uploaded successfully",
+      avatarUrl: uploadedAvatar.url,
+      user: updated,
+    });
+  } catch (err: any) {
+    console.error("[uploadAvatar]", err);
+    res.status(500).json({ error: err.message || "Failed to upload avatar" });
   }
 }
 
