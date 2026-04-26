@@ -9,6 +9,7 @@ BEGIN
   ) THEN
     ALTER TABLE "account"
       ADD COLUMN IF NOT EXISTS "accessTokenExpiresAt" TIMESTAMP(3),
-      ADD COLUMN IF NOT EXISTS "refreshTokenExpiresAt" TIMESTAMP(3);
+      ADD COLUMN IF NOT EXISTS "refreshTokenExpiresAt" TIMESTAMP(3),
+      ADD COLUMN IF NOT EXISTS "scope" TEXT;
   END IF;
 END $$;

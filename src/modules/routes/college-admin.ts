@@ -35,6 +35,9 @@ const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;
 const isProd = process.env.NODE_ENV === "production";
 
+let betterAuthAccountColumnsReady = false;
+let betterAuthAccountColumnsEnsurePromise: Promise<void> | null = null;
+
 const collegeAdminRefreshCookiePath = "/api/college-admin/auth/refresh-token";
 
 const collegeAdminRefreshCookieOptions = {
@@ -50,6 +53,88 @@ function setCollegeAdminJwtCookies(res: Response, accessToken: string, refreshTo
 function clearCollegeAdminJwtCookies(res: Response): void {
   res.clearCookie(ACCESS_TOKEN_COOKIE, clearCookieOptions);
   res.clearCookie(REFRESH_TOKEN_COOKIE, { ...clearCookieOptions, path: collegeAdminRefreshCookiePath });
+}
+
+function getBetterAuthErrorMessage(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const maybeError = (value as { error?: { message?: string } }).error;
+  if (maybeError && typeof maybeError.message === "string") {
+    return maybeError.message;
+  }
+
+  if ("message" in value && typeof (value as { message?: unknown }).message === "string") {
+    return (value as { message: string }).message;
+  }
+
+  return undefined;
+}
+
+function isBetterAuthAccountColumnDriftError(message: string | undefined): boolean {
+  if (!message) {
+    return false;
+  }
+
+  return (
+    message.includes("prisma.account.create()") &&
+    message.includes("account.accessTokenExpiresAt") &&
+    message.includes("does not exist")
+  );
+}
+
+async function ensureBetterAuthAccountExpiryColumns(): Promise<void> {
+  if (betterAuthAccountColumnsReady) {
+    return;
+  }
+
+  if (!betterAuthAccountColumnsEnsurePromise) {
+    betterAuthAccountColumnsEnsurePromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = 'account'
+          ) THEN
+            ALTER TABLE "account"
+              ADD COLUMN IF NOT EXISTS "accessTokenExpiresAt" TIMESTAMP(3),
+              ADD COLUMN IF NOT EXISTS "refreshTokenExpiresAt" TIMESTAMP(3);
+          END IF;
+        END $$;
+      `);
+
+      betterAuthAccountColumnsReady = true;
+    })().finally(() => {
+      betterAuthAccountColumnsEnsurePromise = null;
+    });
+  }
+
+  await betterAuthAccountColumnsEnsurePromise;
+}
+
+async function signUpEmailWithDriftRecovery(body: { email: string; password: string; name: string }): Promise<any> {
+  try {
+    const response = await auth.api.signUpEmail({ body } as any);
+    const responseErrorMessage = getBetterAuthErrorMessage(response);
+
+    if (!isBetterAuthAccountColumnDriftError(responseErrorMessage)) {
+      return response;
+    }
+
+    await ensureBetterAuthAccountExpiryColumns();
+    return await auth.api.signUpEmail({ body } as any);
+  } catch (error: any) {
+    if (!isBetterAuthAccountColumnDriftError(error?.message)) {
+      throw error;
+    }
+
+    await ensureBetterAuthAccountExpiryColumns();
+    return await auth.api.signUpEmail({ body } as any);
+  }
 }
 
 // ─── Validation Schemas ─────────────────────────────────────────────────────────
@@ -431,13 +516,13 @@ async function createSingleStudentAccount(
 ): Promise<{ success: boolean; student?: any; error?: string }> {
   try {
     // Create student using Better Auth
-    const signUpResult = await auth.api.signUpEmail({
+    const signUpResult = await signUpEmailWithDriftRecovery({
       body: {
         email: studentData.email,
         password: studentData.password,
         name: studentData.name,
       },
-    });
+    } as any);
 
     const signUpError = (signUpResult as any)?.error;
     const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
@@ -2181,6 +2266,7 @@ router.put(
   "/profile",
   requireAuth,
   requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  parseAvatarUpload,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -2194,7 +2280,17 @@ router.put(
         return;
       }
 
-      const { name, image } = validation.data;
+      let { name, image } = validation.data;
+
+      if (req.file) {
+        const uploadedAvatar = await uploadAvatarToS3({
+          fileBuffer: req.file.buffer,
+          mimeType: req.file.mimetype,
+          userId: user.id,
+          scope: "college-admin",
+        });
+        image = uploadedAvatar.url;
+      }
 
       // Build update object with only provided fields
       const updateData: { name?: string; image?: string } = {};
@@ -2730,12 +2826,10 @@ router.post(
       }
 
       // Create user via Better Auth
-      const newUser = await auth.api.signUpEmail({
-        body: {
-          email: data.email,
-          password: data.password,
-          name: data.name,
-        } as any,
+      const newUser = await signUpEmailWithDriftRecovery({
+        email: data.email,
+        password: data.password,
+        name: data.name,
       });
 
       // Check if Better Auth returned an error response
@@ -2807,12 +2901,10 @@ router.post(
       for (const userData of users) {
         try {
           // Create user via Better Auth
-          const newUser = await auth.api.signUpEmail({
-            body: {
-              email: userData.email,
-              password: userData.password,
-              name: userData.name,
-            } as any,
+          const newUser = await signUpEmailWithDriftRecovery({
+            email: userData.email,
+            password: userData.password,
+            name: userData.name,
           });
 
           if (newUser?.user && !(newUser as any)?.error) {
@@ -4148,13 +4240,13 @@ router.post(
       }
 
       // Create student using Better Auth
-      const signUpResult = await auth.api.signUpEmail({
+      const signUpResult = await signUpEmailWithDriftRecovery({
         body: {
           email,
           password,
           name,
         },
-      });
+      } as any);
 
       const signUpError = (signUpResult as any)?.error;
       const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
@@ -4727,12 +4819,12 @@ function parseListTestsQuery(query: AuthRequest["query"]): { data?: ParsedListTe
       page,
       limit,
       sortBy: sortByRaw,
-      sortOrder: sortOrderRaw,
-      status: statusRaw,
+      sortOrder: sortOrderRaw as "asc" | "desc",
+      status: statusRaw as TestStatus | undefined,
       departmentId,
       batchId,
       search,
-      timeFilter: timeFilterRaw,
+      timeFilter: timeFilterRaw as TimeFilter | undefined,
     },
   };
 }
