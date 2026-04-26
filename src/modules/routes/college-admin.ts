@@ -1750,6 +1750,374 @@ async function createSingleStudentAccount(
  *         required: true
  *         schema:
  *           type: string
+ *
+ * /api/college-admin/avatar:
+ *   post:
+ *     tags: [College Admin - Auth]
+ *     summary: Upload college admin avatar
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       "200":
+ *         description: Avatar uploaded successfully
+ *
+ * /api/college-admin/batches/{batchId}/students:
+ *   post:
+ *     tags: [College Admin - Batches]
+ *     summary: Assign students to batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [studentIds]
+ *             properties:
+ *               studentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Students assigned
+ *   delete:
+ *     tags: [College Admin - Batches]
+ *     summary: Remove students from batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [studentIds]
+ *             properties:
+ *               studentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Students removed
+ *
+ * /api/college-admin/batches/{batchId}/mentor:
+ *   put:
+ *     tags: [College Admin - Batches]
+ *     summary: Assign mentor to batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [mentorId]
+ *             properties:
+ *               mentorId:
+ *                 type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor assigned
+ *   delete:
+ *     tags: [College Admin - Batches]
+ *     summary: Remove mentor from batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor removed
+ *
+ * /api/college-admin/batches/{batchId}/stats:
+ *   get:
+ *     tags: [College Admin - Batches]
+ *     summary: Get batch statistics
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Batch statistics retrieved
+ *
+ * /api/college-admin/mentors/{mentorId}/students:
+ *   get:
+ *     tags: [College Admin - Students]
+ *     summary: Get students assigned to a mentor
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: mentorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor students retrieved
+ *
+ * /api/college-admin/students/assign-mentor:
+ *   put:
+ *     tags: [College Admin - Students]
+ *     summary: Assign mentor to specific students
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [mentorId, studentIds]
+ *             properties:
+ *               mentorId:
+ *                 type: string
+ *               studentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor assigned successfully
+ *
+ * /api/college-admin/tests/{testId}/questions/{questionId}:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Update test question
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: string
+ *               marks:
+ *                 type: integer
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               correctAnswer:
+ *                 type: string
+ *               explanation:
+ *                 type: string
+ *               orderIndex:
+ *                 type: integer
+ *     responses:
+ *       "200":
+ *         description: Question updated
+ *   delete:
+ *     tags: [College Admin - Tests]
+ *     summary: Delete test question
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Question deleted
+ *
+ * /api/college-admin/tests/{testId}/questions/reorder:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Reorder test questions
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [questionIds]
+ *             properties:
+ *               questionIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Questions reordered
+ *
+ * /api/college-admin/tests/{testId}/assign-batch:
+ *   post:
+ *     tags: [College Admin - Tests]
+ *     summary: Assign test to batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [batchId]
+ *             properties:
+ *               batchId:
+ *                 type: string
+ *     responses:
+ *       "200":
+ *         description: Test assigned to batch
+ *
+ * /api/college-admin/tests/{testId}/evaluations:
+ *   get:
+ *     tags: [College Admin - Tests]
+ *     summary: Get test evaluations
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Evaluations retrieved
+ *
+ * /api/college-admin/tests/{testId}/evaluations/{evalId}:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Update test evaluation
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: evalId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               marks:
+ *                 type: number
+ *               feedback:
+ *                 type: string
+ *     responses:
+ *       "200":
+ *         description: Evaluation updated
+ *   delete:
+ *     tags: [College Admin - Tests]
+ *     summary: Delete test evaluation
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: evalId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Evaluation deleted
+ *
+ * /api/college-admin/tests/{testId}/publish:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Publish a test
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Test published successfully
  */
 
 /**
@@ -5797,8 +6165,125 @@ router.get(
   }
 );
 
-export default router;
+/**
+ * @openapi
+ * /api/college-admin/questions/coding:
+ *   get:
+ *     tags: [College Admin - Tests]
+ *     summary: Retrieve all coding questions
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       "200":
+ *         description: List of coding questions
+ */
+router.get(
+  "/questions/coding",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const skip = (page - 1) * limit;
 
+      const questions = await prisma.question.findMany({
+        where: {
+          type: { in: ["dsa", "coding"] },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: { tags: true },
+      });
+      
+      const total = await prisma.question.count({
+        where: {
+          type: { in: ["dsa", "coding"] },
+        }
+      });
+
+      res.json({
+        success: true,
+        data: questions,
+        meta: { total, page, limit }
+      });
+    } catch (error: any) {
+      console.error("[college-admin/questions/coding] Error:", error);
+      res.status(500).json({ error: "Failed to retrieve coding questions" });
+    }
+  }
+);
+
+/**
+ * @openapi
+ * /api/college-admin/questions/mcq:
+ *   get:
+ *     tags: [College Admin - Tests]
+ *     summary: Retrieve all MCQ questions
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       "200":
+ *         description: List of MCQ questions
+ */
+router.get(
+  "/questions/mcq",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const skip = (page - 1) * limit;
+
+      const questions = await prisma.question.findMany({
+        where: {
+          type: { in: ["mcq", "multiple_choice", "true_false"] },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: { tags: true },
+      });
+      
+      const total = await prisma.question.count({
+        where: {
+          type: { in: ["mcq", "multiple_choice", "true_false"] },
+        }
+      });
+
+      res.json({
+        success: true,
+        data: questions,
+        meta: { total, page, limit }
+      });
+    } catch (error: any) {
+      console.error("[college-admin/questions/mcq] Error:", error);
+      res.status(500).json({ error: "Failed to retrieve MCQ questions" });
+    }
+  }
+);
+
+export default router;
 
 
 

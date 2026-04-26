@@ -78,7 +78,11 @@ const swaggerOptions: swaggerJsdoc.Options = {
     ],
     paths: {},
   },
-  apis: ["src/modules/routes/*.ts", "dist/modules/routes/*.js"],
+  apis: [
+    "src/modules/routes/*.ts",
+    "dist/modules/routes/*.js",
+    "src/config/swagger-extensions.ts"
+  ],
 };
 
 const schemaExamples: Record<string, unknown> = {
