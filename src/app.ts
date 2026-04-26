@@ -60,6 +60,8 @@ app.use(cookieParser());
 
 // Parse JSON body
 app.use(express.json());
+// Parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
 
 // ─── Swagger UI ───────────────────────────────────────────────────────────────
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
