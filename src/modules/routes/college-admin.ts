@@ -4552,19 +4552,17 @@ router.put(
  * Create a new student
  * Access: college_admin, principal, hod (only their department), dept_admin (only their department)
  */
-const upload = multer();
 
 router.post(
   "/students",
   requireAuth,
   requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
-  upload.none(),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
-
+      console.log(req.body);
       const validation = createStudentSchema.safeParse(req.body);
-
+      console.log(validation);
       if (!validation.success) {
         res.status(400).json({
           error: "Validation failed",
@@ -4613,12 +4611,10 @@ router.post(
 
       // Create student using Better Auth
       const signUpResult = await signUpEmailWithDriftRecovery({
-        body: {
-          email,
-          password,
-          name,
-        },
-      } as any);
+        email,
+        password,
+        name,
+      });
 
       const signUpError = (signUpResult as any)?.error;
       const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
