@@ -1,4 +1,5 @@
-import { Router, type Response, type Router as RouterType } from "express";
+import { Router, type Request, type Response, type Router as RouterType } from "express";
+import multer from "multer";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -4551,10 +4552,13 @@ router.put(
  * Create a new student
  * Access: college_admin, principal, hod (only their department), dept_admin (only their department)
  */
+const upload = multer();
+
 router.post(
   "/students",
   requireAuth,
   requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
+  upload.none(),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
