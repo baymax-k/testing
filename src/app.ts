@@ -26,6 +26,8 @@ import collegeAdminRoutes from "./modules/routes/college-admin.js";
 import potdRoutes from "./modules/routes/student/potd.js";
 import proctoringRoutes from "./modules/routes/proctoring.js";
 import arduinoRoutes from "./modules/arduino/routes/arduino.routes.js";
+import productAdminRoutes from "./modules/routes/product-admin.js";
+import publicRoutes from "./modules/routes/public.js";
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 const app: Application = express();
@@ -62,6 +64,8 @@ app.use(cookieParser());
 
 // Parse JSON body
 app.use(express.json());
+// Parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
 
 // ─── Swagger UI (disabled in production) ──────────────────────────────────────
 if (env.nodeEnv !== "production") {
@@ -92,6 +96,8 @@ app.use("/api/college-admin", collegeAdminRoutes);
 app.use("/api/v1/student/potd", potdRoutes);
 app.use("/api/v1/proctoring", proctoringRoutes);
 app.use("/api/v1/arduino", arduinoRoutes);
+app.use("/api/product-admin", productAdminRoutes);
+app.use("/api/public/tests", publicRoutes);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.

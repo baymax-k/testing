@@ -3,6 +3,12 @@ import request from "supertest";
 import type { Express } from "express";
 import { mockUsers } from "../helpers/mockData.js";
 
+vi.mock("bcrypt", () => ({
+  default: {
+    compare: vi.fn().mockResolvedValue(true),
+  },
+}));
+
 // Mock Prisma and Auth
 vi.mock("../../config/auth.js", () => ({
   prisma: {
@@ -18,6 +24,10 @@ vi.mock("../../config/auth.js", () => ({
     },
     refreshToken: {
       deleteMany: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    session: {
+      create: vi.fn(),
     },
     department: {
       findMany: vi.fn(),
@@ -56,6 +66,36 @@ vi.mock("../../modules/auth/auth.service.js", () => ({
   validateOTP: vi.fn().mockResolvedValue({ valid: true }),
   verifyOTP: vi.fn().mockResolvedValue({ valid: true }),
   hashPassword: vi.fn().mockResolvedValue("hashed-password"),
+  issueTokens: vi.fn().mockResolvedValue({
+    accessToken: "mock_access_token",
+    refreshToken: "mock_refresh_token",
+  }),
+  verifyRefreshToken: vi.fn().mockReturnValue({
+    userId: mockUsers.collegeAdmin.id,
+    jti: "mock_refresh_jti",
+  }),
+  ACCESS_TOKEN_COOKIE: "access_token",
+  REFRESH_TOKEN_COOKIE: "refresh_token",
+  accessCookieOptions: {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    maxAge: 15 * 60 * 1000,
+    path: "/",
+  },
+  refreshCookieOptions: {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/api/v1/auth/refresh",
+  },
+  clearCookieOptions: {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    path: "/",
+  },
 }));
 
 vi.mock("../../config/prisma.js", () => ({
@@ -65,6 +105,7 @@ vi.mock("../../config/prisma.js", () => ({
       update: vi.fn(),
     },
     refreshToken: {
+      findUnique: vi.fn(),
       deleteMany: vi.fn(),
     },
   },
@@ -103,19 +144,16 @@ describe("College Admin - Authentication Endpoints", () => {
 
   describe("POST /api/college-admin/auth/login", () => {
     it("should login successfully with valid college admin credentials", async () => {
-      // Mock Better Auth sign-in (returns user directly, not nested in data)
-      vi.spyOn(auth.api, "signInEmail").mockResolvedValue({
-        user: mockUsers.collegeAdmin,
-        session: {
-          id: "session_id",
-          userId: mockUsers.collegeAdmin.id,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          token: "mock_token",
-          ipAddress: "127.0.0.1",
-          userAgent: "test",
-        },
-        token: "mock_token",
+      vi.spyOn(prisma.user, "findUnique").mockResolvedValue({
+        id: mockUsers.collegeAdmin.id,
+        email: mockUsers.collegeAdmin.email,
+        name: mockUsers.collegeAdmin.name,
+        role: mockUsers.collegeAdmin.role,
+        emailVerified: true,
+        image: null,
+        passwordHash: "hashed-password",
       } as any);
+      vi.spyOn(prisma.session, "create").mockResolvedValue({ id: "session_id" } as any);
 
       const response = await request(app as Express)
         .post("/api/college-admin/auth/login")
@@ -128,21 +166,19 @@ describe("College Admin - Authentication Endpoints", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.user).toBeDefined();
       expect(response.body.user.email).toBe(mockUsers.collegeAdmin.email);
+      expect(response.body.accessToken).toBeDefined();
+      expect(response.body.refreshToken).toBeDefined();
     });
 
     it("should reject login with student role", async () => {
-      // Mock Better Auth sign-in returning a student
-      vi.spyOn(auth.api, "signInEmail").mockResolvedValue({
-        user: mockUsers.student,
-        session: {
-          id: "session_id",
-          userId: mockUsers.student.id,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          token: "mock_token",
-          ipAddress: "127.0.0.1",
-          userAgent: "test",
-        },
-        token: "mock_token",
+      vi.spyOn(prisma.user, "findUnique").mockResolvedValue({
+        id: mockUsers.student.id,
+        email: mockUsers.student.email,
+        name: mockUsers.student.name,
+        role: mockUsers.student.role,
+        emailVerified: true,
+        image: null,
+        passwordHash: "hashed-password",
       } as any);
 
       const response = await request(app as Express)
@@ -198,7 +234,7 @@ describe("College Admin - Authentication Endpoints", () => {
 
   describe("POST /api/college-admin/auth/forgot-password", () => {
     it("should send OTP for password reset", async () => {
-      vi.spyOn(prisma.user, "findUnique").mockResolvedValue(mockUsers.collegeAdmin as any);
+      vi.spyOn(appPrisma.user, "findUnique").mockResolvedValue(mockUsers.collegeAdmin as any);
 
       const response = await request(app as Express)
         .post("/api/college-admin/auth/forgot-password")
@@ -294,25 +330,39 @@ describe("College Admin - Authentication Endpoints", () => {
 
   describe("POST /api/college-admin/auth/refresh-token", () => {
     it("should refresh session successfully", async () => {
-      vi.spyOn(auth.api, "getSession").mockResolvedValue({
-        user: mockUsers.collegeAdmin,
-        session: {
-          id: "session_id",
-          userId: mockUsers.collegeAdmin.id,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          token: "new_mock_token",
-          ipAddress: "127.0.0.1",
-          userAgent: "test",
-        },
+      vi.spyOn(authService, "verifyRefreshToken").mockReturnValue({
+        userId: mockUsers.collegeAdmin.id,
+        jti: "old_refresh_jti",
       } as any);
+      vi.spyOn(appPrisma.refreshToken, "findUnique").mockResolvedValue({
+        id: "refresh_id",
+        jti: "old_refresh_jti",
+        userId: mockUsers.collegeAdmin.id,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+      } as any);
+      vi.spyOn(appPrisma.refreshToken, "deleteMany").mockResolvedValue({ count: 1 } as any);
+      vi.spyOn(prisma.user, "findUnique").mockResolvedValue({
+        id: mockUsers.collegeAdmin.id,
+        email: mockUsers.collegeAdmin.email,
+        name: mockUsers.collegeAdmin.name,
+        role: mockUsers.collegeAdmin.role,
+        emailVerified: true,
+        image: null,
+      } as any);
+      vi.spyOn(authService, "issueTokens").mockResolvedValue({
+        accessToken: "new_access_token",
+        refreshToken: "new_refresh_token",
+      });
 
       const response = await request(app as Express)
         .post("/api/college-admin/auth/refresh-token")
-        .set("Cookie", "better-auth.session_token=mock_token");
+        .set("Cookie", "refresh_token=old_refresh_token");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.session).toBeDefined();
+      expect(response.body.accessToken).toBe("new_access_token");
+      expect(response.body.refreshToken).toBe("new_refresh_token");
     });
   });
 });

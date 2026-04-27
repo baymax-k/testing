@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Admin RBAC Endpoint Tester</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #1f2329;
+        --card: #fcfcff;
+        --line: #d8dceb;
+        --primary: #22487a;
+        --primary-strong: #1a3860;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+        background:
+          radial-gradient(circle at 8% 8%, #dae7ff 0%, transparent 34%),
+          radial-gradient(circle at 85% 20%, #fce5cf 0%, transparent 25%),
+          linear-gradient(165deg, #f5f8ff 0%, #f3f6ff 45%, #f9f5ef 100%);
+      }
+
+      .wrap {
+        width: min(1180px, 94vw);
+        margin: 26px auto 40px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #22487a, #2d5f9f);
+        color: #edf3ff;
+        border: 1px solid #3a73b9;
+        border-radius: 16px;
+        padding: 20px;
+      }
+
+      .hero h1 { margin: 0; font-size: clamp(1.25rem, 2vw, 1.9rem); }
+      .hero p { margin: 10px 0 0; color: #d2e3ff; }
+
+      .grid {
+        margin-top: 14px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(12, 1fr);
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .span-12 { grid-column: span 12; }
+      .span-6 { grid-column: span 6; }
+
+      @media (max-width: 900px) {
+        .span-6 { grid-column: span 12; }
+      }
+
+      h2 { margin: 0 0 10px; font-size: 1rem; }
+
+      label {
+        display: block;
+        margin: 8px 0 5px;
+        font-size: 0.82rem;
+        color: #4d5366;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: #fff;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      textarea {
+        min-height: 82px;
+        resize: vertical;
+      }
+
+      .actions {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn-primary { background: var(--primary); color: #f0f5ff; }
+      .btn-primary:hover { background: var(--primary-strong); }
+      .btn-soft { background: #e6ecf7; color: #2f3d54; }
+      .btn-danger { background: #ffe3dc; color: #6f2310; }
+
+      .log {
+        margin-top: 10px;
+        border: 1px solid #d5ddea;
+        border-radius: 12px;
+        background: #10151c;
+        color: #d0e2ff;
+        padding: 12px;
+        min-height: 260px;
+        max-height: 420px;
+        overflow: auto;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .ok { color: #a8e0ff; }
+      .bad { color: #ffb2b2; }
+      .hint { margin: 8px 0 0; font-size: 0.84rem; color: #646c7f; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Product Admin RBAC Endpoint Tester</h1>
+        <p>Covers every /api/product-admin/rbac endpoint including role promotions and permission checks.</p>
+      </section>
+
+      <section class="grid">
+        <article class="card span-12">
+          <h2>API Target and Session</h2>
+          <label for="baseUrl">Base URL</label>
+          <input id="baseUrl" value="http://localhost:5000" />
+          <label for="authBody">POST /api/product-admin/auth/sign-in payload</label>
+          <textarea id="authBody">{
+  "identifier": "super.admin@example.com",
+  "password": "SuperAdmin@123"
+}</textarea>
+          <div class="actions">
+            <button class="btn-soft" id="btnUseOrigin">Use Current Origin</button>
+            <button class="btn-primary" id="btnSignIn">Sign In</button>
+            <button class="btn-danger" id="btnSignOut">Sign Out</button>
+            <button class="btn-soft" id="btnClear">Clear Console</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Admin Listing and Details</h2>
+          <label for="adminId">Admin ID</label>
+          <input id="adminId" placeholder="user id for details" />
+          <div class="actions">
+            <button class="btn-primary" id="btnListAdmins">GET /rbac/admins</button>
+            <button class="btn-soft" id="btnAdminDetails">GET /rbac/admins/:adminId</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Promote and Demote</h2>
+          <label for="promoteBody">POST /rbac/promote payload</label>
+          <textarea id="promoteBody">{
+  "adminId": "",
+  "newRole": "product_admin"
+}</textarea>
+
+          <label for="demoteBody">POST /rbac/demote payload</label>
+          <textarea id="demoteBody">{
+  "adminId": "",
+  "collegeId": ""
+}</textarea>
+
+          <div class="actions">
+            <button class="btn-primary" id="btnPromote">Promote</button>
+            <button class="btn-primary" id="btnDemote">Demote</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Role Permissions</h2>
+          <label for="roleName">Role</label>
+          <select id="roleName">
+            <option value="product_admin">product_admin</option>
+            <option value="college_admin">college_admin</option>
+          </select>
+          <div class="actions">
+            <button class="btn-soft" id="btnRolePerms">GET /rbac/roles/:role/permissions</button>
+            <button class="btn-soft" id="btnMyPerms">GET /rbac/my-permissions</button>
+          </div>
+          <p class="hint">Promotion and demotion endpoints require product_admin role.</p>
+        </article>
+
+        <article class="card span-12">
+          <h2>Response Console</h2>
+          <pre id="log" class="log"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const get = (id) => document.getElementById(id);
+      const logEl = get("log");
+
+      function baseUrl() {
+        return get("baseUrl").value.trim().replace(/\/$/, "");
+      }
+
+      function now() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function print(title, payload, ok = true) {
+        const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+        logEl.textContent += `[${now()}] ${title}\n${body}\n\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+        logEl.className = `log ${ok ? "ok" : "bad"}`;
+      }
+
+      function parseJson(id) {
+        return JSON.parse(get(id).value.trim() || "{}");
+      }
+
+      async function callApi(method, path, body) {
+        const options = {
+          method,
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+        if (body !== undefined) {
+          options.body = JSON.stringify(body);
+        }
+
+        const url = `${baseUrl()}${path}`;
+        let response;
+        try {
+          response = await fetch(url, options);
+        } catch (error) {
+          print(`${method} ${path} NETWORK ERROR`, String(error), false);
+          throw error;
+        }
+
+        const text = await response.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : { message: "No content" };
+        } catch {
+          data = text;
+        }
+
+        print(`${method} ${path} -> ${response.status}`, data, response.ok);
+        return { ok: response.ok, status: response.status, data };
+      }
+
+      async function runJson(method, path, id) {
+        try {
+          return await callApi(method, path, id ? parseJson(id) : undefined);
+        } catch (error) {
+          print("INVALID JSON", String(error), false);
+          return null;
+        }
+      }
+
+      function adminIdOrWarn() {
+        const id = get("adminId").value.trim();
+        if (!id) {
+          print("ADMIN ID", "Admin ID is required", false);
+          return null;
+        }
+        return id;
+      }
+
+      get("btnUseOrigin").addEventListener("click", () => {
+        get("baseUrl").value = window.location.origin;
+        print("BASE URL", { value: window.location.origin }, true);
+      });
+
+      get("btnClear").addEventListener("click", () => {
+        logEl.textContent = "";
+      });
+
+      get("btnSignIn").addEventListener("click", () => runJson("POST", "/api/product-admin/auth/sign-in", "authBody"));
+      get("btnSignOut").addEventListener("click", () => callApi("POST", "/api/product-admin/auth/sign-out"));
+
+      get("btnListAdmins").addEventListener("click", () => callApi("GET", "/api/product-admin/rbac/admins"));
+
+      get("btnAdminDetails").addEventListener("click", () => {
+        const id = adminIdOrWarn();
+        if (!id) return;
+        callApi("GET", `/api/product-admin/rbac/admins/${encodeURIComponent(id)}`);
+      });
+
+      get("btnPromote").addEventListener("click", () => runJson("POST", "/api/product-admin/rbac/promote", "promoteBody"));
+      get("btnDemote").addEventListener("click", () => runJson("POST", "/api/product-admin/rbac/demote", "demoteBody"));
+
+      get("btnRolePerms").addEventListener("click", () => {
+        const role = get("roleName").value;
+        callApi("GET", `/api/product-admin/rbac/roles/${encodeURIComponent(role)}/permissions`);
+      });
+
+      get("btnMyPerms").addEventListener("click", () => callApi("GET", "/api/product-admin/rbac/my-permissions"));
+
+      print("READY", {
+        page: "product-admin-rbac-test.html",
+        baseUrl: baseUrl(),
+        endpoints: "all /api/product-admin/rbac endpoints",
+      });
+    </script>
+  </body>
+</html>
+

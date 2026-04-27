@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Admin Auth Endpoint Tester</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f7f4ed;
+        --ink: #212018;
+        --panel: #fffef9;
+        --line: #ddd6c4;
+        --primary: #1f4d3b;
+        --primary-strong: #183d2f;
+        --soft: #ece7d8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% 10%, #efe7c7 0%, transparent 33%),
+          radial-gradient(circle at 80% 20%, #d9f0e4 0%, transparent 30%),
+          linear-gradient(160deg, #f8f5ee 0%, #f5f1e6 55%, #eef3fa 100%);
+      }
+
+      .wrap {
+        width: min(1220px, 94vw);
+        margin: 26px auto 40px;
+      }
+
+      .hero {
+        border: 1px solid #315f4d;
+        background: linear-gradient(135deg, #1f4d3b, #2a6b54);
+        color: #edf8f2;
+        border-radius: 16px;
+        padding: 20px;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(1.3rem, 2.1vw, 2rem);
+      }
+
+      .hero p {
+        margin: 10px 0 0;
+        color: #cfe8dc;
+      }
+
+      .grid {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .span-12 { grid-column: span 12; }
+      .span-6 { grid-column: span 6; }
+
+      @media (max-width: 900px) {
+        .span-6 { grid-column: span 12; }
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 720px) {
+        .row { grid-template-columns: 1fr; }
+      }
+
+      label {
+        display: block;
+        margin: 8px 0 5px;
+        font-size: 0.82rem;
+        color: #4c4638;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+        padding: 9px 10px;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      textarea {
+        min-height: 86px;
+        resize: vertical;
+      }
+
+      .actions {
+        margin-top: 11px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .btn-primary { background: var(--primary); color: #f0faf5; }
+      .btn-primary:hover { background: var(--primary-strong); }
+      .btn-soft { background: var(--soft); color: #2d342b; }
+      .btn-danger { background: #ffe2d9; color: #6e2a16; }
+
+      .hint {
+        margin: 8px 0 0;
+        color: #6c6658;
+        font-size: 0.84rem;
+      }
+
+      .log {
+        margin-top: 10px;
+        border: 1px solid #cad5cd;
+        border-radius: 12px;
+        min-height: 260px;
+        max-height: 420px;
+        overflow: auto;
+        padding: 12px;
+        background: #121712;
+        color: #d1f0d9;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .status {
+        margin-top: 8px;
+        font-size: 0.84rem;
+        color: #45563d;
+      }
+
+      .ok { color: #9fe8a0; }
+      .bad { color: #ffb0b0; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Product Admin Auth Endpoint Tester</h1>
+        <p>All endpoints under /api/product-admin/auth are available on this page. Cookies are sent with credentials include.</p>
+      </section>
+
+      <section class="grid">
+        <article class="card span-12">
+          <h2>API Target</h2>
+          <div class="row">
+            <div>
+              <label for="baseUrl">Base URL</label>
+              <input id="baseUrl" value="http://localhost:5000" />
+            </div>
+            <div>
+              <label for="quickEmail">Working Email</label>
+              <input id="quickEmail" placeholder="admin@codeethnics.com" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-soft" id="btnUseOrigin">Use Current Origin</button>
+            <button class="btn-soft" id="btnClearLog">Clear Console</button>
+          </div>
+          <div class="status" id="authState">Auth state unknown</div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Sign Up and Sign In</h2>
+          <label for="signUpBody">POST /auth/sign-up payload</label>
+          <textarea id="signUpBody">{
+  "email": "product.admin@example.com",
+  "username": "product_admin_1",
+  "password": "StrongPass@123",
+  "name": "Product Admin",
+  "companyName": "CodeEthnics"
+}</textarea>
+          <div class="actions">
+            <button class="btn-primary" id="btnSignUp">Sign Up</button>
+          </div>
+
+          <label for="signInBody">POST /auth/sign-in payload</label>
+          <textarea id="signInBody">{
+  "identifier": "product.admin@example.com",
+  "password": "StrongPass@123"
+}</textarea>
+          <div class="actions">
+            <button class="btn-primary" id="btnSignIn">Sign In</button>
+            <button class="btn-danger" id="btnSignOut">Sign Out</button>
+            <button class="btn-soft" id="btnRefresh">Refresh Token</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>OTP and Password Reset</h2>
+          <label for="verifyEmailBody">POST /auth/verify-email payload</label>
+          <textarea id="verifyEmailBody">{
+  "email": "product.admin@example.com",
+  "otp": "123456"
+}</textarea>
+
+          <label for="sendOtpBody">POST /auth/send-otp payload</label>
+          <textarea id="sendOtpBody">{
+  "email": "product.admin@example.com"
+}</textarea>
+
+          <label for="forgotBody">POST /auth/forgot-password payload</label>
+          <textarea id="forgotBody">{
+  "email": "product.admin@example.com"
+}</textarea>
+
+          <label for="resetBody">POST /auth/reset-password payload</label>
+          <textarea id="resetBody">{
+  "email": "product.admin@example.com",
+  "otp": "123456",
+  "newPassword": "NewStrongPass@123"
+}</textarea>
+
+          <div class="actions">
+            <button class="btn-primary" id="btnVerifyEmail">Verify Email</button>
+            <button class="btn-soft" id="btnSendOtp">Send OTP</button>
+            <button class="btn-soft" id="btnForgotPassword">Forgot Password</button>
+            <button class="btn-primary" id="btnResetPassword">Reset Password</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Authenticated Endpoints</h2>
+          <label for="changePasswordBody">POST /auth/change-password payload</label>
+          <textarea id="changePasswordBody">{
+  "currentPassword": "StrongPass@123",
+  "newPassword": "AnotherStrongPass@123"
+}</textarea>
+          <div class="actions">
+            <button class="btn-primary" id="btnChangePassword">Change Password</button>
+            <button class="btn-soft" id="btnMe">Get Me</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Profile and Settings</h2>
+          <label for="profileBody">PATCH /auth/profile payload</label>
+          <textarea id="profileBody">{
+  "name": "Updated Product Admin",
+  "phone": "+91-9000000000",
+  "companyName": "CodeEthnics Labs"
+}</textarea>
+
+          <label for="settingsBody">PATCH /auth/settings payload</label>
+          <textarea id="settingsBody">{
+  "emailNotifications": true,
+  "notifyOnCollegeCreation": true,
+  "notifyOnAdminAssignment": true,
+  "notifyOnUserRegistration": false,
+  "theme": "light",
+  "language": "en",
+  "itemsPerPage": 20,
+  "twoFactorEnabled": false,
+  "sessionTimeout": 3600
+}</textarea>
+
+          <div class="actions">
+            <button class="btn-primary" id="btnPatchProfile">Patch Profile</button>
+            <button class="btn-soft" id="btnGetSettings">Get Settings</button>
+            <button class="btn-primary" id="btnPatchSettings">Patch Settings</button>
+          </div>
+        </article>
+
+        <article class="card span-12">
+          <h2>Response Console</h2>
+          <pre id="log" class="log"></pre>
+          <p class="hint">Tip: update quick email once and click Fill Email to copy into OTP/password forms.</p>
+          <div class="actions">
+            <button class="btn-soft" id="btnFillEmail">Fill Email In Payloads</button>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const get = (id) => document.getElementById(id);
+      const logEl = get("log");
+      const authState = get("authState");
+
+      const authBase = "/api/product-admin/auth";
+
+      function baseUrl() {
+        return get("baseUrl").value.trim().replace(/\/$/, "");
+      }
+
+      function now() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function print(title, payload, ok = true) {
+        const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+        logEl.textContent += `[${now()}] ${title}\n${body}\n\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+        logEl.className = `log ${ok ? "ok" : "bad"}`;
+      }
+
+      function parseJsonFrom(id) {
+        const raw = get(id).value.trim();
+        if (!raw) {
+          return {};
+        }
+        return JSON.parse(raw);
+      }
+
+      async function callApi(method, path, body) {
+        const options = {
+          method,
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+
+        if (body !== undefined) {
+          options.body = JSON.stringify(body);
+        }
+
+        const url = `${baseUrl()}${path}`;
+        let response;
+
+        try {
+          response = await fetch(url, options);
+        } catch (error) {
+          print(`${method} ${path} NETWORK ERROR`, String(error), false);
+          throw error;
+        }
+
+        const text = await response.text();
+        let parsed;
+        try {
+          parsed = text ? JSON.parse(text) : { message: "No content" };
+        } catch {
+          parsed = text;
+        }
+
+        print(`${method} ${path} -> ${response.status}`, parsed, response.ok);
+        return { ok: response.ok, status: response.status, data: parsed };
+      }
+
+      async function runJsonCall(method, path, bodyId) {
+        try {
+          const payload = bodyId ? parseJsonFrom(bodyId) : undefined;
+          return await callApi(method, path, payload);
+        } catch (error) {
+          print("INVALID JSON", String(error), false);
+          return null;
+        }
+      }
+
+      get("btnUseOrigin").addEventListener("click", () => {
+        get("baseUrl").value = window.location.origin;
+        print("BASE URL", { value: window.location.origin }, true);
+      });
+
+      get("btnClearLog").addEventListener("click", () => {
+        logEl.textContent = "";
+      });
+
+      get("btnFillEmail").addEventListener("click", () => {
+        const email = get("quickEmail").value.trim();
+        if (!email) {
+          print("FILL EMAIL", "Set Working Email first", false);
+          return;
+        }
+
+        ["verifyEmailBody", "sendOtpBody", "forgotBody", "resetBody", "signInBody"].forEach((id) => {
+          try {
+            const payload = parseJsonFrom(id);
+            if (id === "signInBody") {
+              payload.identifier = email;
+            } else {
+              payload.email = email;
+            }
+            get(id).value = JSON.stringify(payload, null, 2);
+          } catch {
+            print("FILL EMAIL", `Could not parse payload in ${id}`, false);
+          }
+        });
+
+        print("FILL EMAIL", { email }, true);
+      });
+
+      get("btnSignUp").addEventListener("click", () => runJsonCall("POST", `${authBase}/sign-up`, "signUpBody"));
+
+      get("btnSignIn").addEventListener("click", async () => {
+        const result = await runJsonCall("POST", `${authBase}/sign-in`, "signInBody");
+        authState.textContent = result && result.ok ? "Signed in" : "Sign in failed";
+      });
+
+      get("btnSignOut").addEventListener("click", async () => {
+        const result = await callApi("POST", `${authBase}/sign-out`);
+        authState.textContent = result.ok ? "Signed out" : "Sign out failed";
+      });
+
+      get("btnRefresh").addEventListener("click", () => callApi("POST", `${authBase}/refresh`));
+      get("btnVerifyEmail").addEventListener("click", () => runJsonCall("POST", `${authBase}/verify-email`, "verifyEmailBody"));
+      get("btnSendOtp").addEventListener("click", () => runJsonCall("POST", `${authBase}/send-otp`, "sendOtpBody"));
+      get("btnForgotPassword").addEventListener("click", () => runJsonCall("POST", `${authBase}/forgot-password`, "forgotBody"));
+      get("btnResetPassword").addEventListener("click", () => runJsonCall("POST", `${authBase}/reset-password`, "resetBody"));
+      get("btnChangePassword").addEventListener("click", () => runJsonCall("POST", `${authBase}/change-password`, "changePasswordBody"));
+      get("btnMe").addEventListener("click", () => callApi("GET", `${authBase}/me`));
+      get("btnPatchProfile").addEventListener("click", () => runJsonCall("PATCH", `${authBase}/profile`, "profileBody"));
+      get("btnGetSettings").addEventListener("click", () => callApi("GET", `${authBase}/settings`));
+      get("btnPatchSettings").addEventListener("click", () => runJsonCall("PATCH", `${authBase}/settings`, "settingsBody"));
+
+      print("READY", {
+        page: "product-admin-auth-test.html",
+        baseUrl: baseUrl(),
+        endpoints: "all /api/product-admin/auth endpoints",
+      });
+    </script>
+  </body>
+</html>

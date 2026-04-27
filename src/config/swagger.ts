@@ -1,6 +1,3 @@
-// G��G��G�� OpenAPI / Swagger Specification G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
-// Reflects the current JWT cookie-based auth, all route modules, and Prisma schema.
-
 import swaggerJsdoc from "swagger-jsdoc";
 
 const swaggerOptions: swaggerJsdoc.Options = {
@@ -92,54 +89,29 @@ const swaggerOptions: swaggerJsdoc.Options = {
         cookieAuth: {
           type: "apiKey",
           in: "cookie",
-          name: "access_token",
-          description:
-            "JWT access token cookie (httpOnly, 15-min TTL). Set automatically on sign-in, verify-email, and refresh.",
+          name: "better-auth.session_token",
+        },
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
         },
       },
       schemas: {
-        User: {
-          type: "object",
-          properties: {
-            id: { type: "string" },
-            email: { type: "string", format: "email" },
-            username: { type: "string", example: "jane_doe" },
-            name: { type: "string" },
-            role: {
-              type: "string",
-              enum: ["student", "college_admin", "product_admin", "instructor_staff"],
-            },
-            emailVerified: { type: "boolean" },
-          },
-        },
-        Error: {
-          type: "object",
-          properties: {
-            error: { type: "string" },
-            details: {
-              type: "array",
-              items: { type: "object" },
-              description: "Zod validation issues (only on validation errors)",
-            },
-          },
-        },
         Message: {
           type: "object",
           properties: {
             message: { type: "string" },
           },
         },
-        ProblemSummary: {
+        Error: {
           type: "object",
           properties: {
-            id: { type: "string", example: "two-sum" },
-            title: { type: "string", example: "Two Sum" },
-            slug: { type: "string", example: "two-sum" },
-            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-            tags: { type: "array", items: { type: "string" }, example: ["arrays", "hash-map"] },
+            error: { type: "string" },
+            details: { type: "array", items: { type: "object" } },
           },
         },
-        ProblemDetail: {
+        User: {
           type: "object",
           properties: {
             id: { type: "string" },
@@ -2946,6 +2918,11 @@ const swaggerOptions: swaggerJsdoc.Options = {
             "400": { description: "Validation or scheduling error" },
             "401": { description: "Not authenticated" },
             "403": { description: "Forbidden" },
+            email: { type: "string", format: "email" },
+            username: { type: "string" },
+            name: { type: "string" },
+            role: { type: "string" },
+            emailVerified: { type: "boolean" },
           },
         },
       },
@@ -3344,14 +3321,35 @@ const swaggerOptions: swaggerJsdoc.Options = {
         }
       },
     },
+    tags: [
+      { name: "Authentication", description: "Authentication and session APIs" },
+      { name: "Problems", description: "Problem browsing and details" },
+      { name: "Practice", description: "Practice and submissions" },
+      { name: "Contests", description: "Contest lifecycle APIs" },
+      { name: "Public APIs - Tests", description: "Public test listing and details" },
+      { name: "College Admin - Auth", description: "College admin authentication" },
+      { name: "College Admin - Tests", description: "College admin test management" },
+      { name: "College Admin - Batches", description: "College admin batch management" },
+      { name: "College Admin - Departments", description: "College admin department management" },
+      { name: "College Admin - Students", description: "College admin student management" },
+      { name: "College Admin - Reports", description: "College admin reporting" },
+      { name: "College Admin - Performance", description: "College admin performance APIs" },
+      { name: "Product Admin - Auth", description: "Product admin authentication" },
+      { name: "Product Admin - Colleges", description: "Product admin college management" },
+      { name: "Product Admin - RBAC", description: "Product admin role management" },
+      { name: "Product Admin - Hackathons", description: "Product admin hackathon management" },
+      { name: "Product Admin - Dashboard", description: "Product admin dashboard APIs" },
+      { name: "Product Admin - Users", description: "Product admin user analytics APIs" },
+    ],
+    paths: {},
   },
-  apis: ["src/modules/routes/*.ts", "dist/modules/routes/*.js"],
+  apis: [
+    "src/modules/routes/*.ts",
+    "dist/modules/routes/*.js",
+    "src/config/swagger-extensions.ts"
+  ],
 };
 
-// ── Response Examples Helper -------------------------------------------------
-// Adds a concrete example body to every response so Swagger UI always shows a
-// sample JSON payload. Examples are resolved from schema references where
-// possible, otherwise sensible defaults are used.
 const schemaExamples: Record<string, unknown> = {
   "#/components/schemas/Message": { message: "Request completed successfully" },
   "#/components/schemas/Error": {
@@ -3387,9 +3385,7 @@ const schemaExamples: Record<string, unknown> = {
       java: 1,
     },
     memoryLimit: 256,
-    sampleTestCases: [
-      { input: "[2,7,11,15], target=9", output: "[0,1]", explanation: "2 + 7 = 9" },
-    ],
+    sampleTestCases: [{ input: "[2,7,11,15], target=9", output: "[0,1]" }],
   },
   "#/components/schemas/RunResult": {
     status: "Accepted",
@@ -3404,7 +3400,7 @@ const schemaExamples: Record<string, unknown> = {
     visibility: "sample",
     passed: true,
     status: "accepted",
-    input: "2 7 11 15\n9",
+    input: String.raw`2 7 11 15\n9`,
     expectedOutput: "0 1",
     actualOutput: "0 1",
     errorOutput: null,
@@ -3418,10 +3414,6 @@ const schemaExamples: Record<string, unknown> = {
     runtime: "0.045",
     memory: 2800,
     errorOutput: null,
-    testCaseResults: [
-      { index: 1, visibility: "sample", passed: true, status: "accepted" },
-      { index: 2, visibility: "public", passed: true, status: "accepted" },
-    ],
   },
   "#/components/schemas/PreSubmitResult": {
     status: "accepted",
@@ -3431,9 +3423,6 @@ const schemaExamples: Record<string, unknown> = {
     runtime: "0.030",
     memory: 2500,
     errorOutput: null,
-    testCaseResults: [
-      { index: 1, visibility: "sample", passed: true, status: "accepted" },
-    ],
   },
   "#/components/schemas/SubmissionSummary": {
     id: "sub_123",
@@ -3450,14 +3439,8 @@ const schemaExamples: Record<string, unknown> = {
     id: "mcq-101",
     type: "mcq",
     title: "What is the output of console.log(typeof null)?",
-    description: "Check JavaScript typeof behavior.",
     difficulty: "easy",
     tags: ["javascript", "basics"],
-    company: null,
-    options: ["object", "null", "undefined", "boolean"],
-    timeLimit: null,
-    memoryLimit: null,
-    sampleTestCases: null,
   },
   "#/components/schemas/QuestionSummary": {
     id: "mcq-101",
@@ -3494,19 +3477,6 @@ const schemaExamples: Record<string, unknown> = {
   "#/components/schemas/DailyChallenge": {
     id: "potd_2026_03_19",
     date: "2026-03-19",
-    question: {
-      id: "mcq-101",
-      type: "mcq",
-      title: "What is the output of console.log(typeof null)?",
-      description: "Check JavaScript typeof behavior.",
-      difficulty: "easy",
-      tags: ["javascript", "basics"],
-      company: null,
-      options: ["object", "null", "undefined", "boolean"],
-      timeLimit: null,
-      memoryLimit: null,
-      sampleTestCases: null,
-    },
   },
   "#/components/schemas/UserStreak": {
     currentStreak: 5,
@@ -3514,24 +3484,7 @@ const schemaExamples: Record<string, unknown> = {
     lastSolveDate: "2026-03-19",
   },
   "#/components/schemas/PotdResponse": {
-    challenge: {
-      id: "potd_2026_03_19",
-      date: "2026-03-19",
-      question: {
-        id: "mcq-101",
-        title: "What is the output of console.log(typeof null)?",
-        difficulty: "easy",
-        type: "mcq",
-        tags: ["javascript", "basics"],
-        options: ["object", "null", "undefined", "boolean"],
-      },
-    },
     solved: true,
-    solveResult: {
-      isCorrect: true,
-      selectedOption: 0,
-      solvedAt: "2026-03-19T10:00:00.000Z",
-    },
     streak: { currentStreak: 5, longestStreak: 14, lastSolveDate: "2026-03-19" },
   },
   "#/components/schemas/McqStats": {
@@ -3540,10 +3493,6 @@ const schemaExamples: Record<string, unknown> = {
     totalCorrect: 142,
     totalScore: 1420,
     overallAccuracy: 78.9,
-    topicBreakdown: [
-      { topic: "arrays", total: 30, correct: 25, accuracy: 83.3 },
-      { topic: "sql", total: 20, correct: 14, accuracy: 70 },
-    ],
   },
   "#/components/schemas/DailyPracticeActivity": {
     id: "activity_1",
@@ -3574,7 +3523,13 @@ const defaultResponseExamples: Record<string, unknown> = {
   "5xx": { error: "Server error" },
 };
 
-type SchemaObject = { $ref?: string; type?: string; items?: SchemaObject; properties?: Record<string, SchemaObject & { example?: unknown }>; example?: unknown };
+type SchemaObject = {
+  $ref?: string;
+  type?: string;
+  items?: SchemaObject;
+  properties?: Record<string, SchemaObject & { example?: unknown }>;
+  example?: unknown;
+};
 
 const getStatusFamily = (status: string): string | undefined => {
   const numeric = Number(status);
@@ -3582,6 +3537,20 @@ const getStatusFamily = (status: string): string | undefined => {
     return `${Math.floor(numeric / 100)}xx`;
   }
   return undefined;
+};
+
+const inferPrimitiveExample = (type?: string): unknown => {
+  switch (type) {
+    case "string":
+      return "example";
+    case "number":
+    case "integer":
+      return 1;
+    case "boolean":
+      return true;
+    default:
+      return "sample";
+  }
 };
 
 const buildExampleFromSchema = (schema: SchemaObject | undefined): unknown => {
@@ -3606,20 +3575,6 @@ const buildExampleFromSchema = (schema: SchemaObject | undefined): unknown => {
   return inferPrimitiveExample(schema.type);
 };
 
-const inferPrimitiveExample = (type?: string): unknown => {
-  switch (type) {
-    case "string":
-      return "example";
-    case "number":
-    case "integer":
-      return 1;
-    case "boolean":
-      return true;
-    default:
-      return "sample";
-  }
-};
-
 const addResponseExamples = (paths: Record<string, unknown>): void => {
   const methods = ["get", "post", "put", "patch", "delete"];
 
@@ -3628,7 +3583,12 @@ const addResponseExamples = (paths: Record<string, unknown>): void => {
 
     methods.forEach((method) => {
       const operation = (pathItem as Record<string, unknown>)[method] as
-        | { responses?: Record<string, { content?: Record<string, { schema?: SchemaObject; example?: unknown; examples?: unknown }> }> }
+        | {
+            responses?: Record<
+              string,
+              { content?: Record<string, { schema?: SchemaObject; example?: unknown; examples?: unknown }> }
+            >;
+          }
         | undefined;
 
       if (!operation?.responses) return;
@@ -3640,22 +3600,17 @@ const addResponseExamples = (paths: Record<string, unknown>): void => {
           content?: Record<string, { schema?: SchemaObject; example?: unknown; examples?: unknown }>;
         };
 
-        if (!responseObj.content) {
-          responseObj.content = { "application/json": {} };
-        }
+        responseObj.content ??= { "application/json": {} };
 
         const jsonContent =
           responseObj.content["application/json"] ?? (responseObj.content["application/json"] = {});
 
-        if (jsonContent.example || jsonContent.examples) {
-          return;
-        }
+        if (jsonContent.example || jsonContent.examples) return;
 
         const schemaExample = buildExampleFromSchema(jsonContent.schema);
         const statusExample = defaultResponseExamples[status];
-        const familyExample = getStatusFamily(status)
-          ? defaultResponseExamples[getStatusFamily(status) as string]
-          : undefined;
+        const familyKey = getStatusFamily(status);
+        const familyExample = familyKey ? defaultResponseExamples[familyKey] : undefined;
 
         jsonContent.example = schemaExample ?? statusExample ?? familyExample ?? { message: "Sample response" };
       });
@@ -3708,7 +3663,7 @@ const potdSchemas = {
       totalQuestions: { type: "integer" },
       totalCorrect: { type: "integer" },
       totalScore: { type: "integer" },
-      overallAccuracy: { type: "number", description: "0–100 percentage", example: 73.5 },
+      overallAccuracy: { type: "number", description: "0-100 percentage", example: 73.5 },
       topicBreakdown: {
         type: "array",
         items: {
@@ -3923,10 +3878,19 @@ void loop() {
 
 export const swaggerSpec = (() => {
   const spec = swaggerJsdoc(swaggerOptions) as {
+    paths?: Record<string, unknown>;
     components?: { schemas?: Record<string, unknown> };
   };
   if (spec.components?.schemas) {
     Object.assign(spec.components.schemas, potdSchemas, arduinoSchemas);
+
+  if (spec.paths) {
+    addResponseExamples(spec.paths);
   }
+
+  spec.components ??= {};
+  spec.components.schemas ??= {};
+
+  Object.assign(spec.components.schemas, potdSchemas);
   return spec;
 })();

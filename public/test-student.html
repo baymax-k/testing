@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test Create Student API</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    input, button {
+      margin: 5px 0;
+      padding: 8px;
+      width: 300px;
+    }
+    pre {
+      background: #222;
+      color: #0f0;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🧪 Create Student API Test</h2>
+
+  <input id="email" placeholder="Email" />
+  <br />
+  <input id="name" placeholder="Name" />
+  <br />
+  <input id="departmentId" placeholder="Department ID" />
+  <br />
+  <input id="password" placeholder="Password" />
+  <br />
+  <input id="token" placeholder="Auth Token (Bearer)" />
+  <br />
+
+  <button onclick="createStudent()">Create Student</button>
+
+  <h3>📦 Response:</h3>
+  <pre id="output"></pre>
+
+  <script>
+    async function createStudent() {
+      const email = document.getElementById("email").value;
+      const name = document.getElementById("name").value;
+      const departmentId = document.getElementById("departmentId").value;
+      const password = document.getElementById("password").value;
+      const token = document.getElementById("token").value;
+
+      try {
+        const response = await fetch("http://localhost:5000/api/college-admin/students", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          },
+          body: JSON.stringify({
+            email,
+            name,
+            departmentId,
+            password
+          })
+        });
+
+        const data = await response.json();
+
+        document.getElementById("output").innerText =
+          "Status: " + response.status + "\n\n" + JSON.stringify(data, null, 2);
+
+      } catch (err) {
+        document.getElementById("output").innerText = "Error: " + err.message;
+      }
+    }
+  </script>
+
+</body>
+</html>

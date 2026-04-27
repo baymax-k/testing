@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Admin Colleges Endpoint Tester</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f3f7ee;
+        --ink: #1d291f;
+        --card: #fcfdf9;
+        --line: #d4ddce;
+        --primary: #155347;
+        --primary-strong: #113e36;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+        background:
+          radial-gradient(circle at 10% 6%, #dff2de 0%, transparent 32%),
+          radial-gradient(circle at 88% 20%, #ffe7bf 0%, transparent 28%),
+          linear-gradient(160deg, #f5f8ef 0%, #eff4eb 50%, #eef5fa 100%);
+      }
+
+      .wrap {
+        width: min(1220px, 94vw);
+        margin: 26px auto 40px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #155347, #1f6b5d);
+        color: #eaf9f3;
+        border: 1px solid #2a7b68;
+        border-radius: 16px;
+        padding: 20px;
+      }
+
+      .hero h1 { margin: 0; font-size: clamp(1.25rem, 2.1vw, 1.95rem); }
+      .hero p { margin: 10px 0 0; color: #cae8de; }
+
+      .grid {
+        margin-top: 16px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(12, 1fr);
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .span-12 { grid-column: span 12; }
+      .span-6 { grid-column: span 6; }
+
+      @media (max-width: 900px) {
+        .span-6 { grid-column: span 12; }
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 720px) {
+        .row { grid-template-columns: 1fr; }
+      }
+
+      h2 { margin: 0 0 10px; font-size: 1rem; }
+
+      label {
+        display: block;
+        margin: 8px 0 5px;
+        font-size: 0.82rem;
+        color: #3e4d3f;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: #fff;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      textarea {
+        min-height: 92px;
+        resize: vertical;
+      }
+
+      .actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .btn-primary { background: var(--primary); color: #eff8f4; }
+      .btn-primary:hover { background: var(--primary-strong); }
+      .btn-soft { background: #e8f0e3; color: #2b3f2d; }
+      .btn-danger { background: #ffe5dc; color: #6b2310; }
+
+      .log {
+        margin-top: 10px;
+        border: 1px solid #d4ddcd;
+        border-radius: 12px;
+        padding: 12px;
+        min-height: 260px;
+        max-height: 420px;
+        overflow: auto;
+        background: #111914;
+        color: #d5efd3;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .hint { margin: 8px 0 0; font-size: 0.84rem; color: #68766a; }
+      .ok { color: #9fe8a0; }
+      .bad { color: #ffb0b0; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Product Admin Colleges Endpoint Tester</h1>
+        <p>Complete coverage for /api/product-admin/colleges including college admin assignment and maintenance routes.</p>
+      </section>
+
+      <section class="grid">
+        <article class="card span-12">
+          <h2>API Target and Session</h2>
+          <div class="row">
+            <div>
+              <label for="baseUrl">Base URL</label>
+              <input id="baseUrl" value="http://localhost:5000" />
+            </div>
+            <div>
+              <label for="authBody">POST /api/product-admin/auth/sign-in payload</label>
+              <textarea id="authBody">{
+  "identifier": "super.admin@example.com",
+  "password": "SuperAdmin@123"
+}</textarea>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-soft" id="btnUseOrigin">Use Current Origin</button>
+            <button class="btn-primary" id="btnSignIn">Sign In</button>
+            <button class="btn-danger" id="btnSignOut">Sign Out</button>
+            <button class="btn-soft" id="btnClearLog">Clear Console</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>College CRUD</h2>
+          <label for="collegeId">College ID</label>
+          <input id="collegeId" placeholder="used for get, patch, delete, remove-admin" />
+
+          <label for="createCollegeBody">POST /colleges payload</label>
+          <textarea id="createCollegeBody">{
+  "name": "CodeEthnics Institute",
+  "code": "CEI-001",
+  "description": "Institution description",
+  "website": "https://example.edu",
+  "location": "Bengaluru"
+}</textarea>
+
+          <label for="updateCollegeBody">PATCH /colleges/:collegeId payload</label>
+          <textarea id="updateCollegeBody">{
+  "name": "CodeEthnics Institute Updated",
+  "location": "Chennai"
+}</textarea>
+
+          <div class="actions">
+            <button class="btn-primary" id="btnCreateCollege">Create College</button>
+            <button class="btn-soft" id="btnGetColleges">Get Colleges</button>
+            <button class="btn-soft" id="btnGetCollege">Get College By ID</button>
+            <button class="btn-primary" id="btnPatchCollege">Patch College</button>
+            <button class="btn-danger" id="btnDeleteCollege">Delete College</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>College Admin Management</h2>
+          <label for="createAdminBody">POST /colleges/admins/create payload</label>
+          <textarea id="createAdminBody">{
+  "email": "college.admin@example.com",
+  "name": "College Admin",
+  "password": "CollegeAdmin@123",
+  "phone": "+91-9000000001",
+  "collegeId": ""
+}</textarea>
+
+          <label for="assignAdminBody">POST /colleges/assign-admin payload</label>
+          <textarea id="assignAdminBody">{
+  "collegeId": "",
+  "adminId": ""
+}</textarea>
+
+          <label for="adminId">Admin ID for patch</label>
+          <input id="adminId" placeholder="college admin user id" />
+
+          <label for="editAdminBody">PATCH /colleges/admin/:adminId payload</label>
+          <textarea id="editAdminBody">{
+  "name": "Updated College Admin",
+  "phone": "+91-9000000099"
+}</textarea>
+
+          <div class="actions">
+            <button class="btn-primary" id="btnCreateAdmin">Create College Admin</button>
+            <button class="btn-primary" id="btnAssignAdmin">Assign Existing Admin</button>
+            <button class="btn-primary" id="btnEditAdmin">Edit Admin</button>
+            <button class="btn-danger" id="btnRemoveAdmin">Remove Admin From College</button>
+          </div>
+          <p class="hint">Remove admin uses DELETE /api/product-admin/colleges/:collegeId/admin.</p>
+        </article>
+
+        <article class="card span-12">
+          <h2>Response Console</h2>
+          <pre id="log" class="log"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const get = (id) => document.getElementById(id);
+      const logEl = get("log");
+
+      function baseUrl() {
+        return get("baseUrl").value.trim().replace(/\/$/, "");
+      }
+
+      function now() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function print(title, payload, ok = true) {
+        const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+        logEl.textContent += `[${now()}] ${title}\n${body}\n\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+        logEl.className = `log ${ok ? "ok" : "bad"}`;
+      }
+
+      function parseJson(id) {
+        return JSON.parse(get(id).value.trim() || "{}");
+      }
+
+      async function callApi(method, path, body) {
+        const options = {
+          method,
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+        if (body !== undefined) {
+          options.body = JSON.stringify(body);
+        }
+
+        const url = `${baseUrl()}${path}`;
+        let response;
+        try {
+          response = await fetch(url, options);
+        } catch (error) {
+          print(`${method} ${path} NETWORK ERROR`, String(error), false);
+          throw error;
+        }
+
+        const text = await response.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : { message: "No content" };
+        } catch {
+          data = text;
+        }
+
+        print(`${method} ${path} -> ${response.status}`, data, response.ok);
+        return { ok: response.ok, status: response.status, data };
+      }
+
+      async function runJson(method, path, id) {
+        try {
+          return await callApi(method, path, id ? parseJson(id) : undefined);
+        } catch (error) {
+          print("INVALID JSON", String(error), false);
+          return null;
+        }
+      }
+
+      function getCollegeIdOrWarn() {
+        const collegeId = get("collegeId").value.trim();
+        if (!collegeId) {
+          print("COLLEGE ID", "College ID is required", false);
+          return null;
+        }
+        return collegeId;
+      }
+
+      function getAdminIdOrWarn() {
+        const adminId = get("adminId").value.trim();
+        if (!adminId) {
+          print("ADMIN ID", "Admin ID is required", false);
+          return null;
+        }
+        return adminId;
+      }
+
+      get("btnUseOrigin").addEventListener("click", () => {
+        get("baseUrl").value = window.location.origin;
+        print("BASE URL", { value: window.location.origin }, true);
+      });
+
+      get("btnClearLog").addEventListener("click", () => {
+        logEl.textContent = "";
+      });
+
+      get("btnSignIn").addEventListener("click", () => runJson("POST", "/api/product-admin/auth/sign-in", "authBody"));
+      get("btnSignOut").addEventListener("click", () => callApi("POST", "/api/product-admin/auth/sign-out"));
+
+      get("btnCreateCollege").addEventListener("click", async () => {
+        const result = await runJson("POST", "/api/product-admin/colleges", "createCollegeBody");
+        const id = result && result.data && result.data.college && result.data.college.id;
+        if (result && result.ok && id) {
+          get("collegeId").value = id;
+
+          ["createAdminBody", "assignAdminBody"].forEach((bodyId) => {
+            try {
+              const payload = parseJson(bodyId);
+              payload.collegeId = id;
+              get(bodyId).value = JSON.stringify(payload, null, 2);
+            } catch {
+              print("AUTO FILL", `Could not update ${bodyId}`, false);
+            }
+          });
+        }
+      });
+
+      get("btnGetColleges").addEventListener("click", () => callApi("GET", "/api/product-admin/colleges"));
+
+      get("btnGetCollege").addEventListener("click", () => {
+        const collegeId = getCollegeIdOrWarn();
+        if (!collegeId) return;
+        callApi("GET", `/api/product-admin/colleges/${encodeURIComponent(collegeId)}`);
+      });
+
+      get("btnPatchCollege").addEventListener("click", () => {
+        const collegeId = getCollegeIdOrWarn();
+        if (!collegeId) return;
+        runJson("PATCH", `/api/product-admin/colleges/${encodeURIComponent(collegeId)}`, "updateCollegeBody");
+      });
+
+      get("btnDeleteCollege").addEventListener("click", () => {
+        const collegeId = getCollegeIdOrWarn();
+        if (!collegeId) return;
+        callApi("DELETE", `/api/product-admin/colleges/${encodeURIComponent(collegeId)}`);
+      });
+
+      get("btnCreateAdmin").addEventListener("click", () => runJson("POST", "/api/product-admin/colleges/admins/create", "createAdminBody"));
+      get("btnAssignAdmin").addEventListener("click", () => runJson("POST", "/api/product-admin/colleges/assign-admin", "assignAdminBody"));
+
+      get("btnEditAdmin").addEventListener("click", () => {
+        const adminId = getAdminIdOrWarn();
+        if (!adminId) return;
+        runJson("PATCH", `/api/product-admin/colleges/admin/${encodeURIComponent(adminId)}`, "editAdminBody");
+      });
+
+      get("btnRemoveAdmin").addEventListener("click", () => {
+        const collegeId = getCollegeIdOrWarn();
+        if (!collegeId) return;
+        callApi("DELETE", `/api/product-admin/colleges/${encodeURIComponent(collegeId)}/admin`);
+      });
+
+      print("READY", {
+        page: "product-admin-colleges-test.html",
+        baseUrl: baseUrl(),
+        endpoints: "all /api/product-admin/colleges endpoints",
+      });
+    </script>
+  </body>
+</html>

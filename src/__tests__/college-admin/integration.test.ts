@@ -21,6 +21,7 @@ describe("College Admin API - Integration Tests", () => {
   let testMentor: any;
   let reportDepartment: any;
   let restrictedDepartment: any;
+  let reportCollege: any;
   let reportBatch: any;
   let reportAdminUser: any;
   let restrictedDeptAdmin: any;
@@ -44,11 +45,30 @@ describe("College Admin API - Integration Tests", () => {
     reportSessionToken = `report-session-${randomUUID()}`;
     restrictedSessionToken = `restricted-session-${randomUUID()}`;
 
+    reportAdminUser = await prisma.user.create({
+      data: {
+        email: `report-admin-${suffix}@example.com`,
+        name: "Report Admin",
+        role: "college_admin",
+        emailVerified: true,
+      },
+    });
+
+    reportCollege = await prisma.college.create({
+      data: {
+        name: `Integration College ${suffix}`,
+        code: `IC${suffix.slice(-6)}`,
+        description: "College for report integration tests",
+        createdById: reportAdminUser.id,
+      },
+    });
+
     reportDepartment = await prisma.department.create({
       data: {
         name: `Integration Reports ${suffix}`,
         code: `IR${suffix.slice(-4)}`,
         description: "Department for report integration tests",
+        collegeId: reportCollege.id,
       },
     });
 
@@ -68,6 +88,7 @@ describe("College Admin API - Integration Tests", () => {
         emailVerified: true,
         username: `report-admin-${suffix}`,
         passwordHash: "hashed_password_123",
+        collegeId: reportCollege.id,
       },
     });
 
@@ -270,10 +291,6 @@ describe("College Admin API - Integration Tests", () => {
         await prisma.user.delete({ where: { id: restrictedDeptAdmin.id } }).catch(() => {});
       }
 
-      if (reportAdminUser) {
-        await prisma.user.delete({ where: { id: reportAdminUser.id } }).catch(() => {});
-      }
-
       if (reportBatch) {
         await prisma.batch.delete({ where: { id: reportBatch.id } }).catch(() => {});
       }
@@ -284,6 +301,14 @@ describe("College Admin API - Integration Tests", () => {
 
       if (reportDepartment) {
         await prisma.department.delete({ where: { id: reportDepartment.id } }).catch(() => {});
+      }
+
+      if (reportCollege) {
+        await prisma.college.delete({ where: { id: reportCollege.id } }).catch(() => {});
+      }
+
+      if (reportAdminUser) {
+        await prisma.user.delete({ where: { id: reportAdminUser.id } }).catch(() => {});
       }
 
       // Delete test students
