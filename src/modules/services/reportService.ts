@@ -449,6 +449,7 @@ export class ReportService {
 
     const totalStudents = test.batch?.students.length || 0;
     const attemptedCount = test.attempts.length;
+    const attempts = test.attempts;
     const scores = test.attempts
       .filter((a: any) => a.score !== null)
       .map((a: any) => ((a.score ?? 0) / a.maxScore) * 100);

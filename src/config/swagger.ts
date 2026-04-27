@@ -3321,27 +3321,6 @@ const swaggerOptions: swaggerJsdoc.Options = {
         }
       },
     },
-    tags: [
-      { name: "Authentication", description: "Authentication and session APIs" },
-      { name: "Problems", description: "Problem browsing and details" },
-      { name: "Practice", description: "Practice and submissions" },
-      { name: "Contests", description: "Contest lifecycle APIs" },
-      { name: "Public APIs - Tests", description: "Public test listing and details" },
-      { name: "College Admin - Auth", description: "College admin authentication" },
-      { name: "College Admin - Tests", description: "College admin test management" },
-      { name: "College Admin - Batches", description: "College admin batch management" },
-      { name: "College Admin - Departments", description: "College admin department management" },
-      { name: "College Admin - Students", description: "College admin student management" },
-      { name: "College Admin - Reports", description: "College admin reporting" },
-      { name: "College Admin - Performance", description: "College admin performance APIs" },
-      { name: "Product Admin - Auth", description: "Product admin authentication" },
-      { name: "Product Admin - Colleges", description: "Product admin college management" },
-      { name: "Product Admin - RBAC", description: "Product admin role management" },
-      { name: "Product Admin - Hackathons", description: "Product admin hackathon management" },
-      { name: "Product Admin - Dashboard", description: "Product admin dashboard APIs" },
-      { name: "Product Admin - Users", description: "Product admin user analytics APIs" },
-    ],
-    paths: {},
   },
   apis: [
     "src/modules/routes/*.ts",
@@ -3881,9 +3860,6 @@ export const swaggerSpec = (() => {
     paths?: Record<string, unknown>;
     components?: { schemas?: Record<string, unknown> };
   };
-  if (spec.components?.schemas) {
-    Object.assign(spec.components.schemas, potdSchemas, arduinoSchemas);
-
   if (spec.paths) {
     addResponseExamples(spec.paths);
   }
@@ -3891,6 +3867,6 @@ export const swaggerSpec = (() => {
   spec.components ??= {};
   spec.components.schemas ??= {};
 
-  Object.assign(spec.components.schemas, potdSchemas);
+  Object.assign(spec.components.schemas, potdSchemas, arduinoSchemas);
   return spec;
 })();

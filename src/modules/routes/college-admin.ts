@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type Router as RouterType } from "express";
+import { Router, type NextFunction, type Request, type Response, type Router as RouterType } from "express";
 import multer from "multer";
 import { z } from "zod";
 import bcrypt from "bcrypt";
@@ -2661,6 +2661,7 @@ router.post("/auth/refresh-token", async (req: AuthRequest, res: Response): Prom
         image: user.image,
       },
     });
+    }
   } catch (error) {
     clearCollegeAdminJwtCookies(res);
     console.error("[college-admin/auth/refresh-token] Error:", error);
