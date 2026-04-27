@@ -29,8 +29,8 @@ import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
 import { parseAvatarUpload } from "../../middleware/avatarUpload.js";
 import { uploadAvatarToS3 } from "../../utils/avatarUpload.js";
-import { TestStatus } from "../../generated/prisma/client.js";
-import type { Role } from "../../generated/prisma/client.js";
+import { TestStatus } from "@prisma/client";
+import type { Role } from "@prisma/client";
 
 const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;
