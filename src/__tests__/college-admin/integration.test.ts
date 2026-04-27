@@ -51,6 +51,8 @@ describe("College Admin API - Integration Tests", () => {
         name: "Report Admin",
         role: "college_admin",
         emailVerified: true,
+        username: `report-admin-${suffix}`,
+        passwordHash: "hashed_password_123",
       },
     });
 
@@ -77,17 +79,13 @@ describe("College Admin API - Integration Tests", () => {
         name: `Restricted Reports ${suffix}`,
         code: `RR${suffix.slice(-4)}`,
         description: "Department for permission validation",
+        collegeId: reportCollege.id,
       },
     });
 
-    reportAdminUser = await prisma.user.create({
+    reportAdminUser = await prisma.user.update({
+      where: { id: reportAdminUser.id },
       data: {
-        email: `report-admin-${suffix}@example.com`,
-        name: "Report Admin",
-        role: "college_admin",
-        emailVerified: true,
-        username: `report-admin-${suffix}`,
-        passwordHash: "hashed_password_123",
         collegeId: reportCollege.id,
       },
     });

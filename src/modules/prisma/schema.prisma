@@ -121,7 +121,7 @@ model User {
   phone         String?
   image         String?
   collegeId     String?
-  college       College?    @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  college       College?    @relation("CollegeUsers", fields: [collegeId], references: [id], onDelete: SetNull)
   departmentId  String?
   department    Department? @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
   batchId       String?
@@ -164,7 +164,6 @@ model User {
   @@index([collegeId])
   @@index([departmentId])
   @@index([batchId])
-  @@index([collegeId])
   @@index([role])
   @@map("user")
 }
