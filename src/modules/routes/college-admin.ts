@@ -1,23 +1,142 @@
-import { Router, type NextFunction, type Response, type Router as RouterType } from "express";
+import { Router, type Request, type Response, type Router as RouterType } from "express";
+import multer from "multer";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
-import { auth } from "../../config/auth.js";
-import { prisma } from "../../config/prisma.js";
-import { generateAndStoreOTP, sendOTPEmail, hashPassword, validateOTP, verifyOTP } from "../auth/auth.service.js";
+import { auth, prisma } from "../../config/auth.js";
+import { prisma as appPrisma } from "../../config/prisma.js";
+import {
+  generateAndStoreOTP,
+  sendOTPEmail,
+  hashPassword,
+  validateOTP,
+  verifyOTP,
+  issueTokens,
+  verifyRefreshToken,
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+  accessCookieOptions,
+  refreshCookieOptions,
+  clearCookieOptions,
+} from "../auth/auth.service.js";
 import { UserService } from "../services/userService.js";
 import { DepartmentService } from "../services/departmentService.js";
 import { BatchService } from "../services/batchService.js";
 import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
-import type { Role, TestStatus } from "@prisma/client";
+import { parseAvatarUpload } from "../../middleware/avatarUpload.js";
+import { uploadAvatarToS3 } from "../../utils/avatarUpload.js";
+import { TestStatus } from "../../generated/prisma/client.js";
+import type { Role } from "../../generated/prisma/client.js";
 
 const router: RouterType = Router();
 const requireAuth = requireCollegeAdminAuth;
 const isProd = process.env.NODE_ENV === "production";
+
+let betterAuthAccountColumnsReady = false;
+let betterAuthAccountColumnsEnsurePromise: Promise<void> | null = null;
+
+const collegeAdminRefreshCookiePath = "/api/college-admin/auth/refresh-token";
+
+const collegeAdminRefreshCookieOptions = {
+  ...refreshCookieOptions,
+  path: collegeAdminRefreshCookiePath,
+};
+
+function setCollegeAdminJwtCookies(res: Response, accessToken: string, refreshToken: string): void {
+  res.cookie(ACCESS_TOKEN_COOKIE, accessToken, accessCookieOptions);
+  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, collegeAdminRefreshCookieOptions);
+}
+
+function clearCollegeAdminJwtCookies(res: Response): void {
+  res.clearCookie(ACCESS_TOKEN_COOKIE, clearCookieOptions);
+  res.clearCookie(REFRESH_TOKEN_COOKIE, { ...clearCookieOptions, path: collegeAdminRefreshCookiePath });
+}
+
+function getBetterAuthErrorMessage(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const maybeError = (value as { error?: { message?: string } }).error;
+  if (maybeError && typeof maybeError.message === "string") {
+    return maybeError.message;
+  }
+
+  if ("message" in value && typeof (value as { message?: unknown }).message === "string") {
+    return (value as { message: string }).message;
+  }
+
+  return undefined;
+}
+
+function isBetterAuthAccountColumnDriftError(message: string | undefined): boolean {
+  if (!message) {
+    return false;
+  }
+
+  return (
+    message.includes("prisma.account.create()") &&
+    message.includes("account.accessTokenExpiresAt") &&
+    message.includes("does not exist")
+  );
+}
+
+async function ensureBetterAuthAccountExpiryColumns(): Promise<void> {
+  if (betterAuthAccountColumnsReady) {
+    return;
+  }
+
+  if (!betterAuthAccountColumnsEnsurePromise) {
+    betterAuthAccountColumnsEnsurePromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = 'account'
+          ) THEN
+            ALTER TABLE "account"
+              ADD COLUMN IF NOT EXISTS "accessTokenExpiresAt" TIMESTAMP(3),
+              ADD COLUMN IF NOT EXISTS "refreshTokenExpiresAt" TIMESTAMP(3);
+          END IF;
+        END $$;
+      `);
+
+      betterAuthAccountColumnsReady = true;
+    })().finally(() => {
+      betterAuthAccountColumnsEnsurePromise = null;
+    });
+  }
+
+  await betterAuthAccountColumnsEnsurePromise;
+}
+
+async function signUpEmailWithDriftRecovery(body: { email: string; password: string; name: string }): Promise<any> {
+  try {
+    const response = await auth.api.signUpEmail({ body } as any);
+    const responseErrorMessage = getBetterAuthErrorMessage(response);
+
+    if (!isBetterAuthAccountColumnDriftError(responseErrorMessage)) {
+      return response;
+    }
+
+    await ensureBetterAuthAccountExpiryColumns();
+    return await auth.api.signUpEmail({ body } as any);
+  } catch (error: any) {
+    if (!isBetterAuthAccountColumnDriftError(error?.message)) {
+      throw error;
+    }
+
+    await ensureBetterAuthAccountExpiryColumns();
+    return await auth.api.signUpEmail({ body } as any);
+  }
+}
 
 // ─── Validation Schemas ─────────────────────────────────────────────────────────
 
@@ -423,16 +542,31 @@ async function createSingleStudentAccount(
     }
 
     // Create student using Better Auth
-    const signUpResult = await auth.api.signUpEmail({
+    const signUpResult = await signUpEmailWithDriftRecovery({
       body: {
         email: studentData.email,
         password: studentData.password,
         name: studentData.name,
       },
-    });
+    } as any);
 
-    if (!signUpResult) {
+    const signUpError = (signUpResult as any)?.error;
+    const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
+    if (!signUpResult || signUpError) {
       return { success: false, error: "Failed to create account" };
+    }
+
+    let targetUserId = createdUserId;
+    if (!targetUserId) {
+      const createdUser = await prisma.user.findUnique({
+        where: { email: String(studentData.email).trim().toLowerCase() },
+        select: { id: true },
+      });
+      targetUserId = createdUser?.id;
+    }
+
+    if (!targetUserId) {
+      return { success: false, error: "Student account was created but could not be finalized" };
     }
 
     const passwordHash = await hashPassword(studentData.password);
@@ -443,7 +577,7 @@ async function createSingleStudentAccount(
 
     // Update the user with additional fields
     const student = await prisma.user.update({
-      where: { email: studentData.email },
+      where: { id: targetUserId },
       data: {
         passwordHash,
         role: "student",
@@ -1883,6 +2017,374 @@ async function enforceCollegeScope(
  *         required: true
  *         schema:
  *           type: string
+ *
+ * /api/college-admin/avatar:
+ *   post:
+ *     tags: [College Admin - Auth]
+ *     summary: Upload college admin avatar
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       "200":
+ *         description: Avatar uploaded successfully
+ *
+ * /api/college-admin/batches/{batchId}/students:
+ *   post:
+ *     tags: [College Admin - Batches]
+ *     summary: Assign students to batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [studentIds]
+ *             properties:
+ *               studentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Students assigned
+ *   delete:
+ *     tags: [College Admin - Batches]
+ *     summary: Remove students from batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [studentIds]
+ *             properties:
+ *               studentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Students removed
+ *
+ * /api/college-admin/batches/{batchId}/mentor:
+ *   put:
+ *     tags: [College Admin - Batches]
+ *     summary: Assign mentor to batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [mentorId]
+ *             properties:
+ *               mentorId:
+ *                 type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor assigned
+ *   delete:
+ *     tags: [College Admin - Batches]
+ *     summary: Remove mentor from batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor removed
+ *
+ * /api/college-admin/batches/{batchId}/stats:
+ *   get:
+ *     tags: [College Admin - Batches]
+ *     summary: Get batch statistics
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Batch statistics retrieved
+ *
+ * /api/college-admin/mentors/{mentorId}/students:
+ *   get:
+ *     tags: [College Admin - Students]
+ *     summary: Get students assigned to a mentor
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: mentorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor students retrieved
+ *
+ * /api/college-admin/students/assign-mentor:
+ *   put:
+ *     tags: [College Admin - Students]
+ *     summary: Assign mentor to specific students
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [mentorId, studentIds]
+ *             properties:
+ *               mentorId:
+ *                 type: string
+ *               studentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Mentor assigned successfully
+ *
+ * /api/college-admin/tests/{testId}/questions/{questionId}:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Update test question
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: string
+ *               marks:
+ *                 type: integer
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               correctAnswer:
+ *                 type: string
+ *               explanation:
+ *                 type: string
+ *               orderIndex:
+ *                 type: integer
+ *     responses:
+ *       "200":
+ *         description: Question updated
+ *   delete:
+ *     tags: [College Admin - Tests]
+ *     summary: Delete test question
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Question deleted
+ *
+ * /api/college-admin/tests/{testId}/questions/reorder:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Reorder test questions
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [questionIds]
+ *             properties:
+ *               questionIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       "200":
+ *         description: Questions reordered
+ *
+ * /api/college-admin/tests/{testId}/assign-batch:
+ *   post:
+ *     tags: [College Admin - Tests]
+ *     summary: Assign test to batch
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [batchId]
+ *             properties:
+ *               batchId:
+ *                 type: string
+ *     responses:
+ *       "200":
+ *         description: Test assigned to batch
+ *
+ * /api/college-admin/tests/{testId}/evaluations:
+ *   get:
+ *     tags: [College Admin - Tests]
+ *     summary: Get test evaluations
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Evaluations retrieved
+ *
+ * /api/college-admin/tests/{testId}/evaluations/{evalId}:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Update test evaluation
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: evalId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               marks:
+ *                 type: number
+ *               feedback:
+ *                 type: string
+ *     responses:
+ *       "200":
+ *         description: Evaluation updated
+ *   delete:
+ *     tags: [College Admin - Tests]
+ *     summary: Delete test evaluation
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: evalId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Evaluation deleted
+ *
+ * /api/college-admin/tests/{testId}/publish:
+ *   put:
+ *     tags: [College Admin - Tests]
+ *     summary: Publish a test
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "200":
+ *         description: Test published successfully
  */
 
 /**
@@ -1926,11 +2428,11 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
     }
 
     // Check if user has college admin portal access
-    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    const allowedRoles = ["product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
     if (!allowedRoles.includes(user.role)) {
       res.status(403).json({
         error: "Access denied",
-        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+        message: "This portal is only accessible to product admins, college administrators, principals, HODs, mentors, and department admins",
       });
       return;
     }
@@ -1980,6 +2482,15 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const { accessToken, refreshToken } = await issueTokens({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+    });
+    setCollegeAdminJwtCookies(res, accessToken, refreshToken);
+
     res.json({
       success: true,
       message: "Login successful",
@@ -1992,7 +2503,10 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
         image: user.image,
         collegeId: user.collegeId,
       },
-      token: sessionToken,
+      token: accessToken,
+      accessToken,
+      refreshToken,
+      sessionToken,
     });
   } catch (error) {
     console.error("[college-admin/auth/login] Error:", error);
@@ -2009,6 +2523,18 @@ router.post("/auth/login", async (req: AuthRequest, res: Response): Promise<void
  */
 router.post("/auth/logout", requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+    if (refreshToken) {
+      try {
+        const payload = verifyRefreshToken(refreshToken);
+        await appPrisma.refreshToken.deleteMany({ where: { jti: payload.jti } });
+      } catch {
+        // Ignore invalid refresh token and continue logout cleanup.
+      }
+    }
+
+    clearCollegeAdminJwtCookies(res);
+
     await auth.api.signOut({
       headers: req.headers as Record<string, string>,
     });
@@ -2028,9 +2554,9 @@ router.post("/auth/logout", requireAuth, async (req: AuthRequest, res: Response)
 
 /**
  * POST /api/college-admin/auth/refresh-token
- * Refresh session token
+ * Refresh JWT token pair using refresh token rotation.
  */
-router.post("/auth/refresh-token", requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/auth/refresh-token", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user!;
 
@@ -2058,15 +2584,88 @@ router.post("/auth/refresh-token", requireAuth, async (req: AuthRequest, res: Re
         },
       });
     } else {
+    const incomingRefreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] || req.body?.refreshToken;
+    if (!incomingRefreshToken) {
       res.status(401).json({
-        error: "Session not found",
+        error: "No refresh token",
         message: "Please login again",
       });
+      return;
     }
+
+    const payload = verifyRefreshToken(incomingRefreshToken);
+
+    const stored = await appPrisma.refreshToken.findUnique({ where: { jti: payload.jti } });
+    if (!stored || stored.expiresAt < new Date()) {
+      clearCollegeAdminJwtCookies(res);
+      res.status(401).json({
+        error: "Refresh token expired or revoked",
+        message: "Please login again",
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        image: true,
+      },
+    });
+
+    if (!user) {
+      clearCollegeAdminJwtCookies(res);
+      res.status(401).json({
+        error: "User not found",
+        message: "Please login again",
+      });
+      return;
+    }
+
+    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    if (!allowedRoles.includes(user.role)) {
+      clearCollegeAdminJwtCookies(res);
+      res.status(403).json({
+        error: "Access denied",
+        message: "This portal is only accessible to college super admins, college administrators, principals, HODs, and mentors",
+      });
+      return;
+    }
+
+    await appPrisma.refreshToken.deleteMany({ where: { jti: payload.jti } });
+    const { accessToken, refreshToken } = await issueTokens({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+    });
+    setCollegeAdminJwtCookies(res, accessToken, refreshToken);
+
+    res.json({
+      success: true,
+      message: "Token refreshed successfully",
+      token: accessToken,
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        image: user.image,
+      },
+    });
   } catch (error) {
+    clearCollegeAdminJwtCookies(res);
     console.error("[college-admin/auth/refresh-token] Error:", error);
-    res.status(500).json({
-      error: "Internal server error",
+    res.status(401).json({
+      error: "Invalid refresh token",
       message: "An error occurred while refreshing token",
     });
   }
@@ -2105,7 +2704,7 @@ router.post("/auth/forgot-password", async (req: AuthRequest, res: Response): Pr
       return;
     }
 
-    const allowedRoles = ["super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
+    const allowedRoles = ["product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"];
     if (!allowedRoles.includes(user.role)) {
       console.log(`[college-admin/auth/forgot-password] User role not allowed: ${user.role}`);
       res.status(403).json({
@@ -2283,7 +2882,7 @@ router.use(requireAuth, enforceCollegeScope);
 router.get(
   "/profile",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -2332,7 +2931,8 @@ router.get(
 router.put(
   "/profile",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  parseAvatarUpload,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -2346,7 +2946,17 @@ router.put(
         return;
       }
 
-      const { name, image } = validation.data;
+      let { name, image } = validation.data;
+
+      if (req.file) {
+        const uploadedAvatar = await uploadAvatarToS3({
+          fileBuffer: req.file.buffer,
+          mimeType: req.file.mimetype,
+          userId: user.id,
+          scope: "college-admin",
+        });
+        image = uploadedAvatar.url;
+      }
 
       // Build update object with only provided fields
       const updateData: { name?: string; image?: string } = {};
@@ -2385,6 +2995,66 @@ router.put(
   }
 );
 
+/**
+ * POST /api/college-admin/avatar
+ * Upload and set profile avatar
+ */
+router.post(
+  "/avatar",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  parseAvatarUpload,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user;
+
+      if (!user?.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      if (!req.file) {
+        res.status(400).json({ error: "Avatar file is required (field name: avatar)" });
+        return;
+      }
+
+      const uploadedAvatar = await uploadAvatarToS3({
+        fileBuffer: req.file.buffer,
+        mimeType: req.file.mimetype,
+        userId: user.id,
+        scope: "college-admin",
+      });
+
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { image: uploadedAvatar.url },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          emailVerified: true,
+          image: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Avatar uploaded successfully",
+        avatarUrl: uploadedAvatar.url,
+        profile: updatedUser,
+      });
+    } catch (error: any) {
+      console.error("[college-admin/avatar] Error:", error);
+      res.status(500).json({
+        error: error?.message || "Failed to upload avatar",
+      });
+    }
+  }
+);
+
 // ─── Dashboard ──────────────────────────────────────────────────────────────────
 
 /**
@@ -2395,24 +3065,23 @@ router.put(
 router.get(
   "/dashboard",
   requireAuth,
-  requireRole("college_admin", "principal", "hod", "mentor", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const user = req.user!;
     const { role: queryRole } = req.query;
-    const normalizedQueryRole =
-      typeof queryRole === "string" ? queryRole.replace(/-/g, "_") : undefined;
+    const validRoles = ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"];
     
     // Determine which role to use for dashboard data
     // If ?role= is provided and valid, use it; otherwise use user's actual role
     let effectiveRole = user.role;
     
-    if (normalizedQueryRole) {
-      const validRoles = ["college_admin", "principal", "hod", "dept_admin", "mentor"];
+    if (typeof queryRole === "string") {
+      const normalizedQueryRole = queryRole.replace(/-/g, "_");
       
       // Verify the query role is valid
       if (validRoles.includes(normalizedQueryRole)) {
-        // Security check: Only college_admin/principal can view other role dashboards
-        if (user.role === "college_admin" || user.role === "principal") {
+        // Security check: Only product_admin/college_admin/principal can view other role dashboards
+        if (user.role === "product_admin" || user.role === "college_admin" || user.role === "principal") {
           effectiveRole = normalizedQueryRole;
         } else if (normalizedQueryRole === user.role) {
           // Users can always view their own role dashboard
@@ -2438,42 +3107,50 @@ router.get(
           name: "Department Management", 
           status: "active", 
           endpoint: "/api/college-admin/departments",
-          roles: ["college_admin", "principal"],
+          roles: ["product_admin", "college_admin", "principal"],
           description: "Manage departments, assign HODs"
         },
         { 
           name: "Batch Management", 
           status: "active", 
           endpoint: "/api/college-admin/batches",
-          roles: ["college_admin", "principal", "hod", "dept_admin"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin"],
           description: "Create and manage student batches"
         },
         { 
           name: "User Management", 
           status: "active", 
           endpoint: "/api/college-admin/users",
-          roles: ["college_admin", "principal", "hod", "dept_admin"],
+          roles: ["product_admin", "college_admin", "principal", "dept_admin"],
           description: "Create and manage users (Principal, HOD, Mentors, Students)"
         },
         { 
           name: "Student Management", 
           status: "active", 
           endpoint: "/api/college-admin/students",
-          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"],
           description: "Manage student records, bulk operations"
+        },
+        {
+          name: "Mentor Management",
+          status: "active",
+          endpoint: "/api/college-admin/users?role=mentor&departmentId=" + (user.departmentId || ""),
+          roles: ["hod"],
+          description: "Create and manage mentors in your department",
+          requireDepartment: true
         },
         { 
           name: "Test Management", 
           status: "active", 
           endpoint: "/api/college-admin/tests",
-          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "hod", "dept_admin"],
           description: "Create, schedule and manage tests"
         },
         { 
           name: "My Department", 
           status: "active", 
           endpoint: `/api/college-admin/departments/${user.departmentId}`,
-          roles: ["hod", "dept_admin"],
+          roles: ["dept_admin"],
           description: "View and manage your department",
           requireDepartment: true
         },
@@ -2481,7 +3158,7 @@ router.get(
           name: "Department Users", 
           status: "active", 
           endpoint: "/api/college-admin/users?departmentId=" + (user.departmentId || ""),
-          roles: ["hod", "dept_admin", "mentor"],
+          roles: ["dept_admin"],
           description: "View users in your department",
           requireDepartment: true
         },
@@ -2489,7 +3166,7 @@ router.get(
           name: "Department Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?departmentId=" + (user.departmentId || ""),
-          roles: ["hod", "dept_admin", "mentor"],
+          roles: [ "dept_admin"],
           description: "View tests in your department",
           requireDepartment: true
         },
@@ -2497,50 +3174,115 @@ router.get(
           name: "Active Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=active",
-          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "dept_admin"],
           description: "View currently active tests"
         },
         { 
           name: "Upcoming Tests", 
           status: "active", 
           endpoint: "/api/college-admin/tests?timeFilter=upcoming",
-          roles: ["college_admin", "principal", "hod", "dept_admin", "mentor"],
+          roles: ["product_admin", "college_admin", "principal", "dept_admin"],
           description: "View scheduled upcoming tests"
         },
-        { 
-          name: "My Mentees", 
-          status: "coming soon", 
-          endpoint: "/api/college-admin/mentees",
-          roles: ["mentor"],
-          description: "View and manage your assigned students"
+        {
+          name: "Performance",
+          status: "active",
+          endpoint: "/api/college-admin/report",
+          roles: ["product_admin", "dept_admin"],
+          description: "View student and batch performance insights"
         },
+    
         { 
           name: "Performance Analytics", 
-          status: "coming soon", 
+          status: "active", 
           endpoint: "/api/college-admin/analytics",
-          roles: ["college_admin", "principal", "hod"],
+          roles: ["product_admin", "college_admin","principal", "hod", "mentor"],
           description: "View performance metrics and analytics"
-        },
-        { 
-          name: "Reports", 
-          status: "coming soon", 
-          endpoint: "/api/college-admin/reports",
-          roles: ["college_admin", "principal", "hod"],
-          description: "Generate and view reports"
         },
       ];
 
       // Filter sections based on role and department requirement
-      return allSections.filter(section => {
+      const roleSections = allSections.filter(section => {
         const hasRoleAccess = section.roles.includes(role);
         const hasDepartmentAccess = !section.requireDepartment || (section.requireDepartment && user.departmentId);
         return hasRoleAccess && hasDepartmentAccess;
       }).map(({ roles, requireDepartment, ...section }) => section);
+
+      // HOD dashboard should only expose the requested four management sections.
+      if (role === "hod") {
+        const hodAllowedSections = new Set([
+          "Batch Management",
+          "Student Management",
+          "Test Management",
+          "Mentor Management",
+          "Performance Analytics",
+        ]);
+        return roleSections.filter((section) => hodAllowedSections.has(section.name));
+      }
+
+      // Mentor dashboard should only expose view-only student management and performance.
+      if (role === "mentor") {
+        const mentorAllowedSections = new Set([
+          "Student Management",
+          "Performance Analytics",
+        ]);
+
+        return roleSections
+          .filter((section) => mentorAllowedSections.has(section.name))
+          .map((section) => {
+            if (section.name === "Student Management") {
+              return {
+                ...section,
+                description: "View-only access to student records in your department",
+                access: "view_only",
+              };
+            }
+
+            return section;
+          });
+      }
+
+      // Principal dashboard should hide the last two test summary cards
+      // and expose remaining sections as view-only.
+      if (role === "principal") {
+        const principalHiddenSections = new Set([
+          "Active Tests",
+          "Upcoming Tests",
+        ]);
+
+        return roleSections
+          .filter((section) => !principalHiddenSections.has(section.name))
+          .map((section) => ({
+            ...section,
+            description: `View-only access. ${section.description}`,
+            access: "view_only",
+          }));
+      }
+
+      // Super admin dashboard should hide the last two test summary cards
+      // and expose remaining sections with CRUD access.
+      if (role === "product_admin") {
+        const superAdminHiddenSections = new Set([
+          "Active Tests",
+          "Upcoming Tests",
+        ]);
+
+        return roleSections
+          .filter((section) => !superAdminHiddenSections.has(section.name))
+          .map((section) => ({
+            ...section,
+            description: `CRUD access. ${section.description}`,
+            access: "crud",
+          }));
+      }
+
+      return roleSections;
     };
 
     // Get role-specific greeting and statistics
     const getRoleTitle = (role: string) => {
       const roleTitles: Record<string, string> = {
+        product_admin: "Super Administrator",
         college_admin: "College Administrator",
         principal: "Principal",
         hod: "Head of Department",
@@ -2554,53 +3296,50 @@ router.get(
     const getStatistics = async (role: string) => {
       const stats: any = {};
 
-      try {
-        const safeTestCount = async (where?: any) => {
-          try {
-            return await prisma.test.count({ where });
-          } catch (err: any) {
-            if (err?.code === "P2021") {
-              console.warn("[dashboard] Test table missing, returning 0 count");
-              return 0;
-            }
-            throw err;
+      const safeTestCount = async (where?: any) => {
+        try {
+          return await prisma.test.count({ where });
+        } catch (err: any) {
+          if (err?.code === "P2021") {
+            console.warn("[dashboard] Test table missing, returning 0 count");
+            return 0;
           }
-        };
+          throw err;
+        }
+      };
 
-        const now = new Date();
+      try {
+        if (role === "product_admin" || role === "college_admin" || role === "principal") {
+          const nowForCollegeTotals = new Date();
+          const [totalDepartmentsCollege, totalBatchesCollege, totalStudentsCollege, totalTestsCollege, totalActiveTestsCollege] = await Promise.all([
+            prisma.department.count(),
+            prisma.batch.count(),
+            prisma.user.count({ where: { role: "student" } }),
+            safeTestCount(),
+            safeTestCount({
+              scheduledStartTime: { lte: nowForCollegeTotals },
+              scheduledEndTime: { gte: nowForCollegeTotals },
+              status: { notIn: ["archived"] },
+            }),
+          ]);
 
-        const [totalDepartmentsCollege, totalBatchesCollege, totalStudentsCollege, totalTestsCollege, totalActiveTestsCollege] = await Promise.all([
-          prisma.department.count(),
-          prisma.batch.count(),
-          prisma.user.count({ where: { role: "student" } }),
-          safeTestCount(),
-          safeTestCount({
-            scheduledStartTime: { lte: now },
-            scheduledEndTime: { gte: now },
-            status: { notIn: ["archived"] },
-          }),
-        ]);
-
-        stats.totalDepartments = totalDepartmentsCollege;
-        stats.totalBatches = totalBatchesCollege;
-        stats.totalStudents = totalStudentsCollege;
-        stats.totalTests = totalTestsCollege;
-        stats.activeTests = totalActiveTestsCollege;
-        stats.collegeTotals = {
-          totalDepartments: totalDepartmentsCollege,
-          totalBatches: totalBatchesCollege,
-          totalStudents: totalStudentsCollege,
-          totalTests: totalTestsCollege,
-          activeTests: totalActiveTestsCollege,
-        };
-        stats.totalDepartmentsCollege = totalDepartmentsCollege;
-        stats.totalBatchesCollege = totalBatchesCollege;
-        stats.totalStudentsCollege = totalStudentsCollege;
-        stats.totalTestsCollege = totalTestsCollege;
-        stats.activeTestsCollege = totalActiveTestsCollege;
-
-        if (role === "college_admin" || role === "principal") {
-          // Global statistics
+          stats.totalDepartments = totalDepartmentsCollege;
+          stats.totalBatches = totalBatchesCollege;
+          stats.totalStudents = totalStudentsCollege;
+          stats.totalTests = totalTestsCollege;
+          stats.activeTests = totalActiveTestsCollege;
+          stats.collegeTotals = {
+            totalDepartments: totalDepartmentsCollege,
+            totalBatches: totalBatchesCollege,
+            totalStudents: totalStudentsCollege,
+            totalTests: totalTestsCollege,
+            activeTests: totalActiveTestsCollege,
+          };
+          stats.totalDepartmentsCollege = totalDepartmentsCollege;
+          stats.totalBatchesCollege = totalBatchesCollege;
+          stats.totalStudentsCollege = totalStudentsCollege;
+          stats.totalTestsCollege = totalTestsCollege;
+          stats.activeTestsCollege = totalActiveTestsCollege;
           stats.scope = "institution";
         } else if ((role === "hod" || role === "dept_admin") && user.departmentId) {
           // Department-specific statistics
@@ -2635,6 +3374,20 @@ router.get(
           stats.scope = "mentor";
           stats.departmentId = user.departmentId;
         }
+
+        // Active tests (common for all roles)
+        const nowForActiveTests = new Date();
+        const activeTestsCount = await safeTestCount({
+          where: {
+            scheduledStartTime: { lte: nowForActiveTests },
+            scheduledEndTime: { gte: nowForActiveTests },
+            status: { notIn: ["archived"] },
+            ...(role !== "product_admin" && role !== "college_admin" && role !== "principal" && user.departmentId
+              ? { departmentId: user.departmentId }
+              : {}),
+          },
+        });
+        stats.activeTests = activeTestsCount;
 
       } catch (error) {
         console.error("[dashboard] Error fetching statistics:", error);
@@ -2695,7 +3448,7 @@ router.get(
 router.post(
   "/users",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2765,12 +3518,10 @@ router.post(
       }
 
       // Create user via Better Auth
-      const newUser = await auth.api.signUpEmail({
-        body: {
-          email: data.email,
-          password: data.password,
-          name: data.name,
-        } as any,
+      const newUser = await signUpEmailWithDriftRecovery({
+        email: data.email,
+        password: data.password,
+        name: data.name,
       });
 
       // Check if Better Auth returned an error response
@@ -2821,7 +3572,7 @@ router.post(
 router.post(
   "/users/bulk",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -2843,12 +3594,10 @@ router.post(
       for (const userData of users) {
         try {
           // Create user via Better Auth
-          const newUser = await auth.api.signUpEmail({
-            body: {
-              email: userData.email,
-              password: userData.password,
-              name: userData.name,
-            } as any,
+          const newUser = await signUpEmailWithDriftRecovery({
+            email: userData.email,
+            password: userData.password,
+            name: userData.name,
           });
 
           if (newUser?.user && !(newUser as any)?.error) {
@@ -2936,7 +3685,7 @@ router.post(
 router.get(
   "/users",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3012,7 +3761,7 @@ router.get(
 router.get(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.params.userId as string;
@@ -3050,7 +3799,7 @@ router.get(
 router.put(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principalcor", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3105,7 +3854,7 @@ router.put(
 router.delete(
   "/users/:userId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3163,7 +3912,7 @@ router.delete(
 router.put(
   "/users/:userId/assign-role",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.params.userId as string;
@@ -3200,7 +3949,7 @@ router.put(
 router.put(
   "/users/:userId/assign-department",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.params.userId as string;
@@ -3239,7 +3988,7 @@ router.put(
 router.post(
   "/departments",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const validation = createDepartmentSchema.safeParse(req.body);
@@ -3292,7 +4041,7 @@ router.post(
 router.get(
   "/departments",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3354,7 +4103,7 @@ router.get(
 router.get(
   "/departments/:deptId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3403,7 +4152,7 @@ router.get(
 router.put(
   "/departments/:deptId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const deptId = req.params.deptId as string;
@@ -3440,7 +4189,7 @@ router.put(
 router.delete(
   "/departments/:deptId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal"),
+  requireRole("product_admin", "college_admin", "principal"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const deptId = req.params.deptId as string;
@@ -3472,7 +4221,7 @@ router.delete(
 router.post(
   "/batches",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3528,7 +4277,7 @@ router.post(
 router.get(
   "/batches",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3579,7 +4328,7 @@ router.get(
 router.get(
   "/batches/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3625,7 +4374,7 @@ router.get(
 router.put(
   "/batches/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3683,7 +4432,7 @@ router.put(
 router.delete(
   "/batches/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3730,7 +4479,7 @@ router.delete(
 router.post(
   "/batches/:batchId/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3788,7 +4537,7 @@ router.post(
 router.delete(
   "/batches/:batchId/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3846,7 +4595,7 @@ router.delete(
 router.put(
   "/batches/:batchId/mentor",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3904,7 +4653,7 @@ router.put(
 router.delete(
   "/batches/:batchId/mentor",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -3952,7 +4701,7 @@ router.delete(
 router.get(
   "/batches/:batchId/stats",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -4171,16 +4920,17 @@ router.put(
  * Create a new student
  * Access: college_admin, principal, hod (only their department), dept_admin (only their department)
  */
+
 router.post(
   "/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
-
+      console.log(req.body);
       const validation = createStudentSchema.safeParse(req.body);
-
+      console.log(validation);
       if (!validation.success) {
         res.status(400).json({
           error: "Validation failed",
@@ -4252,17 +5002,33 @@ router.post(
       }
 
       // Create student using Better Auth
-      const signUpResult = await auth.api.signUpEmail({
-        body: {
-          email,
-          password,
-          name,
-        },
+      const signUpResult = await signUpEmailWithDriftRecovery({
+        email,
+        password,
+        name,
       });
 
-      if (!signUpResult) {
+      const signUpError = (signUpResult as any)?.error;
+      const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
+      if (!signUpResult || signUpError) {
         res.status(500).json({
           error: "Failed to create student account",
+        });
+        return;
+      }
+
+      let targetUserId = createdUserId;
+      if (!targetUserId) {
+        const createdUser = await prisma.user.findUnique({
+          where: { email: email.trim().toLowerCase() },
+          select: { id: true },
+        });
+        targetUserId = createdUser?.id;
+      }
+
+      if (!targetUserId) {
+        res.status(500).json({
+          error: "Student account was created but could not be finalized",
         });
         return;
       }
@@ -4271,7 +5037,7 @@ router.post(
 
       // Update the user with additional fields
       const student = await prisma.user.update({
-        where: { email },
+        where: { id: targetUserId },
         data: {
           passwordHash,
           role: "student",
@@ -4309,7 +5075,7 @@ router.post(
 router.post(
   "/students/bulk",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -4385,7 +5151,7 @@ router.post(
 router.get(
   "/students",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -4453,7 +5219,7 @@ router.get(
 router.get(
   "/students/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -4517,7 +5283,7 @@ router.get(
 router.put(
   "/students/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -4602,7 +5368,7 @@ router.put(
 router.delete(
   "/students/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod"),
+  requireRole("product_admin", "college_admin", "principal", "hod"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const currentUser = req.user!;
@@ -4731,6 +5497,109 @@ const reorderQuestionsSchema = z.object({
   questionIds: z.array(z.string()).min(1),
 });
 
+const LIST_TESTS_ALLOWED_SORT_BY = new Set([
+  "createdAt",
+  "updatedAt",
+  "title",
+  "status",
+  "scheduledStartTime",
+  "scheduledEndTime",
+  "totalMarks",
+]);
+
+const LIST_TESTS_ALLOWED_TIME_FILTERS = new Set(["upcoming", "active", "past", "all"]);
+
+type ParsedListTestsQuery = {
+  page: number;
+  limit: number;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  status?: TestStatus;
+  departmentId?: string;
+  batchId?: string;
+  search?: string;
+  timeFilter?: "upcoming" | "active" | "past" | "all";
+};
+
+type TimeFilter = NonNullable<ParsedListTestsQuery["timeFilter"]>;
+
+function getQueryStringValue(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+    return value[0];
+  }
+
+  return undefined;
+}
+
+function isTestStatus(value: string): value is TestStatus {
+  return Object.values(TestStatus).includes(value as TestStatus);
+}
+
+function isTimeFilter(value: string): value is TimeFilter {
+  return LIST_TESTS_ALLOWED_TIME_FILTERS.has(value);
+}
+
+function parseListTestsQuery(query: AuthRequest["query"]): { data?: ParsedListTestsQuery; error?: string } {
+  const pageRaw = getQueryStringValue(query.page) ?? "1";
+  const limitRaw = getQueryStringValue(query.limit) ?? "20";
+  const sortByRaw = getQueryStringValue(query.sortBy) ?? "createdAt";
+  const sortOrderRaw = getQueryStringValue(query.sortOrder) ?? "desc";
+  const statusRaw = getQueryStringValue(query.status);
+  const departmentId = getQueryStringValue(query.departmentId);
+  const batchId = getQueryStringValue(query.batchId);
+  const search = getQueryStringValue(query.search);
+  const timeFilterRaw = getQueryStringValue(query.timeFilter);
+
+  const page = Number.parseInt(pageRaw, 10);
+  const limit = Number.parseInt(limitRaw, 10);
+
+  if (Number.isNaN(page) || page < 1) {
+    return { error: "Invalid page value. Must be an integer >= 1" };
+  }
+
+  if (Number.isNaN(limit) || limit < 1 || limit > 100) {
+    return { error: "Invalid limit value. Must be an integer between 1 and 100" };
+  }
+
+  if (!LIST_TESTS_ALLOWED_SORT_BY.has(sortByRaw)) {
+    return {
+      error: `Invalid sortBy value. Allowed values: ${Array.from(LIST_TESTS_ALLOWED_SORT_BY).join(", ")}`,
+    };
+  }
+
+  if (sortOrderRaw !== "asc" && sortOrderRaw !== "desc") {
+    return { error: "Invalid sortOrder value. Allowed values: asc, desc" };
+  }
+
+  if (statusRaw && !isTestStatus(statusRaw)) {
+    return {
+      error: `Invalid status value. Allowed values: ${Object.values(TestStatus).join(", ")}`,
+    };
+  }
+
+  if (timeFilterRaw && !isTimeFilter(timeFilterRaw)) {
+    return { error: "Invalid timeFilter value. Allowed values: upcoming, active, past, all" };
+  }
+
+  return {
+    data: {
+      page,
+      limit,
+      sortBy: sortByRaw,
+      sortOrder: sortOrderRaw as "asc" | "desc",
+      status: statusRaw as TestStatus | undefined,
+      departmentId,
+      batchId,
+      search,
+      timeFilter: timeFilterRaw as TimeFilter | undefined,
+    },
+  };
+}
+
 // ─── Test CRUD Endpoints ────────────────────────────────────────────────────────
 
 /**
@@ -4740,7 +5609,7 @@ const reorderQuestionsSchema = z.object({
 router.post(
   "/tests",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
@@ -4798,21 +5667,27 @@ router.post(
 router.get(
   "/tests",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = req.user!;
+      const parsedQuery = parseListTestsQuery(req.query);
+      if (!parsedQuery.data) {
+        res.status(400).json({ error: parsedQuery.error ?? "Invalid query parameters" });
+        return;
+      }
+
       const {
-        page = "1",
-        limit = "20",
-        sortBy = "createdAt",
-        sortOrder = "desc",
+        page,
+        limit,
+        sortBy,
+        sortOrder,
         status,
         departmentId,
         batchId,
         search,
-        timeFilter, // upcoming, active, past, all
-      } = req.query;
+        timeFilter,
+      } = parsedQuery.data;
 
       const filters: any = {};
 
@@ -4823,21 +5698,21 @@ router.get(
         filters.departmentId = user.departmentId;
       }
 
-      // Override with query params if super_admin/college_admin/principal
-      if (user.role === "super_admin" || user.role === "college_admin" || user.role === "principal") {
-        if (departmentId) filters.departmentId = departmentId as string;
-        if (batchId) filters.batchId = batchId as string;
+      // Override with query params if product_admin/college_admin/principal
+      if (user.role === "product_admin" || user.role === "college_admin" || user.role === "principal") {
+        if (departmentId) filters.departmentId = departmentId;
+        if (batchId) filters.batchId = batchId;
       }
 
-      if (status) filters.status = status as TestStatus;
-      if (search) filters.search = search as string;
-      if (timeFilter) filters.timeFilter = timeFilter as "upcoming" | "active" | "past" | "all";
+      if (status) filters.status = status;
+      if (search) filters.search = search;
+      if (timeFilter) filters.timeFilter = timeFilter;
 
       const result = await TestService.getTests(filters, {
-        page: Number.parseInt(page as string, 10),
-        limit: Number.parseInt(limit as string, 10),
-        sortBy: sortBy as string,
-        sortOrder: sortOrder as "asc" | "desc",
+        page,
+        limit,
+        sortBy,
+        sortOrder,
       });
 
       res.json(result);
@@ -4857,7 +5732,7 @@ router.get(
 router.get(
   "/tests/:testId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -4866,7 +5741,7 @@ router.get(
       const test = await TestService.getTestById(testId);
 
       // Check access permissions
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -4894,7 +5769,7 @@ router.get(
 router.put(
   "/tests/:testId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -4913,7 +5788,7 @@ router.put(
       // Check if user has permission to edit this test
       const existingTest = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (existingTest.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (existingTest.departmentId !== user.departmentId) {
@@ -4961,7 +5836,7 @@ router.put(
 router.delete(
   "/tests/:testId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -4970,7 +5845,7 @@ router.delete(
       // Check if user has permission to delete this test
       const existingTest = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (existingTest.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (existingTest.departmentId !== user.departmentId) {
@@ -5012,7 +5887,7 @@ router.delete(
 router.post(
   "/tests/:testId/questions",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5031,7 +5906,7 @@ router.post(
       // Check if user has permission to add questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -5073,7 +5948,7 @@ router.post(
 router.get(
   "/tests/:testId/questions",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5082,7 +5957,7 @@ router.get(
       // Check access permissions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -5112,7 +5987,7 @@ router.get(
 router.put(
   "/tests/:testId/questions/:questionId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5132,7 +6007,7 @@ router.put(
       // Check if user has permission to edit questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -5174,7 +6049,7 @@ router.put(
 router.delete(
   "/tests/:testId/questions/:questionId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5184,7 +6059,7 @@ router.delete(
       // Check if user has permission to delete questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -5224,7 +6099,7 @@ router.delete(
 router.put(
   "/tests/:testId/questions/reorder",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5243,7 +6118,7 @@ router.put(
       // Check if user has permission to reorder questions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.createdById !== user.id) {
           if (user.role === "hod" || user.role === "dept_admin") {
             if (test.departmentId !== user.departmentId) {
@@ -5286,7 +6161,7 @@ router.put(
 router.get(
   "/tests/:testId/status",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5295,7 +6170,7 @@ router.get(
       // Check access permissions
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -5327,7 +6202,7 @@ router.get(
 router.post(
   "/tests/:testId/assign-batch",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5343,7 +6218,7 @@ router.post(
       // Check access permissions for the test
       const test = await TestService.getTestById(testId);
 
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin" || user.role === "mentor") {
           if (test.departmentId !== user.departmentId) {
             res.status(403).json({
@@ -5396,7 +6271,7 @@ router.post(
 router.get(
   "/report/student/:studentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const studentId = req.params.studentId as string;
@@ -5414,7 +6289,7 @@ router.get(
       }
 
       // Verify user has access to this student's data
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin") {
           if (student.departmentId !== user.departmentId) {
             res.status(403).json({ error: "You can only view students from your department" });
@@ -5451,7 +6326,7 @@ router.get(
 router.get(
   "/report/batch/:batchId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const batchId = req.params.batchId as string;
@@ -5469,7 +6344,7 @@ router.get(
       }
 
       // Verify user has access to this batch
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (batch.departmentId !== user.departmentId) {
           res.status(403).json({ error: "You can only view batches from your department" });
           return;
@@ -5499,7 +6374,7 @@ router.get(
 router.get(
   "/report/batch/:batchId/leaderboard",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const batchId = req.params.batchId as string;
@@ -5518,7 +6393,7 @@ router.get(
       }
 
       // Verify user has access to this batch
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (batch.departmentId !== user.departmentId) {
           res.status(403).json({ error: "You can only view leaderboards for batches in your department" });
           return;
@@ -5551,7 +6426,7 @@ router.get(
 router.get(
   "/report/test/:testId/analysis",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const testId = req.params.testId as string;
@@ -5569,7 +6444,7 @@ router.get(
       }
 
       // Verify user has access to this test
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (test.departmentId !== user.departmentId) {
           res.status(403).json({ error: "You can only view analysis for tests in your department" });
           return;
@@ -5598,7 +6473,7 @@ router.get(
 router.get(
   "/report/student/:studentId/skillset",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const studentId = req.params.studentId as string;
@@ -5616,7 +6491,7 @@ router.get(
       }
 
       // Verify user has access to this student's data
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin") {
           if (student.departmentId !== user.departmentId) {
             res.status(403).json({ error: "You can only view students from your department" });
@@ -5653,7 +6528,7 @@ router.get(
 router.get(
   "/report/department/:departmentId",
   requireAuth,
-  requireRole("super_admin", "college_admin", "principal", "hod", "dept_admin"),
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const departmentId = req.params.departmentId as string;
@@ -5671,7 +6546,7 @@ router.get(
       }
 
       // Verify user has access to this department
-      if (user.role !== "super_admin" && user.role !== "college_admin" && user.role !== "principal") {
+      if (user.role !== "product_admin" && user.role !== "college_admin" && user.role !== "principal") {
         if (user.role === "hod" || user.role === "dept_admin") {
           if (departmentId !== user.departmentId) {
             res.status(403).json({ error: "You can only view reports for your department" });
@@ -5691,6 +6566,124 @@ router.get(
       res.status(error.message.includes("not found") ? 404 : 400).json({
         error: error.message || "Failed to fetch department performance",
       });
+    }
+  }
+);
+
+/**
+ * @openapi
+ * /api/college-admin/questions/coding:
+ *   get:
+ *     tags: [College Admin - Tests]
+ *     summary: Retrieve all coding questions
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       "200":
+ *         description: List of coding questions
+ */
+router.get(
+  "/questions/coding",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const skip = (page - 1) * limit;
+
+      const questions = await prisma.question.findMany({
+        where: {
+          type: { in: ["dsa", "coding"] },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: { tags: true },
+      });
+      
+      const total = await prisma.question.count({
+        where: {
+          type: { in: ["dsa", "coding"] },
+        }
+      });
+
+      res.json({
+        success: true,
+        data: questions,
+        meta: { total, page, limit }
+      });
+    } catch (error: any) {
+      console.error("[college-admin/questions/coding] Error:", error);
+      res.status(500).json({ error: "Failed to retrieve coding questions" });
+    }
+  }
+);
+
+/**
+ * @openapi
+ * /api/college-admin/questions/mcq:
+ *   get:
+ *     tags: [College Admin - Tests]
+ *     summary: Retrieve all MCQ questions
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       "200":
+ *         description: List of MCQ questions
+ */
+router.get(
+  "/questions/mcq",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "dept_admin", "mentor"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const skip = (page - 1) * limit;
+
+      const questions = await prisma.question.findMany({
+        where: {
+          type: { in: ["mcq", "multiple_choice", "true_false"] },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: { tags: true },
+      });
+      
+      const total = await prisma.question.count({
+        where: {
+          type: { in: ["mcq", "multiple_choice", "true_false"] },
+        }
+      });
+
+      res.json({
+        success: true,
+        data: questions,
+        meta: { total, page, limit }
+      });
+    } catch (error: any) {
+      console.error("[college-admin/questions/mcq] Error:", error);
+      res.status(500).json({ error: "Failed to retrieve MCQ questions" });
     }
   }
 );

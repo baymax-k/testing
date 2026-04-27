@@ -1,0 +1,392 @@
+[
+  {
+    "id": "mcq-001",
+    "type": "mcq",
+    "title": "Array Index Access",
+    "difficulty": "easy",
+    "tags": ["Arrays", "Time Complexity"],
+    "content": {
+      "description": "What is the time complexity of accessing an element by index in an array?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "What is the time complexity of accessing an element by index in an array?",
+        "options": [
+          { "id": "a", "text": "O(n)" },
+          { "id": "b", "text": "O(log n)" },
+          { "id": "c", "text": "O(1)" },
+          { "id": "d", "text": "O(n²)" }
+        ],
+        "correct": ["c"],
+        "explanation": "Arrays use base address + offset, so element access is always constant time regardless of array size."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-002",
+    "type": "mcq",
+    "title": "LIFO Data Structure",
+    "difficulty": "easy",
+    "tags": ["Stack", "Fundamentals"],
+    "content": {
+      "description": "Which data structure follows the LIFO principle?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "Which data structure follows the LIFO principle?",
+        "options": [
+          { "id": "a", "text": "Queue" },
+          { "id": "b", "text": "Stack" },
+          { "id": "c", "text": "Linked List" },
+          { "id": "d", "text": "Deque" }
+        ],
+        "correct": ["b"],
+        "explanation": "Last In, First Out — like a stack of plates. The last element pushed is the first to be popped."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-003",
+    "type": "mcq",
+    "title": "Linked List Head Pointer",
+    "difficulty": "easy",
+    "tags": ["Linked List", "Pointers"],
+    "content": {
+      "description": "What does the 'head' pointer in a singly linked list point to?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "What does the 'head' pointer in a singly linked list point to?",
+        "options": [
+          { "id": "a", "text": "Last node" },
+          { "id": "b", "text": "Middle node" },
+          { "id": "c", "text": "First node" },
+          { "id": "d", "text": "Null" }
+        ],
+        "correct": ["c"],
+        "explanation": "Head always points to the first node of the list; it is null if the list is empty."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-004",
+    "type": "mcq",
+    "title": "Linear Search Best Case",
+    "difficulty": "easy",
+    "tags": ["Searching", "Time Complexity"],
+    "content": {
+      "description": "What is the best-case time complexity of Linear Search?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "What is the best-case time complexity of Linear Search?",
+        "options": [
+          { "id": "a", "text": "O(n)" },
+          { "id": "b", "text": "O(log n)" },
+          { "id": "c", "text": "O(1)" },
+          { "id": "d", "text": "O(n log n)" }
+        ],
+        "correct": ["c"],
+        "explanation": "Best case: the target element is at index 0, requiring only one comparison."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-005",
+    "type": "mcq",
+    "title": "Linear vs Non-Linear Structures",
+    "difficulty": "easy",
+    "tags": ["Data Structures", "Classification"],
+    "content": {
+      "description": "Which of the following is NOT a linear data structure?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "Which of the following is NOT a linear data structure?",
+        "options": [
+          { "id": "a", "text": "Array" },
+          { "id": "b", "text": "Stack" },
+          { "id": "c", "text": "Queue" },
+          { "id": "d", "text": "Tree" }
+        ],
+        "correct": ["d"],
+        "explanation": "Trees are hierarchical (non-linear). Arrays, Stacks, and Queues are all linear data structures."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-006",
+    "type": "mcq",
+    "title": "Queue Insertion & Deletion",
+    "difficulty": "easy",
+    "tags": ["Queue", "FIFO"],
+    "content": {
+      "description": "In a queue, insertion happens at ___ and deletion at ___."
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "In a queue, insertion happens at ___ and deletion at ___.",
+        "options": [
+          { "id": "a", "text": "Front, Rear" },
+          { "id": "b", "text": "Rear, Front" },
+          { "id": "c", "text": "Front, Front" },
+          { "id": "d", "text": "Rear, Rear" }
+        ],
+        "correct": ["b"],
+        "explanation": "FIFO — enqueue (insert) at the rear, dequeue (delete) from the front."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-007",
+    "type": "mcq",
+    "title": "Binary Search Complexity",
+    "difficulty": "medium",
+    "tags": ["Searching", "Time Complexity"],
+    "content": {
+      "description": "What is the average-case time complexity of Binary Search?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "What is the average-case time complexity of Binary Search?",
+        "options": [
+          { "id": "a", "text": "O(n)" },
+          { "id": "b", "text": "O(log n)" },
+          { "id": "c", "text": "O(1)" },
+          { "id": "d", "text": "O(n log n)" }
+        ],
+        "correct": ["b"],
+        "explanation": "Binary Search halves the search space at each step. The array must be sorted beforehand."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-008",
+    "type": "mcq",
+    "title": "Stable Sorting with O(n log n) Worst Case",
+    "difficulty": "medium",
+    "tags": ["Sorting", "Stability", "Time Complexity"],
+    "content": {
+      "description": "Which sorting algorithm is stable AND has O(n log n) worst-case time complexity?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "Which sorting algorithm is stable AND has O(n log n) worst-case time complexity?",
+        "options": [
+          { "id": "a", "text": "Quick Sort" },
+          { "id": "b", "text": "Heap Sort" },
+          { "id": "c", "text": "Merge Sort" },
+          { "id": "d", "text": "Selection Sort" }
+        ],
+        "correct": ["c"],
+        "explanation": "Merge Sort is always O(n log n) in all cases and is stable — it preserves the relative order of equal elements."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-009",
+    "type": "mcq",
+    "title": "DFS Space Complexity",
+    "difficulty": "medium",
+    "tags": ["Graphs", "DFS", "Space Complexity"],
+    "content": {
+      "description": "How much space does recursive DFS on a graph with V vertices use?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "How much space does recursive DFS on a graph with V vertices use?",
+        "options": [
+          { "id": "a", "text": "O(E)" },
+          { "id": "b", "text": "O(V)" },
+          { "id": "c", "text": "O(V+E)" },
+          { "id": "d", "text": "O(1)" }
+        ],
+        "correct": ["b"],
+        "explanation": "The recursive call stack depth is at most V in the worst case (a linear chain graph)."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-010",
+    "type": "mcq",
+    "title": "Height of Complete Binary Tree",
+    "difficulty": "medium",
+    "tags": ["Trees", "Binary Tree", "Time Complexity"],
+    "content": {
+      "description": "What is the height of a complete binary tree with n nodes?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "What is the height of a complete binary tree with n nodes?",
+        "options": [
+          { "id": "a", "text": "O(n)" },
+          { "id": "b", "text": "O(log n)" },
+          { "id": "c", "text": "O(n log n)" },
+          { "id": "d", "text": "O(√n)" }
+        ],
+        "correct": ["b"],
+        "explanation": "Height = ⌊log₂(n)⌋ — it grows logarithmically as each level roughly doubles the node count."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-011",
+    "type": "mcq",
+    "title": "BST In-Order Traversal",
+    "difficulty": "medium",
+    "tags": ["BST", "Tree Traversal"],
+    "content": {
+      "description": "In which traversal of a BST are nodes visited in ascending sorted order?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "In which traversal of a BST are nodes visited in ascending sorted order?",
+        "options": [
+          { "id": "a", "text": "Pre-order" },
+          { "id": "b", "text": "Post-order" },
+          { "id": "c", "text": "In-order" },
+          { "id": "d", "text": "Level-order" }
+        ],
+        "correct": ["c"],
+        "explanation": "In-order traversal (Left → Root → Right) on a BST always produces elements in sorted ascending order."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-012",
+    "type": "mcq",
+    "title": "Hash Table Worst Case Insert",
+    "difficulty": "medium",
+    "tags": ["Hashing", "Chaining", "Time Complexity"],
+    "content": {
+      "description": "What is the worst-case time complexity of inserting into a Hash Table with chaining?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "What is the worst-case time complexity of inserting into a Hash Table with chaining?",
+        "options": [
+          { "id": "a", "text": "O(1)" },
+          { "id": "b", "text": "O(log n)" },
+          { "id": "c", "text": "O(n)" },
+          { "id": "d", "text": "O(n²)" }
+        ],
+        "correct": ["c"],
+        "explanation": "Worst case: all n keys hash to the same bucket, forming a chain of length n — degrading to linear search."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-013",
+    "type": "mcq",
+    "title": "Shortest Path in Unweighted Graph",
+    "difficulty": "medium",
+    "tags": ["Graphs", "BFS", "Shortest Path"],
+    "content": {
+      "description": "Which algorithm finds the shortest path in an unweighted graph?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "Which algorithm finds the shortest path in an unweighted graph?",
+        "options": [
+          { "id": "a", "text": "DFS" },
+          { "id": "b", "text": "Dijkstra's" },
+          { "id": "c", "text": "BFS" },
+          { "id": "d", "text": "Bellman-Ford" }
+        ],
+        "correct": ["c"],
+        "explanation": "BFS explores the graph level by level, guaranteeing the shortest path by edge count in unweighted graphs."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-014",
+    "type": "mcq",
+    "title": "Building a Max-Heap",
+    "difficulty": "hard",
+    "tags": ["Heap", "Heapify", "Time Complexity"],
+    "content": {
+      "description": "What is the time complexity of building a Max-Heap from an unsorted array?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "What is the time complexity of building a Max-Heap from an unsorted array?",
+        "options": [
+          { "id": "a", "text": "O(n log n)" },
+          { "id": "b", "text": "O(n)" },
+          { "id": "c", "text": "O(log n)" },
+          { "id": "d", "text": "O(n²)" }
+        ],
+        "correct": ["b"],
+        "explanation": "Floyd's bottom-up heapify is O(n) — most nodes are near the leaves and require only O(1) work each."
+      }
+    ],
+    "passing_score": 70
+  },
+  {
+    "id": "mcq-015",
+    "type": "mcq",
+    "title": "DP Inapplicability",
+    "difficulty": "hard",
+    "tags": ["Dynamic Programming", "NP-Complete"],
+    "content": {
+      "description": "Which problem CANNOT be solved using Dynamic Programming?"
+    },
+    "interaction_type": "single_choice",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "Which problem CANNOT be solved using Dynamic Programming?",
+        "options": [
+          { "id": "a", "text": "Longest Common Subsequence" },
+          { "id": "b", "text": "0/1 Knapsack" },
+          { "id": "c", "text": "Finding a Hamiltonian Path" },
+          { "id": "d", "text": "Fibonacci" }
+        ],
+        "correct": ["c"],
+        "explanation": "Hamiltonian Path is NP-complete — no known polynomial-time DP solution exists for the general case."
+      }
+    ],
+    "passing_score": 70
+  }
+]

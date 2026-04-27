@@ -1,0 +1,1078 @@
+[
+  {
+    "id": "dsa-q01",
+    "type": "dsa",
+    "title": "Mirror Number Checker",
+    "difficulty": "easy",
+    "tags": ["Strings", "Math", "Palindrome"],
+    "content": {
+      "description": "A mirror number reads the same forwards and backwards when each digit is replaced with its mirror image. The mirror pairs are: 0↔0, 1↔1, 2↔5, 5↔2, 6↔9, 8↔8, 9↔6. Digits 3, 4, and 7 have no mirror. Given a number N, determine if it is a valid mirror number.",
+      "input_format": "A single line containing a non-negative integer N.",
+      "output_format": "Print YES if N is a mirror number, NO otherwise.",
+      "constraints": ["0 <= N <= 10^9"],
+      "examples": [
+        {
+          "input": "1881",
+          "output": "YES",
+          "explanation": "Reverse: 1881, mirror of each digit: 1,8,8,1. Both reversed and mirrored equals original."
+        },
+        {
+          "input": "123",
+          "output": "NO",
+          "explanation": "Digit 3 has no mirror image — immediately invalid."
+        }
+      ],
+      "hints": [
+        "First check if all digits belong to the valid mirror set {0,1,2,5,6,8,9}. If not, answer is NO.",
+        "Reverse the digit string. Replace each digit with its mirror pair. Check if it matches the original string."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string n;\n    cin >> n;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "1881", "output": "YES" },
+        { "input": "123", "output": "NO" },
+        { "input": "0", "output": "YES" }
+      ],
+      "hidden": [
+        { "input": "69", "output": "YES" },
+        { "input": "196", "output": "NO" },
+        { "input": "818", "output": "YES" }
+      ]
+    },
+    "time_limit_ms": 1000,
+    "memory_limit_mb": 64
+  },
+  {
+    "id": "dsa-q02",
+    "type": "dsa",
+    "title": "Sum of Prime Digits",
+    "difficulty": "easy",
+    "tags": ["Math", "Prime", "Strings"],
+    "content": {
+      "description": "Given a positive integer N, extract all digits from it that are prime numbers (2, 3, 5, 7) and compute their sum. If no digit is prime, output 0.",
+      "input_format": "A single line containing a positive integer N.",
+      "output_format": "A single integer — the sum of all prime digits in N.",
+      "constraints": ["1 <= N <= 10^12"],
+      "examples": [
+        {
+          "input": "2359",
+          "output": "17",
+          "explanation": "Prime digits: 2, 3, 5, 7. Sum = 2+3+5+7 = 17."
+        },
+        {
+          "input": "4816",
+          "output": "0",
+          "explanation": "Digits 4, 8, 1, 6 — none are prime. Sum = 0."
+        }
+      ],
+      "hints": [
+        "Convert N to a string and iterate over each character (digit).",
+        "The prime single digits are only 2, 3, 5, and 7. Check membership and accumulate."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string n;\n    cin >> n;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "2359", "output": "17" },
+        { "input": "4816", "output": "0" },
+        { "input": "2", "output": "2" }
+      ],
+      "hidden": [
+        { "input": "999999999999", "output": "0" },
+        { "input": "2357", "output": "17" },
+        { "input": "123456789", "output": "17" }
+      ]
+    },
+    "time_limit_ms": 1000,
+    "memory_limit_mb": 64
+  },
+  {
+    "id": "dsa-q03",
+    "type": "dsa",
+    "title": "Odd Columns Sum",
+    "difficulty": "easy",
+    "tags": ["Arrays", "Matrix", "Simulation"],
+    "content": {
+      "description": "Given an N x M matrix of integers, compute the sum of all elements that are located in odd-indexed columns (1-indexed: columns 1, 3, 5, ...). In simpler terms, sum every alternate column starting from the first.",
+      "input_format": "First line: two integers N and M. Next N lines: M space-separated integers each.",
+      "output_format": "A single integer — the sum of all elements in odd-indexed columns.",
+      "constraints": ["1 <= N, M <= 500", "-10^6 <= matrix[i][j] <= 10^6"],
+      "examples": [
+        {
+          "input": "2 4\n1 2 3 4\n5 6 7 8",
+          "output": "16",
+          "explanation": "Odd columns (1-indexed): col 1 = [1,5], col 3 = [3,7]. Sum = 1+5+3+7 = 16."
+        },
+        {
+          "input": "3 3\n1 2 3\n4 5 6\n7 8 9",
+          "output": "30",
+          "explanation": "Odd columns: col 1 = [1,4,7], col 3 = [3,6,9]. Sum = 30."
+        }
+      ],
+      "hints": [
+        "Use 0-indexed loop: columns 0, 2, 4, ... correspond to 1-indexed odd columns.",
+        "Outer loop over rows, inner loop over columns with step 2 starting from index 0."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n, m = map(int, input().split())\nmatrix = [list(map(int, input().split())) for _ in range(n)]\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<vector<int>> mat(n, vector<int>(m));\n    for(int i=0;i<n;i++) for(int j=0;j<m;j++) cin >> mat[i][j];\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "2 4\n1 2 3 4\n5 6 7 8", "output": "16" },
+        { "input": "3 3\n1 2 3\n4 5 6\n7 8 9", "output": "30" },
+        { "input": "1 1\n7", "output": "7" }
+      ],
+      "hidden": [
+        { "input": "2 2\n-1 2\n3 -4", "output": "2" },
+        { "input": "3 5\n1 0 1 0 1\n1 0 1 0 1\n1 0 1 0 1", "output": "9" },
+        { "input": "1 5\n10 20 30 40 50", "output": "90" }
+      ]
+    },
+    "time_limit_ms": 1000,
+    "memory_limit_mb": 128
+  },
+  {
+    "id": "dsa-q04",
+    "type": "dsa",
+    "title": "Consecutive Duplicate Remover",
+    "difficulty": "easy",
+    "tags": ["Strings", "Greedy", "Two Pointers"],
+    "content": {
+      "description": "Given a string S, remove all consecutive duplicate characters, keeping only the first occurrence of each consecutive group. Non-consecutive duplicates are allowed to remain.",
+      "input_format": "A single line containing string S.",
+      "output_format": "The resulting string after removing consecutive duplicates.",
+      "constraints": ["1 <= |S| <= 10^5", "S contains only lowercase English letters"],
+      "examples": [
+        {
+          "input": "aabbccaab",
+          "output": "abcab",
+          "explanation": "aa->a, bb->b, cc->c, aa->a, b->b. Result: abcab."
+        },
+        {
+          "input": "aaabbbccc",
+          "output": "abc",
+          "explanation": "All three groups compressed to one character each."
+        }
+      ],
+      "hints": [
+        "Walk through the string character by character. Add to result only when the current character differs from the last added.",
+        "Maintain a result string or list. Compare s[i] with s[i-1] before appending."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "s = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string s;\n    cin >> s;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "aabbccaab", "output": "abcab" },
+        { "input": "aaabbbccc", "output": "abc" },
+        { "input": "abcdef", "output": "abcdef" }
+      ],
+      "hidden": [
+        { "input": "a", "output": "a" },
+        { "input": "zzzzz", "output": "z" },
+        { "input": "aabbaa", "output": "aba" }
+      ]
+    },
+    "time_limit_ms": 1000,
+    "memory_limit_mb": 64
+  },
+  {
+    "id": "dsa-q05",
+    "type": "dsa",
+    "title": "Weighted Digit Sum",
+    "difficulty": "easy",
+    "tags": ["Math", "Strings", "Number Theory"],
+    "content": {
+      "description": "Given a positive integer N, compute its weighted digit sum: multiply each digit by its 1-indexed position from the left (position 1, 2, 3, ...) and sum all results. For example, 1234 gives 1*1 + 2*2 + 3*3 + 4*4 = 30.",
+      "input_format": "A single line containing positive integer N.",
+      "output_format": "A single integer — the weighted digit sum.",
+      "constraints": ["1 <= N <= 10^15"],
+      "examples": [
+        {
+          "input": "1234",
+          "output": "30",
+          "explanation": "1*1 + 2*2 + 3*3 + 4*4 = 1+4+9+16 = 30."
+        },
+        {
+          "input": "100",
+          "output": "1",
+          "explanation": "1*1 + 0*2 + 0*3 = 1."
+        }
+      ],
+      "hints": [
+        "Convert N to string and enumerate with index.",
+        "For each character at index i (0-based), the weight is i+1. Multiply int(char) * (i+1) and accumulate."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string n;\n    cin >> n;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "1234", "output": "30" },
+        { "input": "100", "output": "1" },
+        { "input": "9", "output": "9" }
+      ],
+      "hidden": [
+        { "input": "999", "output": "54" },
+        { "input": "123456789", "output": "285" },
+        { "input": "1000000000000000", "output": "1" }
+      ]
+    },
+    "time_limit_ms": 1000,
+    "memory_limit_mb": 64
+  },
+  {
+    "id": "dsa-q06",
+    "type": "dsa",
+    "title": "Spiral Ring Sum",
+    "difficulty": "easy",
+    "tags": ["Math", "Patterns", "Simulation"],
+    "content": {
+      "description": "Consider an N x N matrix filled with integers 1 to N² in spiral order (clockwise, starting from the top-left corner). Given N and a ring number R (1-indexed from the outermost ring), compute the sum of all elements in that ring.",
+      "input_format": "A single line containing two integers N and R.",
+      "output_format": "A single integer — the sum of elements in ring R of the N x N spiral matrix.",
+      "constraints": ["1 <= N <= 100", "1 <= R <= ceil(N/2)"],
+      "examples": [
+        {
+          "input": "3 1",
+          "output": "40",
+          "explanation": "3x3 spiral: outer ring = [1,2,3,6,9,8,7,4]. Sum = 40. Center = 5."
+        },
+        {
+          "input": "3 2",
+          "output": "5",
+          "explanation": "Ring 2 (innermost) of 3x3 spiral is just element 5."
+        }
+      ],
+      "hints": [
+        "First, generate the full N x N spiral matrix by simulating the spiral-fill direction changes.",
+        "For ring R (1-indexed), the elements belong to rows and columns between index R-1 and N-R (0-indexed). Sum the border of that sub-matrix."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n, r = map(int, input().split())\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, r;\n    cin >> n >> r;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "3 1", "output": "40" },
+        { "input": "3 2", "output": "5" },
+        { "input": "1 1", "output": "1" }
+      ],
+      "hidden": [
+        { "input": "4 1", "output": "88" },
+        { "input": "4 2", "output": "44" },
+        { "input": "5 1", "output": "120" }
+      ]
+    },
+    "time_limit_ms": 1000,
+    "memory_limit_mb": 64
+  },
+  {
+    "id": "dsa-q07",
+    "type": "dsa",
+    "title": "Frequency Sort Stability",
+    "difficulty": "medium",
+    "tags": ["Sorting", "HashMap", "Stable Sort"],
+    "content": {
+      "description": "Given an array of integers, sort them by their frequency (most frequent first). If two elements have the same frequency, sort them by their first occurrence index in the original array (smaller index first). Output the sorted array.",
+      "input_format": "First line: integer N. Second line: N space-separated integers.",
+      "output_format": "N space-separated integers — the sorted array.",
+      "constraints": ["1 <= N <= 10^5", "-10^6 <= arr[i] <= 10^6"],
+      "examples": [
+        {
+          "input": "7\n4 2 4 3 2 4 1",
+          "output": "4 4 4 2 2 3 1",
+          "explanation": "4 appears 3 times, 2 appears 2 times, 3 and 1 once each. 3 appears before 1 in original."
+        },
+        {
+          "input": "5\n1 1 2 2 3",
+          "output": "1 1 2 2 3",
+          "explanation": "1 and 2 both appear twice; 1 has smaller first-index (0) than 2 (index 2)."
+        }
+      ],
+      "hints": [
+        "Use a HashMap to store frequency of each element and its first occurrence index.",
+        "Create a custom comparator: sort by (-frequency, first_occurrence_index). Then expand each unique element by its frequency."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n = int(input())\narr = list(map(int, input().split()))\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n; cin >> n;\n    vector<int> arr(n);\n    for(auto &x : arr) cin >> x;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "7\n4 2 4 3 2 4 1", "output": "4 4 4 2 2 3 1" },
+        { "input": "5\n1 1 2 2 3", "output": "1 1 2 2 3" },
+        { "input": "3\n5 5 5", "output": "5 5 5" }
+      ],
+      "hidden": [
+        { "input": "6\n3 3 1 1 2 2", "output": "3 3 1 1 2 2" },
+        { "input": "5\n9 8 7 6 5", "output": "9 8 7 6 5" },
+        { "input": "8\n1 2 1 3 2 1 3 2", "output": "1 1 1 2 2 2 3 3" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q08",
+    "type": "dsa",
+    "title": "Staircase Paths with Forbidden Steps",
+    "difficulty": "medium",
+    "tags": ["DP", "Recursion", "Memoization"],
+    "content": {
+      "description": "You are climbing a staircase with N steps. At each step, you can jump 1, 2, or 3 steps forward. However, a set of F forbidden step numbers are given — you cannot land on any of them. Count the number of distinct ways to reach the top (step N) starting from step 0. Output the answer modulo 10^9 + 7.",
+      "input_format": "First line: integers N and F. Second line: F space-separated forbidden step numbers (or empty if F=0).",
+      "output_format": "A single integer — number of ways modulo 10^9+7.",
+      "constraints": ["1 <= N <= 10^5", "0 <= F <= N-1", "Forbidden steps are in range [1, N-1]"],
+      "examples": [
+        {
+          "input": "5 1\n3",
+          "output": "4",
+          "explanation": "Without step 3, valid paths from 0 to 5 are: [0->1->2->4->5], [0->1->2->5], [0->2->4->5], [0->2->5]. Count = 4."
+        },
+        {
+          "input": "4 0\n",
+          "output": "7",
+          "explanation": "No forbidden steps. All paths from 0 to 4 using jumps of 1,2,3: 7 total."
+        }
+      ],
+      "hints": [
+        "Use DP: let dp[i] = number of ways to reach step i. dp[0]=1, and for each step i not forbidden, dp[i] = dp[i-1]+dp[i-2]+dp[i-3] (skipping negative indices).",
+        "If step i is forbidden, set dp[i]=0 immediately regardless of formula."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n, f = map(int, input().split())\nforbidden = set(map(int, input().split())) if f > 0 else set()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, f; cin >> n >> f;\n    set<int> forbidden;\n    for(int i=0;i<f;i++){int x;cin>>x;forbidden.insert(x);}\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "5 1\n3", "output": "4" },
+        { "input": "4 0\n", "output": "7" },
+        { "input": "3 1\n2", "output": "1" }
+      ],
+      "hidden": [
+        { "input": "10 2\n3 7", "output": "28" },
+        { "input": "1 0\n", "output": "1" },
+        { "input": "100000 0\n", "output": "796956743" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q09",
+    "type": "dsa",
+    "title": "Bracket Depth Tracker",
+    "difficulty": "medium",
+    "tags": ["Stack", "Strings", "Simulation"],
+    "content": {
+      "description": "Given a valid bracket string containing only '(' and ')', find the maximum nesting depth AND the total number of times that maximum depth is reached during left-to-right traversal. A depth increases by 1 on '(' and decreases by 1 on ')'.",
+      "input_format": "A single line containing a valid bracket string S.",
+      "output_format": "Two space-separated integers: maximum depth and count of times it is reached.",
+      "constraints": ["2 <= |S| <= 10^5", "S is always a valid bracket string", "|S| is even"],
+      "examples": [
+        {
+          "input": "((())) ",
+          "output": "3 1",
+          "explanation": "Depths: 1,2,3,2,1,0. Max=3, reached once at position 3."
+        },
+        {
+          "input": "(())(())",
+          "output": "2 2",
+          "explanation": "Depths: 1,2,1,0,1,2,1,0. Max=2 reached at positions 2 and 6."
+        }
+      ],
+      "hints": [
+        "Track current depth with a counter. Increment on '(' and decrement on ')'.",
+        "Maintain max_depth and count. Each time current depth exceeds max, update max and reset count to 1. Each time it equals max, increment count."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "s = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string s;\n    cin >> s;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "((()))", "output": "3 1" },
+        { "input": "(())(())", "output": "2 2" },
+        { "input": "()()()", "output": "1 3" }
+      ],
+      "hidden": [
+        { "input": "(()(())) ", "output": "3 1" },
+        { "input": "(((())))", "output": "4 1" },
+        { "input": "()()", "output": "1 2" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q10",
+    "type": "dsa",
+    "title": "String Compression Run-Length Encoder",
+    "difficulty": "medium",
+    "tags": ["Strings", "Two Pointers", "Compression"],
+    "content": {
+      "description": "Given a string S, encode it using run-length encoding: replace each maximal run of identical characters with the character followed by its count. However, if the encoded form is NOT shorter than the original, return the original string unchanged.",
+      "input_format": "A single line containing string S.",
+      "output_format": "The encoded string if it is shorter than the original, otherwise the original string.",
+      "constraints": ["1 <= |S| <= 10^5", "S contains only lowercase English letters"],
+      "examples": [
+        {
+          "input": "aaabbbccddddee",
+          "output": "a3b3c2d4e2",
+          "explanation": "Encoded length 10 < original 14, so return encoded."
+        },
+        {
+          "input": "abcde",
+          "output": "abcde",
+          "explanation": "Encoded would be a1b1c1d1e1 (length 10) > original (length 5). Return original."
+        }
+      ],
+      "hints": [
+        "Use two-pointer or group-by approach to count consecutive runs.",
+        "Build the encoded string. Compare lengths at the end: if len(encoded) < len(original), return encoded; else return original."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "s = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string s;\n    cin >> s;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "aaabbbccddddee", "output": "a3b3c2d4e2" },
+        { "input": "abcde", "output": "abcde" },
+        { "input": "aabb", "output": "aabb" }
+      ],
+      "hidden": [
+        { "input": "aaaa", "output": "a4" },
+        { "input": "aabbcc", "output": "aabbcc" },
+        { "input": "aaaaaaaaaa", "output": "a10" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q11",
+    "type": "dsa",
+    "title": "Minimum Swaps to Group Negatives",
+    "difficulty": "medium",
+    "tags": ["Arrays", "Sliding Window", "Two Pointers"],
+    "content": {
+      "description": "Given an array of integers, find the minimum number of swaps (of adjacent or any elements) needed to move all negative numbers to the left side of the array, while keeping all non-negative numbers on the right side. Order within groups does not matter.",
+      "input_format": "First line: integer N. Second line: N space-separated integers.",
+      "output_format": "A single integer — the minimum number of swaps.",
+      "constraints": ["1 <= N <= 10^5", "-10^9 <= arr[i] <= 10^9"],
+      "examples": [
+        {
+          "input": "5\n1 -1 3 -2 5",
+          "output": "3",
+          "explanation": "Move -1 and -2 to left. -1 needs 1 swap, -2 needs 2 swaps. Total = 3."
+        },
+        {
+          "input": "4\n-1 -2 3 4",
+          "output": "0",
+          "explanation": "Negatives already on the left. Zero swaps needed."
+        }
+      ],
+      "hints": [
+        "Count the number of negative elements K. The first K positions should hold all negatives.",
+        "Use a sliding window of size K. Count how many negatives are already in each window. The answer is K minus the maximum such count."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n = int(input())\narr = list(map(int, input().split()))\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n; cin >> n;\n    vector<int> arr(n);\n    for(auto &x : arr) cin >> x;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "5\n1 -1 3 -2 5", "output": "3" },
+        { "input": "4\n-1 -2 3 4", "output": "0" },
+        { "input": "3\n1 2 3", "output": "0" }
+      ],
+      "hidden": [
+        { "input": "5\n5 4 3 2 -1", "output": "4" },
+        { "input": "6\n1 2 -1 -2 3 4", "output": "4" },
+        { "input": "4\n-4 -3 -2 -1", "output": "0" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q12",
+    "type": "dsa",
+    "title": "Lexicographically Smallest Rotation",
+    "difficulty": "medium",
+    "tags": ["Strings", "Rotation", "Greedy"],
+    "content": {
+      "description": "Given a string S, you can rotate it left any number of times (moving the first character to the end). Find the rotation that gives the lexicographically smallest result. If multiple rotations give the same smallest result, return the one with the smallest rotation count.",
+      "input_format": "A single line containing string S.",
+      "output_format": "Two space-separated values: the lexicographically smallest rotation string and the rotation count used.",
+      "constraints": ["1 <= |S| <= 10^5", "S contains only lowercase English letters"],
+      "examples": [
+        {
+          "input": "bca",
+          "output": "abc 2",
+          "explanation": "Rotations: bca(0), cab(1), abc(2). abc is smallest, achieved at rotation 2."
+        },
+        {
+          "input": "aaab",
+          "output": "aaab 0",
+          "explanation": "aaab is already smallest among aaab, aaba, abaa, baaa."
+        }
+      ],
+      "hints": [
+        "Generate all N rotations by doubling the string (S+S) and taking substrings of length N.",
+        "Track the index of the minimum substring. Return that substring and the index as the rotation count."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "s = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string s;\n    cin >> s;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "bca", "output": "abc 2" },
+        { "input": "aaab", "output": "aaab 0" },
+        { "input": "dcba", "output": "abcd 3" }
+      ],
+      "hidden": [
+        { "input": "a", "output": "a 0" },
+        { "input": "abcabc", "output": "abcabc 0" },
+        { "input": "zzza", "output": "azzz 3" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q13",
+    "type": "dsa",
+    "title": "Paint the Fence Minimum Cost",
+    "difficulty": "medium",
+    "tags": ["DP", "Greedy", "Arrays"],
+    "content": {
+      "description": "You have N fence panels in a row. Each panel must be painted with one of K colors. The cost of painting panel i with color c is given by a 2D cost matrix cost[i][c]. Adjacent panels must have DIFFERENT colors. Find the minimum total cost to paint all panels.",
+      "input_format": "First line: integers N and K. Next N lines: K space-separated integers each — cost[i][0..K-1].",
+      "output_format": "A single integer — the minimum painting cost.",
+      "constraints": ["1 <= N <= 1000", "1 <= K <= 20", "1 <= cost[i][j] <= 10^4"],
+      "examples": [
+        {
+          "input": "2 2\n1 3\n5 2",
+          "output": "3",
+          "explanation": "Paint panel 0 color 0 (cost 1), panel 1 color 1 (cost 2). Total = 3."
+        },
+        {
+          "input": "3 2\n1 2\n3 1\n2 3",
+          "output": "4",
+          "explanation": "Paint with colors 0,1,0: cost 1+1+2=4. Or 0,1,0 is optimal."
+        }
+      ],
+      "hints": [
+        "Define dp[i][c] = minimum cost to paint panels 0..i where panel i uses color c.",
+        "Transition: dp[i][c] = cost[i][c] + min(dp[i-1][c'] for all c' != c). Use a running minimum to avoid O(NK^2)."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n, k = map(int, input().split())\ncost = [list(map(int, input().split())) for _ in range(n)]\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, k; cin >> n >> k;\n    vector<vector<int>> cost(n, vector<int>(k));\n    for(int i=0;i<n;i++) for(int j=0;j<k;j++) cin >> cost[i][j];\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "2 2\n1 3\n5 2", "output": "3" },
+        { "input": "3 2\n1 2\n3 1\n2 3", "output": "4" },
+        { "input": "1 3\n4 2 7", "output": "2" }
+      ],
+      "hidden": [
+        { "input": "4 3\n1 2 3\n3 2 1\n2 3 1\n1 2 3", "output": "4" },
+        { "input": "3 4\n1 1 1 1\n1 1 1 1\n1 1 1 1", "output": "2" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q14",
+    "type": "dsa",
+    "title": "Island Perimeter Calculator",
+    "difficulty": "medium",
+    "tags": ["Graphs", "BFS", "Matrix", "DFS"],
+    "content": {
+      "description": "Given a 2D grid of 0s and 1s where 1 represents land and 0 represents water, there is exactly one island (group of connected 1s). Compute the perimeter of the island. The perimeter is the total count of land-water or land-boundary edges.",
+      "input_format": "First line: two integers N and M. Next N lines: M space-separated integers (0 or 1).",
+      "output_format": "A single integer — the perimeter of the island.",
+      "constraints": ["1 <= N, M <= 100", "Grid contains exactly one island", "Grid values are 0 or 1"],
+      "examples": [
+        {
+          "input": "4 4\n0 1 0 0\n1 1 1 0\n0 1 0 0\n0 0 0 0",
+          "output": "12",
+          "explanation": "5 land cells forming a plus shape. Each land cell contributes (4 - neighbor_land_count) to perimeter."
+        },
+        {
+          "input": "1 1\n1",
+          "output": "4",
+          "explanation": "Single land cell. All 4 sides face boundary/water. Perimeter = 4."
+        }
+      ],
+      "hints": [
+        "For each land cell (value=1), start with contribution 4. Subtract 1 for each adjacent cell that is also land.",
+        "Sum all contributions. Alternatively: perimeter = 4 * land_count - 2 * shared_edges where shared_edges = number of adjacent land-land pairs."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n, m = map(int, input().split())\ngrid = [list(map(int, input().split())) for _ in range(n)]\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, m; cin >> n >> m;\n    vector<vector<int>> grid(n, vector<int>(m));\n    for(int i=0;i<n;i++) for(int j=0;j<m;j++) cin >> grid[i][j];\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "4 4\n0 1 0 0\n1 1 1 0\n0 1 0 0\n0 0 0 0", "output": "12" },
+        { "input": "1 1\n1", "output": "4" },
+        { "input": "2 2\n1 1\n1 1", "output": "8" }
+      ],
+      "hidden": [
+        { "input": "3 3\n0 0 0\n0 1 0\n0 0 0", "output": "4" },
+        { "input": "2 3\n1 1 1\n0 0 0", "output": "8" },
+        { "input": "3 4\n0 1 1 0\n0 1 1 0\n0 0 0 0", "output": "8" }
+      ]
+    },
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256
+  },
+  {
+    "id": "dsa-q15",
+    "type": "dsa",
+    "title": "Longest Non-Overlapping Repeated Substring",
+    "difficulty": "hard",
+    "tags": ["Strings", "Binary Search", "Hashing", "Rolling Hash"],
+    "content": {
+      "description": "Given a string S, find the length of the longest substring that appears at least twice in S with no overlap between the two occurrences. Two occurrences are non-overlapping if one ends before the other begins.",
+      "input_format": "A single line containing string S.",
+      "output_format": "A single integer — the length of the longest non-overlapping repeated substring (0 if none exists).",
+      "constraints": ["1 <= |S| <= 10^4", "S contains only lowercase English letters"],
+      "examples": [
+        {
+          "input": "abcabc",
+          "output": "3",
+          "explanation": "'abc' appears at positions 0 and 3 — non-overlapping. Length 3."
+        },
+        {
+          "input": "aabcaa",
+          "output": "2",
+          "explanation": "'aa' appears at 0 and 4 (non-overlapping). Longest non-overlapping repeated = 'aa' length 2."
+        }
+      ],
+      "hints": [
+        "Binary search on the answer length L. For a fixed L, check if any substring of length L appears at least twice non-overlappingly.",
+        "For the check, use a rolling hash or a set of substrings. For each occurrence, store its starting index. If any substring is seen at indices i and j where |i-j| >= L, return True."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "s = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string s;\n    cin >> s;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "abcabc", "output": "3" },
+        { "input": "aabcaa", "output": "2" },
+        { "input": "abcd", "output": "0" }
+      ],
+      "hidden": [
+        { "input": "aaaa", "output": "2" },
+        { "input": "abababab", "output": "6" },
+        { "input": "aaaaaa", "output": "3" }
+      ]
+    },
+    "time_limit_ms": 3000,
+    "memory_limit_mb": 512
+  },
+  {
+    "id": "dsa-q16",
+    "type": "dsa",
+    "title": "Maximum Rectangle in Histogram",
+    "difficulty": "hard",
+    "tags": ["Stack", "Arrays", "Divide and Conquer"],
+    "content": {
+      "description": "Given an array of N non-negative integers representing the heights of bars in a histogram (each bar has width 1), find the area of the largest rectangle that can be formed within the histogram.",
+      "input_format": "First line: integer N. Second line: N non-negative integers — the bar heights.",
+      "output_format": "A single integer — the maximum rectangle area.",
+      "constraints": ["1 <= N <= 10^5", "0 <= height[i] <= 10^4"],
+      "examples": [
+        {
+          "input": "6\n2 1 5 6 2 3",
+          "output": "10",
+          "explanation": "The largest rectangle uses bars 3 and 4 (heights 5 and 6), giving area = 5*2 = 10."
+        },
+        {
+          "input": "3\n3 3 3",
+          "output": "9",
+          "explanation": "All bars height 3, width 3. Area = 3*3 = 9."
+        }
+      ],
+      "hints": [
+        "Use a monotonic stack. For each bar, the maximum rectangle it can anchor has height = that bar's height, and width extending as far left and right as bars are >= that height.",
+        "Maintain a stack of indices in increasing order of heights. When a shorter bar is encountered, pop and calculate the rectangle using the popped bar as the minimum height."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n = int(input())\nheights = list(map(int, input().split()))\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n; cin >> n;\n    vector<int> h(n);\n    for(auto &x : h) cin >> x;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "6\n2 1 5 6 2 3", "output": "10" },
+        { "input": "3\n3 3 3", "output": "9" },
+        { "input": "1\n5", "output": "5" }
+      ],
+      "hidden": [
+        { "input": "5\n0 0 0 0 0", "output": "0" },
+        { "input": "4\n4 3 2 1", "output": "6" },
+        { "input": "7\n6 2 5 4 5 1 6", "output": "12" }
+      ]
+    },
+    "time_limit_ms": 3000,
+    "memory_limit_mb": 512
+  },
+  {
+    "id": "dsa-q17",
+    "type": "dsa",
+    "title": "Minimum Cost Path with Teleporters",
+    "difficulty": "hard",
+    "tags": ["Graphs", "Dijkstra", "Shortest Path", "Priority Queue"],
+    "content": {
+      "description": "You are on an N x M grid. Moving to an adjacent cell (up, down, left, right) costs 1. Additionally, there are T teleporters: each teleporter connects two cells bidirectionally and costs 0 to use. Find the minimum cost to travel from the top-left cell (0,0) to the bottom-right cell (N-1, M-1).",
+      "input_format": "First line: integers N, M, and T. Next T lines: four integers r1 c1 r2 c2 — teleporter connecting (r1,c1) and (r2,c2).",
+      "output_format": "A single integer — minimum cost, or -1 if unreachable.",
+      "constraints": ["1 <= N, M <= 500", "0 <= T <= 1000", "0 <= r1,r2 < N, 0 <= c1,c2 < M"],
+      "examples": [
+        {
+          "input": "3 3 1\n0 0 2 2",
+          "output": "0",
+          "explanation": "Teleport directly from (0,0) to (2,2) — the destination. Cost = 0."
+        },
+        {
+          "input": "3 3 0",
+          "output": "4",
+          "explanation": "No teleporters. Normal path: (0,0)->(0,1)->(0,2)->(1,2)->(2,2). Cost = 4."
+        }
+      ],
+      "hints": [
+        "Model as a weighted graph: grid cells are nodes. Adjacent moves have weight 1, teleporter edges have weight 0.",
+        "Use Dijkstra's algorithm with a min-heap. BFS on 0-weight edges (teleporters) and priority queue for weight-1 moves. This is a 0-1 BFS variant."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n, m, t = map(int, input().split())\nteleporters = [tuple(map(int, input().split())) for _ in range(t)]\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, m, t; cin >> n >> m >> t;\n    vector<tuple<int,int,int,int>> tp(t);\n    for(auto &[r1,c1,r2,c2]:tp) cin >> r1 >> c1 >> r2 >> c2;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "3 3 1\n0 0 2 2", "output": "0" },
+        { "input": "3 3 0", "output": "4" },
+        { "input": "2 2 0", "output": "2" }
+      ],
+      "hidden": [
+        { "input": "5 5 2\n0 0 4 0\n4 0 4 4", "output": "0" },
+        { "input": "3 4 1\n1 1 1 2", "output": "3" },
+        { "input": "1 1 0", "output": "0" }
+      ]
+    },
+    "time_limit_ms": 3000,
+    "memory_limit_mb": 512
+  },
+  {
+    "id": "dsa-q18",
+    "type": "dsa",
+    "title": "Longest Palindromic Subsequence Count",
+    "difficulty": "hard",
+    "tags": ["DP", "Palindrome", "Combinatorics"],
+    "content": {
+      "description": "Given a string S, find the length of the longest palindromic subsequence AND the count of distinct palindromic subsequences of that maximum length. Output both values modulo 10^9 + 7.",
+      "input_format": "A single line containing string S.",
+      "output_format": "Two space-separated integers: max palindromic subsequence length and its count modulo 10^9+7.",
+      "constraints": ["1 <= |S| <= 500", "S contains only lowercase English letters"],
+      "examples": [
+        {
+          "input": "bbbab",
+          "output": "4 1",
+          "explanation": "Longest palindromic subsequence is 'bbbb' of length 4. Only 1 way to pick it."
+        },
+        {
+          "input": "racecar",
+          "output": "7 1",
+          "explanation": "The entire string 'racecar' is a palindrome of length 7. Count = 1."
+        }
+      ],
+      "hints": [
+        "Use 2D DP: let dp[i][j] = length of longest palindromic subsequence in S[i..j], and cnt[i][j] = number of such subsequences.",
+        "If S[i]==S[j]: dp[i][j] = dp[i+1][j-1]+2, cnt[i][j] = cnt[i+1][j-1]. Else: dp[i][j]=max of left/right, cnt depends on which side wins."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "s = input().strip()\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nconst int MOD = 1e9+7;\nint main() {\n    string s;\n    cin >> s;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "bbbab", "output": "4 1" },
+        { "input": "racecar", "output": "7 1" },
+        { "input": "aab", "output": "2 1" }
+      ],
+      "hidden": [
+        { "input": "abacaba", "output": "7 1" },
+        { "input": "aaaa", "output": "4 1" },
+        { "input": "abcd", "output": "1 4" }
+      ]
+    },
+    "time_limit_ms": 3000,
+    "memory_limit_mb": 512
+  },
+  {
+    "id": "dsa-q19",
+    "type": "dsa",
+    "title": "K-Distinct Subarray Count",
+    "difficulty": "hard",
+    "tags": ["Sliding Window", "HashMap", "Two Pointers"],
+    "content": {
+      "description": "Given an array of N positive integers and an integer K, count the number of contiguous subarrays that contain exactly K distinct values. Repeated occurrences of the same value count as one distinct value.",
+      "input_format": "First line: integers N and K. Second line: N space-separated positive integers.",
+      "output_format": "A single integer — the count of subarrays with exactly K distinct values.",
+      "constraints": ["1 <= K <= N <= 2 * 10^4", "1 <= arr[i] <= N"],
+      "examples": [
+        {
+          "input": "5 2\n1 2 1 2 3",
+          "output": "7",
+          "explanation": "Subarrays with exactly 2 distinct values: [1,2],[2,1],[1,2],[1,2,1],[2,1,2],[1,2,1,2],[2,1,2,1] wait — total is 7."
+        },
+        {
+          "input": "4 1\n1 2 1 2",
+          "output": "4",
+          "explanation": "Subarrays with exactly 1 distinct: [1](pos0), [2](pos1), [1](pos2), [2](pos3). Count=4."
+        }
+      ],
+      "hints": [
+        "Use the identity: count(exactly K distinct) = count(at most K distinct) - count(at most K-1 distinct).",
+        "Implement atMostK(k): use a sliding window with a frequency map. Expand right pointer; shrink left when distinct count exceeds k. Add (right - left + 1) for each right."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "n, k = map(int, input().split())\narr = list(map(int, input().split()))\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, k; cin >> n >> k;\n    vector<int> arr(n);\n    for(auto &x : arr) cin >> x;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "5 2\n1 2 1 2 3", "output": "7" },
+        { "input": "4 1\n1 2 1 2", "output": "4" },
+        { "input": "3 3\n1 2 3", "output": "1" }
+      ],
+      "hidden": [
+        { "input": "6 3\n1 2 3 1 2 3", "output": "10" },
+        { "input": "5 5\n1 2 3 4 5", "output": "1" },
+        { "input": "4 2\n1 1 1 2", "output": "3" }
+      ]
+    },
+    "time_limit_ms": 3000,
+    "memory_limit_mb": 512
+  },
+  {
+    "id": "dsa-q20",
+    "type": "dsa",
+    "title": "Reconstruct Itinerary from Tickets",
+    "difficulty": "hard",
+    "tags": ["Graphs", "Eulerian Path", "DFS", "Greedy"],
+    "content": {
+      "description": "You are given a list of airline tickets represented as [from, to] pairs. Reconstruct the itinerary in order. The journey must begin from 'START'. Use all tickets exactly once. If multiple valid itineraries exist, return the one with the lexicographically smallest airport order at each step.",
+      "input_format": "First line: integer T (number of tickets). Next T lines: two space-separated strings — from and to airport codes.",
+      "output_format": "The airports in itinerary order, space-separated on a single line.",
+      "constraints": ["1 <= T <= 300", "All strings are uppercase letters of length 3", "A valid itinerary always exists", "Journey starts from 'START'"],
+      "examples": [
+        {
+          "input": "3\nSTART ATL\nATL JFK\nJFK LAX",
+          "output": "START ATL JFK LAX",
+          "explanation": "Straight path: START->ATL->JFK->LAX. All tickets used."
+        },
+        {
+          "input": "4\nSTART ATL\nATL LAX\nLAX ATL\nATL JFK",
+          "output": "START ATL LAX ATL JFK",
+          "explanation": "START->ATL->LAX->ATL->JFK uses all 4 tickets. LAX < JFK so visit LAX first from ATL."
+        }
+      ],
+      "hints": [
+        "Build an adjacency list. Sort each neighbor list lexicographically so you always pick the smallest next airport.",
+        "Use Hierholzer's algorithm for Eulerian path: DFS from START, and prepend each airport to the result only when backtracking (all outgoing tickets exhausted)."
+      ]
+    },
+    "languages": [
+      { "id": 71, "name": "python3", "displayName": "Python 3" },
+      { "id": 54, "name": "cpp", "displayName": "C++ 17" },
+      { "id": 50, "name": "c", "displayName": "C" },
+      { "id": 62, "name": "java", "displayName": "Java" }
+    ],
+    "default_language": 71,
+    "starter_code": {
+      "python3": "t = int(input())\ntickets = [input().split() for _ in range(t)]\n# Write your solution here\n",
+      "cpp": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int t; cin >> t;\n    vector<pair<string,string>> tickets(t);\n    for(auto &[a,b] : tickets) cin >> a >> b;\n    // Write your solution here\n    return 0;\n}"
+    },
+    "test_cases": {
+      "public": [
+        { "input": "3\nSTART ATL\nATL JFK\nJFK LAX", "output": "START ATL JFK LAX" },
+        { "input": "4\nSTART ATL\nATL LAX\nLAX ATL\nATL JFK", "output": "START ATL LAX ATL JFK" },
+        { "input": "2\nSTART BOM\nBOM DEL", "output": "START BOM DEL" }
+      ],
+      "hidden": [
+        { "input": "5\nSTART A\nA B\nB C\nC A\nA D", "output": "START A B C A D" },
+        { "input": "3\nSTART ZZZ\nZZZ AAA\nAAA ZZZ", "output": "START ZZZ AAA ZZZ" },
+        { "input": "2\nSTART X\nX START", "output": "START X START" }
+      ]
+    },
+    "time_limit_ms": 3000,
+    "memory_limit_mb": 512
+  }
+]

@@ -105,8 +105,8 @@ async function checkTestManagementPermission(
     throw new Error("User not found");
   }
 
-  // College super admins and college admins can manage all tests
-  if (allowedRoles.includes(user.role) || user.role === "super_admin" || user.role === "college_admin") {
+  // Super admins and college admins can manage all tests
+  if (allowedRoles.includes(user.role) || user.role === "product_admin" || user.role === "college_admin") {
     return true;
   }
 
@@ -172,6 +172,19 @@ function determineTestStatus(
     return "completed";
   }
 }
+
+const TEST_QUESTION_SELECT = {
+  id: true,
+  type: true,
+  content: true,
+  marks: true,
+  options: true,
+  correctAnswer: true,
+  explanation: true,
+  orderIndex: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 export class TestService {
   /**
@@ -257,7 +270,9 @@ export class TestService {
             code: true,
           },
         },
-        questions: true,
+        questions: {
+          select: TEST_QUESTION_SELECT,
+        },
       },
     });
 
@@ -348,6 +363,7 @@ export class TestService {
         },
         questions: {
           orderBy: { orderIndex: "asc" },
+          select: TEST_QUESTION_SELECT,
         },
       },
     });
@@ -422,6 +438,7 @@ export class TestService {
         },
         questions: {
           orderBy: { orderIndex: "asc" },
+          select: TEST_QUESTION_SELECT,
         },
         _count: {
           select: {
@@ -453,12 +470,25 @@ export class TestService {
     filters: TestFilters = {},
     options: PaginationOptions = {}
   ) {
-    const {
-      page = 1,
-      limit = 20,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-    } = options;
+    const rawPage = options.page ?? 1;
+    const rawLimit = options.limit ?? 20;
+    const rawSortBy = options.sortBy ?? "createdAt";
+    const rawSortOrder = options.sortOrder ?? "desc";
+
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 100) : 20;
+
+    const allowedSortFields = new Set([
+      "createdAt",
+      "updatedAt",
+      "title",
+      "status",
+      "scheduledStartTime",
+      "scheduledEndTime",
+      "totalMarks",
+    ]);
+    const sortBy = allowedSortFields.has(rawSortBy) ? rawSortBy : "createdAt";
+    const sortOrder: "asc" | "desc" = rawSortOrder === "asc" ? "asc" : "desc";
 
     const skip = (page - 1) * limit;
 
@@ -638,6 +668,7 @@ export class TestService {
         orderIndex: data.orderIndex ?? questionCount,
         createdBy: 'system',
       },
+      select: TEST_QUESTION_SELECT,
     });
 
     // Update test total marks
@@ -657,7 +688,15 @@ export class TestService {
     // Verify question exists
     const existingQuestion = await prisma.question.findUnique({
       where: { id: questionId },
-      include: { test: true },
+      select: {
+        id: true,
+        testId: true,
+        test: {
+          select: {
+            status: true,
+          },
+        },
+      },
     });
 
     if (!existingQuestion) {
@@ -665,17 +704,18 @@ export class TestService {
     }
 
     if (!existingQuestion.test || !existingQuestion.testId) {
-      throw new Error("Question is not associated with any test");
+      throw new Error("Question is not associated with a test");
     }
 
-    const existingQuestionTestId = existingQuestion.testId;
+    const questionTest = existingQuestion.test;
+    const questionTestId = existingQuestion.testId;
 
     // Don't allow editing questions in active or completed tests
     if (
-      existingQuestion.test.status === "active" ||
-      existingQuestion.test.status === "completed"
+      questionTest.status === "active" ||
+      questionTest.status === "completed"
     ) {
-      throw new Error(`Cannot edit questions in ${existingQuestion.test.status} test`);
+      throw new Error(`Cannot edit questions in ${questionTest.status} test`);
     }
 
     const updateData: any = { ...data };
@@ -692,13 +732,14 @@ export class TestService {
     const question = await prisma.question.update({
       where: { id: questionId },
       data: updateData,
+      select: TEST_QUESTION_SELECT,
     });
 
     // Update test total marks if marks changed
     if (data.marks !== undefined) {
-      const totalMarks = await calculateTotalMarks(existingQuestionTestId);
+      const totalMarks = await calculateTotalMarks(questionTestId);
       await prisma.test.update({
-        where: { id: existingQuestionTestId },
+        where: { id: questionTestId },
         data: { totalMarks },
       });
     }
@@ -713,7 +754,15 @@ export class TestService {
     // Verify question exists
     const question = await prisma.question.findUnique({
       where: { id: questionId },
-      include: { test: true },
+      select: {
+        id: true,
+        testId: true,
+        test: {
+          select: {
+            status: true,
+          },
+        },
+      },
     });
 
     if (!question) {
@@ -721,18 +770,20 @@ export class TestService {
     }
 
     if (!question.test || !question.testId) {
-      throw new Error("Question is not associated with any test");
+      throw new Error("Question is not associated with a test");
     }
 
+    const questionTest = question.test;
     const questionTestId = question.testId;
 
     // Don't allow deleting questions from active or completed tests
-    if (question.test.status === "active" || question.test.status === "completed") {
-      throw new Error(`Cannot delete questions from ${question.test.status} test`);
+    if (questionTest.status === "active" || questionTest.status === "completed") {
+      throw new Error(`Cannot delete questions from ${questionTest.status} test`);
     }
 
     await prisma.question.delete({
       where: { id: questionId },
+      select: { id: true },
     });
 
     // Update test total marks
@@ -761,6 +812,7 @@ export class TestService {
     const questions = await prisma.question.findMany({
       where: { testId },
       orderBy: { orderIndex: "asc" },
+      select: TEST_QUESTION_SELECT,
     });
 
     return questions;
@@ -790,6 +842,7 @@ export class TestService {
         id: { in: questionIds },
         testId,
       },
+      select: { id: true },
     });
 
     if (questions.length !== questionIds.length) {
@@ -801,6 +854,7 @@ export class TestService {
       prisma.question.update({
         where: { id: questionId },
         data: { orderIndex: index },
+        select: { id: true },
       })
     );
 
@@ -925,6 +979,7 @@ export class TestService {
         },
         questions: {
           orderBy: { orderIndex: "asc" },
+          select: TEST_QUESTION_SELECT,
         },
       },
     });
@@ -932,3 +987,4 @@ export class TestService {
     return updatedTest;
   }
 }
+

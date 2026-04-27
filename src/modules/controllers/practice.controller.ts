@@ -43,6 +43,21 @@ const mcqHistoryQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
+function parseCorrectAnswerIndex(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
 // ─── List MCQ Topics ───────────────────────────────────────────────────────────
 export async function listMcqTopics(req: Request, res: Response): Promise<void> {
   try {

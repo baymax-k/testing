@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Admin College API Tester</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f4f6ef;
+        --ink: #1f2a1c;
+        --card: #fcfdf9;
+        --muted: #6f7f67;
+        --line: #d7decd;
+        --primary: #14532d;
+        --primary-strong: #0f3f21;
+        --accent: #dbeafe;
+        --warn: #7c2d12;
+        --good: #14532d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+        background:
+          radial-gradient(circle at 15% 10%, #e2f3d9 0%, transparent 35%),
+          radial-gradient(circle at 90% 25%, #ffecc7 0%, transparent 30%),
+          linear-gradient(160deg, #f3f7ed 0%, #f7f4eb 45%, #f0f4fb 100%);
+        min-height: 100vh;
+      }
+
+      .wrap {
+        width: min(1180px, 92vw);
+        margin: 28px auto 40px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #183f2b, #1f4f35);
+        color: #edf7e9;
+        border: 1px solid #2f6547;
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 10px 28px rgba(8, 30, 16, 0.18);
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(1.35rem, 2.2vw, 2rem);
+        letter-spacing: 0.2px;
+      }
+
+      .hero p {
+        margin: 10px 0 0;
+        color: #d0e7cf;
+      }
+
+      .grid {
+        margin-top: 18px;
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(12, 1fr);
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .card h2 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+      }
+
+      .span-12 { grid-column: span 12; }
+      .span-6 { grid-column: span 6; }
+      .span-4 { grid-column: span 4; }
+
+      @media (max-width: 900px) {
+        .span-6, .span-4 { grid-column: span 12; }
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 720px) {
+        .row { grid-template-columns: 1fr; }
+      }
+
+      label {
+        display: block;
+        margin: 8px 0 6px;
+        font-size: 0.82rem;
+        color: #3c4d35;
+      }
+
+      input, textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 11px;
+        font-size: 0.94rem;
+        font-family: "Space Grotesk", sans-serif;
+        background: #ffffff;
+        color: var(--ink);
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 76px;
+      }
+
+      .actions {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: #f2f7f1;
+      }
+
+      .btn-primary:hover { background: var(--primary-strong); }
+
+      .btn-soft {
+        background: #e8f0df;
+        color: #27402a;
+      }
+
+      .btn-danger {
+        background: #ffe1d7;
+        color: #6b1f08;
+      }
+
+      .hint {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .log {
+        margin-top: 10px;
+        border: 1px solid #d8e0d3;
+        border-radius: 12px;
+        background: #111914;
+        color: #d3edd2;
+        padding: 12px;
+        min-height: 260px;
+        max-height: 420px;
+        overflow: auto;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .ok { color: #9fe8a0; }
+      .bad { color: #ffb3b3; }
+      .warn { color: #ffd28f; }
+
+      .status {
+        margin-top: 8px;
+        font-size: 0.84rem;
+        color: #36513b;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Product Admin College Endpoint Tester</h1>
+        <p>
+          Use this page to sign in and test college creation flows. Cookie-based auth is enabled with credentials include.
+        </p>
+      </section>
+
+      <section class="grid">
+        <article class="card span-12">
+          <h2>API Target</h2>
+          <div class="row">
+            <div>
+              <label for="baseUrl">Base URL</label>
+              <input id="baseUrl" value="http://localhost:5000" />
+            </div>
+            <div>
+              <label for="collegeIdLookup">College ID lookup</label>
+              <input id="collegeIdLookup" placeholder="paste college id for get by id" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-soft" id="btnUseOrigin">Use Current Origin</button>
+            <button class="btn-soft" id="btnGetAllColleges">Get All Colleges</button>
+            <button class="btn-soft" id="btnGetCollegeById">Get College By ID</button>
+          </div>
+          <p class="hint">Product-admin routes are under /api/product-admin. Generic auth routes are under /api/v1/auth.</p>
+        </article>
+
+        <article class="card span-6">
+          <h2>1) Sign In As Super Admin</h2>
+          <label for="identifier">Identifier (email or username)</label>
+          <input id="identifier" placeholder="admin@codeethnics.com" />
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Admin@1234" />
+          <div class="actions">
+            <button class="btn-primary" id="btnSignIn">Sign In</button>
+            <button class="btn-danger" id="btnSignOut">Sign Out</button>
+          </div>
+          <p class="hint">Create college requires role product_admin in current controller logic.</p>
+          <div class="status" id="authStatus">Not signed in</div>
+        </article>
+
+        <article class="card span-6">
+          <h2>2) Create College</h2>
+          <div class="row">
+            <div>
+              <label for="collegeName">College Name</label>
+              <input id="collegeName" placeholder="CodeEthnics Institute" />
+            </div>
+            <div>
+              <label for="collegeCode">College Code</label>
+              <input id="collegeCode" placeholder="CEI-001" />
+            </div>
+          </div>
+          <label for="collegeDesc">Description</label>
+          <textarea id="collegeDesc" placeholder="Optional description"></textarea>
+          <div class="row">
+            <div>
+              <label for="collegeWebsite">Website</label>
+              <input id="collegeWebsite" placeholder="https://example.edu" />
+            </div>
+            <div>
+              <label for="collegeLocation">Location</label>
+              <input id="collegeLocation" placeholder="Bengaluru" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-primary" id="btnCreateCollege">Create College</button>
+            <button class="btn-soft" id="btnRandomCode">Randomize Code</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>3) Create College Admin</h2>
+          <label for="adminCollegeId">College ID</label>
+          <input id="adminCollegeId" placeholder="auto-filled after create college" />
+          <div class="row">
+            <div>
+              <label for="adminName">Admin Name</label>
+              <input id="adminName" placeholder="College Admin" />
+            </div>
+            <div>
+              <label for="adminEmail">Admin Email</label>
+              <input id="adminEmail" placeholder="college.admin@example.com" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="adminPassword">Admin Password</label>
+              <input id="adminPassword" type="password" placeholder="CollegeAdmin@123" />
+            </div>
+            <div>
+              <label for="adminPhone">Admin Phone</label>
+              <input id="adminPhone" placeholder="Optional" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-primary" id="btnCreateCollegeAdmin">Create College Admin</button>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>4) Assign Existing User As Admin</h2>
+          <label for="assignCollegeId">College ID</label>
+          <input id="assignCollegeId" placeholder="college id" />
+          <label for="assignAdminId">User ID To Assign</label>
+          <input id="assignAdminId" placeholder="user id" />
+          <div class="actions">
+            <button class="btn-primary" id="btnAssignAdmin">Assign Admin</button>
+          </div>
+        </article>
+
+        <article class="card span-12">
+          <h2>Response Console</h2>
+          <div class="actions">
+            <button class="btn-soft" id="btnPingMe">Ping Auth Endpoint</button>
+            <button class="btn-danger" id="btnClearLog">Clear Console</button>
+          </div>
+          <pre class="log" id="log"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const logEl = document.getElementById("log");
+      const authStatusEl = document.getElementById("authStatus");
+
+      const get = (id) => document.getElementById(id);
+      const baseUrl = () => get("baseUrl").value.trim().replace(/\/$/, "");
+
+      function ts() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function print(label, payload, ok = true) {
+        const classTag = ok ? "ok" : "bad";
+        const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+        logEl.textContent += `[${ts()}] ${label}\n${body}\n\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+        logEl.className = `log ${classTag}`;
+      }
+
+      async function callApi(method, path, body) {
+        const options = {
+          method,
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+
+        if (body !== undefined) {
+          options.body = JSON.stringify(body);
+        }
+
+        const url = `${baseUrl()}${path}`;
+        let response;
+
+        try {
+          response = await fetch(url, options);
+        } catch (err) {
+          print(`${method} ${path} NETWORK ERROR`, String(err), false);
+          throw err;
+        }
+
+        const text = await response.text();
+        let parsed;
+        try {
+          parsed = text ? JSON.parse(text) : { message: "No response body" };
+        } catch {
+          parsed = text;
+        }
+
+        print(`${method} ${path} -> ${response.status}`, parsed, response.ok);
+        return { ok: response.ok, status: response.status, data: parsed };
+      }
+
+      function randomCode() {
+        const date = new Date();
+        const dd = `${date.getDate()}`.padStart(2, "0");
+        const mm = `${date.getMonth() + 1}`.padStart(2, "0");
+        const rand = Math.floor(Math.random() * 900 + 100);
+        return `COL-${dd}${mm}-${rand}`;
+      }
+
+      get("btnUseOrigin").addEventListener("click", () => {
+        get("baseUrl").value = window.location.origin;
+        print("BASE URL", { value: window.location.origin }, true);
+      });
+
+      get("btnRandomCode").addEventListener("click", () => {
+        get("collegeCode").value = randomCode();
+      });
+
+      get("btnClearLog").addEventListener("click", () => {
+        logEl.textContent = "";
+      });
+
+      get("btnSignIn").addEventListener("click", async () => {
+        const identifier = get("identifier").value.trim();
+        const password = get("password").value;
+
+        if (!identifier || !password) {
+          print("AUTH", "Identifier and password are required", false);
+          return;
+        }
+
+        const result = await callApi("POST", "/api/v1/auth/sign-in", { identifier, password });
+        authStatusEl.textContent = result.ok ? "Signed in (cookie set by server)" : "Sign in failed";
+      });
+
+      get("btnSignOut").addEventListener("click", async () => {
+        await callApi("POST", "/api/v1/auth/sign-out");
+        authStatusEl.textContent = "Signed out";
+      });
+
+      get("btnPingMe").addEventListener("click", async () => {
+        await callApi("GET", "/api/product-admin/auth/me");
+      });
+
+      get("btnCreateCollege").addEventListener("click", async () => {
+        const payload = {
+          name: get("collegeName").value.trim(),
+          code: get("collegeCode").value.trim(),
+          description: get("collegeDesc").value.trim() || null,
+          website: get("collegeWebsite").value.trim() || null,
+          location: get("collegeLocation").value.trim() || null,
+        };
+
+        if (!payload.name || !payload.code) {
+          print("CREATE COLLEGE", "name and code are required", false);
+          return;
+        }
+
+        const result = await callApi("POST", "/api/product-admin/colleges", payload);
+
+        const createdId = result.data && result.data.college && result.data.college.id;
+        if (result.ok && createdId) {
+          get("adminCollegeId").value = createdId;
+          get("assignCollegeId").value = createdId;
+          get("collegeIdLookup").value = createdId;
+        }
+      });
+
+      get("btnGetAllColleges").addEventListener("click", async () => {
+        await callApi("GET", "/api/product-admin/colleges");
+      });
+
+      get("btnGetCollegeById").addEventListener("click", async () => {
+        const id = get("collegeIdLookup").value.trim();
+        if (!id) {
+          print("GET COLLEGE", "College ID is required", false);
+          return;
+        }
+        await callApi("GET", `/api/product-admin/colleges/${encodeURIComponent(id)}`);
+      });
+
+      get("btnCreateCollegeAdmin").addEventListener("click", async () => {
+        const payload = {
+          collegeId: get("adminCollegeId").value.trim(),
+          name: get("adminName").value.trim(),
+          email: get("adminEmail").value.trim(),
+          password: get("adminPassword").value,
+          phone: get("adminPhone").value.trim() || null,
+        };
+
+        if (!payload.collegeId || !payload.name || !payload.email || !payload.password) {
+          print("CREATE COLLEGE ADMIN", "collegeId, name, email and password are required", false);
+          return;
+        }
+
+        await callApi("POST", "/api/product-admin/colleges/admins/create", payload);
+      });
+
+      get("btnAssignAdmin").addEventListener("click", async () => {
+        const payload = {
+          collegeId: get("assignCollegeId").value.trim(),
+          adminId: get("assignAdminId").value.trim(),
+        };
+
+        if (!payload.collegeId || !payload.adminId) {
+          print("ASSIGN ADMIN", "collegeId and adminId are required", false);
+          return;
+        }
+
+        await callApi("POST", "/api/product-admin/colleges/assign-admin", payload);
+      });
+
+      get("collegeCode").value = randomCode();
+      print("READY", {
+        page: "product-admin-college-test.html",
+        baseUrl: baseUrl(),
+        note: "Sign in first, then create college",
+      });
+    </script>
+  </body>
+</html>
+

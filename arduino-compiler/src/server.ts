@@ -71,6 +71,31 @@ interface Board {
   fqbn: string;
 }
 
+function findHexFileRecursive(dirPath: string): string | null {
+  if (!fsSync.existsSync(dirPath)) {
+    return null;
+  }
+
+  const entries = fsSync.readdirSync(dirPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      const nested = findHexFileRecursive(fullPath);
+      if (nested) {
+        return nested;
+      }
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith('.hex')) {
+      return fullPath;
+    }
+  }
+
+  return null;
+}
+
 // Supported Arduino boards
 const SUPPORTED_BOARDS: Board[] = [
   { id: 'uno', name: 'Arduino Uno', fqbn: 'arduino:avr:uno' },
@@ -172,7 +197,7 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
         }
       }
       
-      const compileCmd = `${arduinoCliPath} compile --fqbn ${fqbn} ${sketchDir}`;
+      const compileCmd = `${arduinoCliPath} compile --fqbn ${fqbn} --export-binaries ${sketchDir}`;
       console.log(`🔨 Compiling with: ${compileCmd}`);
       
       const { stdout, stderr } = await execAsync(compileCmd, { 
@@ -180,18 +205,32 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
         timeout: 30000 // 30 second timeout
       });
       
-      // Check if hex file was generated
-      const hexFile = path.join(sketchDir, 'build', fqbn.replace(/:/g, '.'), sketchName + '.ino.hex');
+      // Check if hex file was generated.
+      // Arduino CLI output path can vary between versions/platforms,
+      // so try canonical path first, then recursive fallback search.
+      const expectedHexFile = path.join(sketchDir, 'build', fqbn.replace(/:/g, '.'), sketchName + '.ino.hex');
       let hexContent = '';
       let hexSize = 0;
       
       try {
-        const hexData = await fs.readFile(hexFile, 'utf8');
+        const resolvedHexFile = fsSync.existsSync(expectedHexFile)
+          ? expectedHexFile
+          : findHexFileRecursive(sketchDir) || findHexFileRecursive(tempDir);
+
+        if (!resolvedHexFile) {
+          throw new Error('Compilation completed but HEX file was not found');
+        }
+
+        const hexData = await fs.readFile(resolvedHexFile, 'utf8');
         hexContent = hexData;
         hexSize = Buffer.byteLength(hexData, 'utf8');
-        console.log(`✅ Generated hex file: ${hexSize} bytes`);
+        console.log(`✅ Generated hex file: ${resolvedHexFile} (${hexSize} bytes)`);
       } catch (hexError) {
-        console.log('⚠️ No hex file generated or readable:', hexError);
+        throw new Error(
+          `Compilation succeeded but HEX output is unavailable: ${
+            hexError instanceof Error ? hexError.message : String(hexError)
+          }`
+        );
       }
       
       const compileTime = Date.now() - startTime;
@@ -238,6 +277,7 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
       
       res.json({
         success: true,
+        hexCode: hexContent,
         hexFile: hexContent,
         hexSize,
         compileTimeMs: compileTime,
@@ -247,6 +287,10 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
         stderr: stderr || '',
         errors: [],
         warnings,
+        memoryUsage: {
+          program: programBytes,
+          data: dataBytes,
+        },
         codeQuality
       });
 

@@ -21,7 +21,6 @@ enum Role {
   hod
   principal
   college_admin
-  super_admin
   product_admin
 }
 
@@ -47,6 +46,14 @@ enum TestStatus {
   active
   completed
   archived
+}
+
+enum HackathonStatus {
+  draft
+  registration_open
+  in_progress
+  completed
+  cancelled
 }
 
 enum QuestionType {
@@ -83,6 +90,25 @@ enum ProctoringSeverity {
   medium
   high
 }
+enum ProductAdminPage {
+  dashboard
+  colleges
+  hackathons
+  public_tests
+  public_problems
+  problems
+  mcq_list
+  rbac
+  users_management
+  settings
+}
+
+enum McqSessionStatus {
+  in_progress
+  submitted
+}
+
+// ─── Auth Models ─────────────────────────────────────────────────────────────
 
 model User {
   id            String    @id @default(cuid())
@@ -116,14 +142,26 @@ model User {
   practiceActivities  PracticeActivity[]
   practiceRandomSets  PracticeRandomSet[]
 
+  // College/Organization management (Product Admin)
+  collegesAdministered College[] @relation("CollegeAdmin")
+  collegesCreated       College[] @relation("CollegeCreatedBy")
+
   // College-admin flow
   mentoredBatches Batch[]      @relation("BatchMentor")
   createdTests    Test[]       @relation("TestCreatedBy")
   testAttempts    TestAttempt[] @relation("StudentTestAttempts")
   proctoringVideos        ProctoringVideo[] @relation("ProctoringVideoStudent")
   reviewedProctoringVideos ProctoringVideo[] @relation("ProctoringVideoReviewer")
+  productAdminSettings ProductAdminSettings?
+  productAdminPagePermissions ProductAdminPagePermission[] @relation("ProductAdminPagePermissions")
   departmentAsHod Department?  @relation("DepartmentHod")
 
+  // Hackathon management
+  hackathonsCreated HackathonTeam[] @relation("HackathonTeamLead")
+  hackathonsCreatedByUser Hackathon[] @relation("HackathonCreator")
+  hackathonParticipations HackathonParticipant[] @relation("HackathonParticipants")
+
+  @@index([collegeId])
   @@index([departmentId])
   @@index([batchId])
   @@index([collegeId])
@@ -200,42 +238,89 @@ model Account {
   @@map("account")
 }
 
+// ─── College & Organization Models ───────────────────────────────────────────
+
 model College {
-  id          String       @id @default(cuid())
-  name        String
-  code        String       @unique
-  description String?
-  website     String?
-  location    String?
-  adminId     String?
-  createdById String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  users       User[]
-  departments Department[]
+  id             String       @id @default(cuid())
+  name           String       @unique
+  code           String       @unique
+  description    String?
+  website        String?
+  location       String?
+  adminId        String?      @unique
+  admin          User?        @relation("CollegeAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+  createdById    String
+  createdBy      User         @relation("CollegeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  departments    Department[]
+  users          User[]       @relation("CollegeUsers")
+  hackathons     Hackathon[]
 
   @@index([adminId])
   @@index([createdById])
   @@map("college")
 }
 
+model ProductAdminSettings {
+  id                           String   @id @default(cuid())
+  userId                       String   @unique
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification settings
+  emailNotifications           Boolean  @default(true)
+  notifyOnCollegeCreation      Boolean  @default(true)
+  notifyOnAdminAssignment      Boolean  @default(true)
+  notifyOnUserRegistration     Boolean  @default(false)
+  
+  // Display preferences
+  theme                        String   @default("light")
+  language                     String   @default("en")
+  itemsPerPage                 Int      @default(10)
+  
+  // Other settings
+  twoFactorEnabled             Boolean  @default(false)
+  sessionTimeout               Int      @default(3600) // seconds
+  
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  @@map("product_admin_settings")
+}
+
+model ProductAdminPagePermission {
+  id          String           @id @default(cuid())
+  adminUserId String
+  adminUser   User             @relation("ProductAdminPagePermissions", fields: [adminUserId], references: [id], onDelete: Cascade)
+  page        ProductAdminPage
+  canView     Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([adminUserId, page])
+  @@index([adminUserId])
+  @@index([page])
+  @@map("product_admin_page_permission")
+}
+
 model Department {
   id          String   @id @default(cuid())
-  name        String   @unique
-  code        String   @unique
+  name        String
+  code        String
   description String?
-  collegeId   String?
-  college     College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
-  hodId       String?  @unique
-  hod         User?    @relation("DepartmentHod", fields: [hodId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  users       User[]   @relation("UserDepartment")
+  collegeId   String
+  college     College   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  hodId       String?   @unique
+  hod         User?     @relation("DepartmentHod", fields: [hodId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  users       User[]    @relation("UserDepartment")
   batches     Batch[]
   tests       Test[]
 
+  @@unique([code, collegeId])
+  @@unique([name, collegeId])
   @@index([collegeId])
-  @@index([hodId])
   @@map("department")
 }
 
@@ -258,10 +343,6 @@ model Batch {
   @@index([departmentId])
   @@index([mentorId])
   @@map("batch")
-}
-enum McqSessionStatus {
-  in_progress
-  submitted
 }
 
 // ─── Models ──────────────────────────────────────────────────────────────────
@@ -415,6 +496,12 @@ model Test {
   batch               Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
   createdById         String
   createdBy           User         @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  
+  // Public availability
+  isPublic            Boolean      @default(false)
+  difficulty          String?      @default("medium") // easy, medium, hard
+  tags                String[]     @default([])        // ["DSA", "DP", "Arrays"] etc
+  
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   questions           Question[]
@@ -422,10 +509,12 @@ model Test {
   proctoringVideos    ProctoringVideo[]
 
   @@index([status])
+  @@index([isPublic])
   @@index([departmentId])
   @@index([batchId])
   @@index([createdById])
   @@index([scheduledStartTime])
+  @@index([difficulty])
   @@map("test")
 }
 
@@ -704,3 +793,106 @@ model PracticeRandomSet {
   @@index([userId])
   @@map("practice_random_set")
 }
+
+// ─── Hackathon Management ────────────────────────────────────────────────────
+model Hackathon {
+  id              String            @id @default(cuid())
+  title           String            @db.VarChar(255)
+  description     String?           @db.Text
+  shortDescription String?          @db.VarChar(500)
+  collegeId       String
+  createdByUserId String            // Product admin who created it
+  
+  // Timing
+  startDate       DateTime
+  endDate         DateTime
+  registrationDeadline DateTime?
+  
+  // Settings
+  status          HackathonStatus   @default(draft)
+  maxTeams        Int?              // null = unlimited
+  maxTeamSize     Int               @default(5)
+  minTeamSize     Int               @default(1)
+  theme           String?           // e.g., "AI/ML", "Web Development"
+  problemStatementUrl String?       @db.VarChar(500)
+  
+  // Visibility & Rules
+  isPublic        Boolean           @default(true)
+  allowRemoteParticipation Boolean @default(true)
+  prizesInfo      String?           @db.Text     // JSON or description
+  rulesUrl        String?           @db.VarChar(500)
+  
+  // Tracking
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  college         College           @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  createdBy       User              @relation("HackathonCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  teams           HackathonTeam[]
+  participants    HackathonParticipant[]
+  
+  @@index([collegeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([createdByUserId])
+  @@map("hackathon")
+}
+
+model HackathonTeam {
+  id              String   @id @default(cuid())
+  hackathonId     String
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  leaderUserId    String   // Team lead
+  
+  // Submission details (after hackathon)
+  projectTitle    String?  @db.VarChar(255)
+  projectDescription String? @db.Text
+  repositoryUrl   String?  @db.VarChar(500)
+  demoUrl         String?  @db.VarChar(500)
+  
+  // Scoring (if applicable)
+  score           Float?
+  ranking         Int?     // null until results announced
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  hackathon       Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  leader          User      @relation("HackathonTeamLead", fields: [leaderUserId], references: [id], onDelete: Restrict)
+  members         HackathonParticipant[]
+  
+  @@index([hackathonId])
+  @@index([leaderUserId])
+  @@index([ranking])
+  @@map("hackathon_team")
+}
+
+model HackathonParticipant {
+  id              String   @id @default(cuid())
+  hackathonId     String
+  teamId          String?  // null if not in a team (waiting/solo)
+  userId          String
+  
+  // Participation status
+  joinedAt        DateTime @default(now())
+  status          String   @default("active") // active, withdrew, disqualified
+  
+  // Roles (track what each person did)
+  contributions   String?  @db.Text // JSON: { code: num_commits, docs: bool, presentation: bool, etc. }
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  hackathon       Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  team            HackathonTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  user            User      @relation("HackathonParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([hackathonId, userId]) // One user per hackathon
+  @@index([hackathonId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([status])
+  @@map("hackathon_participant")
+}
+

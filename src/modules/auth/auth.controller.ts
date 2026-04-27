@@ -9,6 +9,7 @@ import {
   hashPassword,
   verifyPassword,
   issueTokens,
+  verifyAccessToken,
   verifyRefreshToken,
   generateAccessToken,
   generateAndStoreOTP,
@@ -647,7 +648,33 @@ export async function authStatus(req: AuthRequest, res: Response): Promise<void>
           name: req.user.name
         }
       });
-    } else {
+      return;
+    }
+
+    const accessToken = req.cookies?.[ACCESS_TOKEN_COOKIE];
+    if (!accessToken) {
+      res.json({
+        success: true,
+        authenticated: false
+      });
+      return;
+    }
+
+    try {
+      const payload = verifyAccessToken(accessToken);
+      res.json({
+        success: true,
+        authenticated: true,
+        user: {
+          id: payload.userId,
+          email: payload.email,
+          role: payload.role,
+          name: payload.name,
+          emailVerified: payload.emailVerified
+        }
+      });
+    } catch {
+      clearAuthCookies(res);
       res.json({
         success: true,
         authenticated: false

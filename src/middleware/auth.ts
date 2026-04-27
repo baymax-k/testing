@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
-import { verifyAccessToken, ACCESS_TOKEN_COOKIE } from "../modules/auth/auth.service.js";
-import type { AccessTokenPayload } from "../modules/auth/auth.service.js";
-import { prisma } from "../config/prisma.js";
-import { Prisma } from "@prisma/client";
+import { verifyAccessToken, ACCESS_TOKEN_COOKIE } from "../modules/auth/auth.service";
+import type { AccessTokenPayload } from "../modules/auth/auth.service";
+import { fromNodeHeaders } from "better-auth/node";
+import { auth, prisma } from "../config/auth";
+import { Prisma } from "../generated/prisma/client";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -16,8 +17,8 @@ export interface AuthRequest extends Request {
     emailVerified: boolean;
     image?: string | null;
     phone?: string | null;
-    collegeId?: string | null;
     departmentId?: string | null;
+    collegeId?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
   };

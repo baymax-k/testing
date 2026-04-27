@@ -13,9 +13,40 @@ interface ArduinoCompileJobData {
   timeoutMs?: number;
 }
 
+type ArduinoJobStatus =
+  | 'queued'
+  | 'processing'
+  | 'accepted'
+  | 'compilation_error'
+  | 'runtime_error'
+  | 'wrong_answer'
+  | 'internal_error'
+  | 'compiled'
+  | 'failed';
+
+interface RuntimeMetadata {
+  memoryUsage?: {
+    program: number;
+    data: number;
+  };
+  codeQuality?: {
+    programSize: number;
+    dataUsage: number;
+    hexSize: number;
+    compileTime: number;
+    warningCount: number;
+    efficiency: {
+      programUtilization: string;
+      memoryUtilization: string;
+    };
+    score: number;
+  };
+  warnings?: string[];
+}
+
 interface JobStatusResponse {
   id: string;
-  status: 'queued' | 'processing' | 'compiled' | 'failed';
+  status: ArduinoJobStatus;
   progress?: number;
   result?: {
     success: boolean;
@@ -26,10 +57,22 @@ interface JobStatusResponse {
       program: number;
       data: number;
     };
+    codeQuality?: RuntimeMetadata['codeQuality'];
+    warnings?: string[];
   };
   createdAt: Date;
   processedAt?: Date;
   completedAt?: Date;
+}
+
+function parseRuntimeMetadata(runtime: string | null): RuntimeMetadata | undefined {
+  if (!runtime) return undefined;
+  try {
+    const parsed = JSON.parse(runtime) as RuntimeMetadata;
+    return parsed;
+  } catch {
+    return undefined;
+  }
 }
 
 export class ArduinoJobService {
@@ -127,13 +170,22 @@ export class ArduinoJobService {
     };
 
     // Include result if completed or failed
-    if (submission.status === 'accepted' || submission.status === 'compilation_error' || submission.status === 'runtime_error') {
+    if (
+      submission.status === 'accepted' ||
+      submission.status === 'compilation_error' ||
+      submission.status === 'runtime_error' ||
+      submission.status === 'wrong_answer' ||
+      submission.status === 'internal_error'
+    ) {
+      const runtimeMetadata = parseRuntimeMetadata(submission.runtime);
       response.result = {
         success: submission.status === 'accepted',
         hexCode: submission.hexFile || undefined,          // Use hexFile field
         error: submission.errorOutput || undefined,        // Use errorOutput field
         compileTime: submission.compileTime || 0,          // Use compileTime field
-        memoryUsage: submission.runtime ? JSON.parse(submission.runtime) : undefined, // Use runtime field
+        memoryUsage: runtimeMetadata?.memoryUsage,
+        codeQuality: runtimeMetadata?.codeQuality,
+        warnings: runtimeMetadata?.warnings,
       };
     }
 
@@ -158,22 +210,35 @@ export class ArduinoJobService {
       skip: offset,
     });
 
-    return submissions.map(submission => ({
-      id: submission.id,
-      status: submission.status as any,
-      progress: submission.status === 'processing' ? 0 : 
-                submission.status === 'accepted' ? 100 : 100,
-      createdAt: submission.createdAt,
-      processedAt: undefined,  // Field doesn't exist in schema
-      completedAt: undefined,  // Field doesn't exist in schema
-      result: (submission.status === 'accepted' || submission.status === 'compilation_error' || submission.status === 'runtime_error') ? {
-        success: submission.status === 'accepted',
-        hexCode: submission.hexFile || undefined,          // Use hexFile field
-        error: submission.errorOutput || undefined,        // Use errorOutput field
-        compileTime: submission.compileTime || 0,          // Use compileTime field
-        memoryUsage: submission.runtime ? JSON.parse(submission.runtime) : undefined, // Use runtime field
-      } : undefined,
-    }));
+    return submissions.map(submission => {
+      const runtimeMetadata = parseRuntimeMetadata(submission.runtime);
+      const hasResult =
+        submission.status === 'accepted' ||
+        submission.status === 'compilation_error' ||
+        submission.status === 'runtime_error' ||
+        submission.status === 'wrong_answer' ||
+        submission.status === 'internal_error';
+
+      return {
+        id: submission.id,
+        status: submission.status as any,
+        progress: submission.status === 'processing' ? 0 : 100,
+        createdAt: submission.createdAt,
+        processedAt: undefined,  // Field doesn't exist in schema
+        completedAt: undefined,  // Field doesn't exist in schema
+        result: hasResult
+          ? {
+              success: submission.status === 'accepted',
+              hexCode: submission.hexFile || undefined,          // Use hexFile field
+              error: submission.errorOutput || undefined,        // Use errorOutput field
+              compileTime: submission.compileTime || 0,          // Use compileTime field
+              memoryUsage: runtimeMetadata?.memoryUsage,
+              codeQuality: runtimeMetadata?.codeQuality,
+              warnings: runtimeMetadata?.warnings,
+            }
+          : undefined,
+      };
+    });
   }
 
   async getQueueStats() {

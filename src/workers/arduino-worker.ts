@@ -121,13 +121,33 @@ class ArduinoWorker {
       const compileTime = Date.now() - startTime;
 
       if (compileData.success) {
+        const hexCode =
+          (typeof compileData.hexCode === 'string' && compileData.hexCode.length > 0
+            ? compileData.hexCode
+            : undefined) ||
+          (typeof compileData.hexFile === 'string' && compileData.hexFile.length > 0
+            ? compileData.hexFile
+            : undefined);
+
+        if (!hexCode) {
+          throw new Error('Compilation succeeded but no HEX output was returned');
+        }
+
+        const memoryUsage = compileData.memoryUsage ||
+          (compileData.codeQuality
+            ? {
+                program: Number(compileData.codeQuality.programSize) || 0,
+                data: Number(compileData.codeQuality.dataUsage) || 0,
+              }
+            : undefined);
+
         const result: CompileResult = {
           success: true,
-          hexCode: compileData.hexCode,
+          hexCode,
           compileTime,
-          memoryUsage: compileData.memoryUsage,
+          memoryUsage,
           codeQuality: compileData.codeQuality,
-          warnings: compileData.warnings
+          warnings: Array.isArray(compileData.warnings) ? compileData.warnings : []
         };
 
         // Try to upload HEX file to CDN first
