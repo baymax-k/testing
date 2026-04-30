@@ -4,48 +4,683 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Problems - CodeEthnics</title>
-    <link rel="stylesheet" href="/test/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/test/css/modern-styles.css">
+    <style>
+        .filters-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            margin-bottom: var(--space-6);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+        
+        .problem-grid {
+            display: grid;
+            gap: var(--space-4);
+        }
+        
+        .problem-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .problem-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-300);
+        }
+        
+        .problem-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--space-4);
+        }
+        
+        .problem-title {
+            font-size: var(--text-lg);
+            font-weight: 600;
+            color: var(--gray-900);
+            margin: 0;
+        }
+        
+        .problem-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+        
+        .problem-title a:hover {
+            color: var(--primary-600);
+        }
+        
+        .problem-status {
+            position: absolute;
+            top: var(--space-4);
+            right: var(--space-4);
+            width: 24px;
+            height: 24px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--text-sm);
+        }
+        
+        .status-solved {
+            background-color: var(--success-100);
+            color: var(--success-600);
+        }
+        
+        .status-attempted {
+            background-color: var(--warning-100);
+            color: var(--warning-600);
+        }
+        
+        .status-unsolved {
+            background-color: var(--gray-100);
+            color: var(--gray-500);
+        }
+        
+        .problem-meta {
+            display: flex;
+            gap: var(--space-3);
+            align-items: center;
+            margin-bottom: var(--space-4);
+            flex-wrap: wrap;
+        }
+        
+        .problem-type {
+            font-size: var(--text-xs);
+            font-weight: 500;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+        
+        .type-dsa {
+            background-color: var(--primary-100);
+            color: var(--primary-700);
+        }
+        
+        .type-mcq {
+            background-color: var(--success-100);
+            color: var(--success-700);
+        }
+        
+        .type-arduino {
+            background-color: var(--warning-100);
+            color: var(--warning-700);
+        }
+        
+        .problem-tags {
+            display: flex;
+            gap: var(--space-2);
+            flex-wrap: wrap;
+            margin-bottom: var(--space-4);
+        }
+        
+        .tag {
+            background-color: var(--gray-100);
+            color: var(--gray-600);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: var(--text-xs);
+        }
+        
+        .problem-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .solve-btn {
+            padding: var(--space-2) var(--space-4);
+            background-color: var(--primary-600);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .solve-btn:hover {
+            background-color: var(--primary-700);
+        }
+        
+        .problem-stats {
+            font-size: var(--text-xs);
+            color: var(--gray-500);
+        }
+        
+        .view-toggle {
+            display: flex;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .view-btn {
+            padding: var(--space-2) var(--space-3);
+            border: 1px solid var(--gray-300);
+            background: white;
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .view-btn.active {
+            background-color: var(--primary-600);
+            color: white;
+            border-color: var(--primary-600);
+        }
+        
+        .table-view {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background-color: var(--gray-50);
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--gray-200);
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+        
+        .table-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 100px 120px 150px 100px;
+            gap: var(--space-4);
+            align-items: center;
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--gray-100);
+            transition: background-color 0.2s ease;
+        }
+        
+        .table-row:hover {
+            background-color: var(--gray-50);
+        }
+        
+        .table-row:last-child {
+            border-bottom: none;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: var(--space-16);
+            color: var(--gray-500);
+        }
+        
+        .empty-icon {
+            font-size: var(--text-4xl);
+            margin-bottom: var(--space-4);
+            opacity: 0.5;
+        }
+        
+        @media (max-width: 768px) {
+            .table-row {
+                grid-template-columns: 1fr;
+                gap: var(--space-2);
+            }
+            
+            .problem-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-2);
+            }
+            
+            .problem-status {
+                position: static;
+                align-self: flex-end;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="header">
-        <h1>CodeEthnics</h1>
-        <div class="nav">
-            <a href="/test/dashboard.html">Dashboard</a>
-            <a href="/test/problems.html">Problems</a>
-            <a href="/test/practice.html">Practice</a>
-            <a href="/test/potd.html">POTD</a>
-            <a href="/test/contests.html">Contests</a>
-            <a href="/test/submissions.html">Submissions</a>
-            <a href="/test/profile.html">Profile</a>
-            <a href="#" onclick="signOut()">Sign Out</a>
+        <div class="header-content">
+            <a href="/test/" class="logo">CodeEthnics</a>
+            <nav class="nav">
+                <a href="/test/dashboard.html" class="nav-link">Dashboard</a>
+                <a href="/test/practice.html" class="nav-link">Practice</a>
+                <a href="/test/problems.html" class="nav-link active">Problems</a>
+                <a href="/test/arduino.html" class="nav-link">Arduino</a>
+                <a href="/test/potd.html" class="nav-link">POTD</a>
+                <a href="/test/contests.html" class="nav-link">Contests</a>
+                <a href="/test/submissions.html" class="nav-link">Submissions</a>
+                <a href="/test/profile.html" class="nav-link">Profile</a>
+                <button class="btn btn-secondary btn-sm" onclick="signOut()">Sign Out</button>
+            </nav>
         </div>
     </div>
+
     <div class="container">
-        <h2>Problems</h2>
-        <div id="problems-list">Loading...</div>
+        <div class="mb-6">
+            <h1>💻 Problem Set</h1>
+            <p class="text-gray-600">Challenge yourself with coding problems across different domains</p>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-problems">0</div>
+                <div class="stat-label">Total Problems</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="solved-problems">0</div>
+                <div class="stat-label">Solved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="attempted-problems">0</div>
+                <div class="stat-label">Attempted</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="success-rate">0%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-card">
+            <h3 class="mb-4">🔍 Filter Problems</h3>
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select id="type-filter" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="dsa">DSA</option>
+                        <option value="mcq">MCQ</option>
+                        <option value="arduino">Arduino</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Difficulty</label>
+                    <select id="difficulty-filter" class="form-select">
+                        <option value="">All Difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Tag</label>
+                    <input id="tag-filter" class="form-input" placeholder="e.g., arrays, strings">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="status-filter" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="solved">Solved</option>
+                        <option value="attempted">Attempted</option>
+                        <option value="unsolved">Unsolved</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+            <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="flex justify-between items-center mb-6">
+            <div class="view-toggle">
+                <button class="view-btn active" onclick="setView('card')" id="card-view-btn">
+                    📋 Card View
+                </button>
+                <button class="view-btn" onclick="setView('table')" id="table-view-btn">
+                    📊 Table View
+                </button>
+            </div>
+            <div class="text-sm text-gray-500" id="results-count">
+                Loading problems...
+            </div>
+        </div>
+
+        <!-- Problems List -->
+        <div id="problems-loading" class="loading">
+            <div class="spinner"></div>
+            Loading problems...
+        </div>
+        
+        <!-- Card View -->
+        <div id="card-view" class="problem-grid">
+            <!-- Problems will be loaded here -->
+        </div>
+
+        <!-- Table View -->
+        <div id="table-view" class="table-view" style="display: none;">
+            <div class="table-header">
+                📋 Problem List
+            </div>
+            <div id="table-content">
+                <!-- Table content will be loaded here -->
+            </div>
+        </div>
     </div>
 
     <script src="/test/js/utils.js"></script>
     <script>
-        async function loadProblems() {
-            if (!await checkAuth()) return;
+        let allProblems = [];
+        let userSubmissions = [];
+        let currentView = 'card';
 
-            let result = await fetchAPI('/problems');
-            if (result && result.status === 200) {
-                const html = result.data.problems.map(p => `
-                    <div class="card">
-                        <h3><a href="/test/problem.html?slug=${p.slug}">${p.title}</a></h3>
-                        <p>Tags: ${p.tags.join(', ')}</p>
-                        <p>${getDifficultyBadge(p.difficulty)}</p>
+        async function loadProblems() {
+            try {
+                // Load problems and submissions in parallel
+                const [problemsResult, submissionsResult] = await Promise.all([
+                    fetchAPI('/problems?limit=100'),
+                    fetchAPI('/submissions?limit=100')
+                ]);
+
+                if (problemsResult && problemsResult.status === 200) {
+                    allProblems = problemsResult.data.problems || [];
+                }
+
+                if (submissionsResult && submissionsResult.status === 200) {
+                    userSubmissions = submissionsResult.data.submissions || [];
+                }
+
+                updateStats();
+                displayProblems(allProblems);
+                
+                document.getElementById('problems-loading').style.display = 'none';
+                
+            } catch (error) {
+                document.getElementById('problems-loading').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <h3>Error Loading Problems</h3>
+                        <p>${error.message}</p>
+                        <button class="btn btn-primary mt-4" onclick="loadProblems()">Try Again</button>
                     </div>
-                `).join('');
-                document.getElementById('problems-list').innerHTML = html;
-            } else {
-                document.getElementById('problems-list').innerHTML = '<div class="error">Failed to load problems</div>';
+                `;
             }
         }
 
-        loadProblems();
+        function updateStats() {
+            const totalProblems = allProblems.length;
+            const solvedProblems = getSolvedProblems().length;
+            const attemptedProblems = getAttemptedProblems().length;
+            const successRate = totalProblems > 0 ? Math.round((solvedProblems / totalProblems) * 100) : 0;
+
+            document.getElementById('total-problems').textContent = totalProblems;
+            document.getElementById('solved-problems').textContent = solvedProblems;
+            document.getElementById('attempted-problems').textContent = attemptedProblems;
+            document.getElementById('success-rate').textContent = successRate + '%';
+        }
+
+        function getSolvedProblems() {
+            return allProblems.filter(problem => {
+                return userSubmissions.some(sub => 
+                    sub.problemId === problem.id && sub.status === 'accepted'
+                );
+            });
+        }
+
+        function getAttemptedProblems() {
+            return allProblems.filter(problem => {
+                return userSubmissions.some(sub => sub.problemId === problem.id);
+            });
+        }
+
+        function getProblemStatus(problem) {
+            const submissions = userSubmissions.filter(sub => sub.problemId === problem.id);
+            
+            if (submissions.length === 0) {
+                return 'unsolved';
+            }
+            
+            const hasAccepted = submissions.some(sub => sub.status === 'accepted');
+            return hasAccepted ? 'solved' : 'attempted';
+        }
+
+        function displayProblems(problems) {
+            if (problems.length === 0) {
+                const emptyState = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <h3>No Problems Found</h3>
+                        <p>Try adjusting your filters or check back later for new problems.</p>
+                    </div>
+                `;
+                document.getElementById('card-view').innerHTML = emptyState;
+                document.getElementById('table-content').innerHTML = emptyState;
+                document.getElementById('results-count').textContent = 'No problems found';
+                return;
+            }
+
+            document.getElementById('results-count').textContent = 
+                `Showing ${problems.length} problem${problems.length !== 1 ? 's' : ''}`;
+
+            if (currentView === 'card') {
+                displayCardView(problems);
+            } else {
+                displayTableView(problems);
+            }
+        }
+
+        function displayCardView(problems) {
+            const html = problems.map(problem => {
+                const status = getProblemStatus(problem);
+                const statusIcon = status === 'solved' ? '✅' : status === 'attempted' ? '⚠️' : '○';
+                const statusClass = `status-${status}`;
+                
+                const tags = (problem.tags || []).map(tag => 
+                    `<span class="tag">${tag}</span>`
+                ).join('');
+
+                const solveUrl = getSolveUrl(problem);
+                const difficulty = problem.difficulty || 'unknown';
+                const type = problem.type || 'unknown';
+
+                return `
+                    <div class="problem-card">
+                        <div class="problem-status ${statusClass}">${statusIcon}</div>
+                        <div class="problem-header">
+                            <h3 class="problem-title">
+                                <a href="${solveUrl}">${problem.title}</a>
+                            </h3>
+                        </div>
+                        <div class="problem-meta">
+                            <span class="badge difficulty-${difficulty}">
+                                ${difficulty.toUpperCase()}
+                            </span>
+                            <span class="problem-type type-${type}">
+                                ${type.toUpperCase()}
+                            </span>
+                        </div>
+                        <div class="problem-tags">${tags}</div>
+                        <div class="problem-actions">
+                            <a href="${solveUrl}" class="solve-btn">
+                                ${getActionText(problem.type)}
+                            </a>
+                            <div class="problem-stats">
+                                ${getStatusText(status)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('card-view').innerHTML = html;
+        }
+
+        function displayTableView(problems) {
+            const html = problems.map(problem => {
+                const status = getProblemStatus(problem);
+                const statusIcon = status === 'solved' ? '✅' : status === 'attempted' ? '⚠️' : '○';
+                const statusClass = `status-${status}`;
+                
+                const tags = (problem.tags || []).slice(0, 2).map(tag => 
+                    `<span class="tag">${tag}</span>`
+                ).join('');
+
+                const solveUrl = getSolveUrl(problem);
+                const difficulty = problem.difficulty || 'unknown';
+                const type = problem.type || 'unknown';
+
+                return `
+                    <div class="table-row">
+                        <div class="problem-status ${statusClass}">${statusIcon}</div>
+                        <div class="problem-title">
+                            <a href="${solveUrl}">${problem.title}</a>
+                        </div>
+                        <div class="badge difficulty-${difficulty}">
+                            ${difficulty.toUpperCase()}
+                        </div>
+                        <div class="problem-type type-${type}">
+                            ${type.toUpperCase()}
+                        </div>
+                        <div class="problem-tags">${tags}</div>
+                        <div>
+                            <a href="${solveUrl}" class="btn btn-primary btn-sm">
+                                Solve
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('table-content').innerHTML = html;
+        }
+
+        function getSolveUrl(problem) {
+            const type = problem.type || 'dsa';
+            switch (type) {
+                case 'arduino':
+                    return `/test/arduino.html?id=${problem.id}`;
+                case 'mcq':
+                    return `/test/practice.html?id=${problem.id}`;
+                default:
+                    return `/test/problem.html?id=${problem.id}`;
+            }
+        }
+
+        function getActionText(type) {
+            switch (type) {
+                case 'arduino': return '🔧 Build Circuit';
+                case 'mcq': return '🧠 Answer Questions';
+                default: return '💻 Solve Problem';
+            }
+        }
+
+        function getStatusText(status) {
+            switch (status) {
+                case 'solved': return 'Solved ✅';
+                case 'attempted': return 'Attempted ⚠️';
+                default: return 'Not attempted';
+            }
+        }
+
+        function setView(view) {
+            currentView = view;
+            
+            // Update button states
+            document.getElementById('card-view-btn').classList.toggle('active', view === 'card');
+            document.getElementById('table-view-btn').classList.toggle('active', view === 'table');
+            
+            // Show/hide views
+            document.getElementById('card-view').style.display = view === 'card' ? 'grid' : 'none';
+            document.getElementById('table-view').style.display = view === 'table' ? 'block' : 'none';
+            
+            // Re-render current problems
+            const filteredProblems = getFilteredProblems();
+            displayProblems(filteredProblems);
+        }
+
+        function getFilteredProblems() {
+            const typeFilter = document.getElementById('type-filter').value;
+            const difficultyFilter = document.getElementById('difficulty-filter').value;
+            const tagFilter = document.getElementById('tag-filter').value.toLowerCase().trim();
+            const statusFilter = document.getElementById('status-filter').value;
+
+            return allProblems.filter(problem => {
+                // Type filter
+                if (typeFilter && problem.type !== typeFilter) {
+                    return false;
+                }
+
+                // Difficulty filter
+                if (difficultyFilter && problem.difficulty !== difficultyFilter) {
+                    return false;
+                }
+
+                // Tag filter
+                if (tagFilter && !(problem.tags || []).some(tag => 
+                    tag.toLowerCase().includes(tagFilter)
+                )) {
+                    return false;
+                }
+
+                // Status filter
+                if (statusFilter) {
+                    const problemStatus = getProblemStatus(problem);
+                    if (problemStatus !== statusFilter) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+
+        function applyFilters() {
+            const filteredProblems = getFilteredProblems();
+            displayProblems(filteredProblems);
+        }
+
+        function clearFilters() {
+            document.getElementById('type-filter').value = '';
+            document.getElementById('difficulty-filter').value = '';
+            document.getElementById('tag-filter').value = '';
+            document.getElementById('status-filter').value = '';
+            displayProblems(allProblems);
+        }
+
+        // Event listeners
+        document.getElementById('type-filter').addEventListener('change', applyFilters);
+        document.getElementById('difficulty-filter').addEventListener('change', applyFilters);
+        document.getElementById('status-filter').addEventListener('change', applyFilters);
+        document.getElementById('tag-filter').addEventListener('input', debounce(applyFilters, 500));
+
+        // Debounce function for search input
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Load problems on page load
+        window.addEventListener('load', async () => {
+            if (!await checkAuth()) return;
+            loadProblems();
+        });
     </script>
 </body>
 </html>

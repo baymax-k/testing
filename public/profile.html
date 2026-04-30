@@ -4,82 +4,177 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - CodeEthnics</title>
-    <link rel="stylesheet" href="/test/css/styles.css">
+    <link rel="stylesheet" href="/test/css/modern-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .profile-stat {
+            text-align: center;
+            padding: var(--space-4);
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+            color: white;
+            border-radius: var(--radius-lg);
+        }
+        
+        .profile-stat-number {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            margin-bottom: var(--space-1);
+        }
+        
+        .profile-stat-label {
+            font-size: var(--text-sm);
+            opacity: 0.9;
+        }
+        
+        .difficulty-stat {
+            text-align: center;
+            padding: var(--space-4);
+            border-radius: var(--radius-lg);
+            border: 2px solid;
+        }
+        
+        .difficulty-easy {
+            border-color: var(--success-500);
+            background: var(--success-50);
+        }
+        
+        .difficulty-medium {
+            border-color: var(--warning-500);
+            background: var(--warning-50);
+        }
+        
+        .difficulty-hard {
+            border-color: var(--error-500);
+            background: var(--error-50);
+        }
+        
+        .topic-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            background: var(--gray-100);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-full);
+            font-size: var(--text-sm);
+            margin: var(--space-1);
+        }
+        
+        .topic-count {
+            background: var(--primary-600);
+            color: white;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
-    <div class="header">
-        <h1>CodeEthnics</h1>
-        <div class="nav">
-            <a href="/test/dashboard.html">Dashboard</a>
-            <a href="/test/problems.html">Problems</a>
-            <a href="/test/practice.html">Practice</a>
-            <a href="/test/potd.html">POTD</a>
-            <a href="/test/contests.html">Contests</a>
-            <a href="/test/submissions.html">Submissions</a>
-            <a href="/test/profile.html">Profile</a>
-            <a href="#" onclick="signOut()">Sign Out</a>
+    <header class="header">
+        <div class="header-content">
+            <a href="/test/dashboard.html" class="logo">CodeEthnics</a>
+            <nav class="nav">
+                <a href="/test/dashboard.html" class="nav-link">Dashboard</a>
+                <a href="/test/problems.html" class="nav-link">Problems</a>
+                <a href="/test/practice.html" class="nav-link">Practice</a>
+                <a href="/test/arduino.html" class="nav-link">Arduino</a>
+                <a href="/test/potd.html" class="nav-link">POTD</a>
+                <a href="/test/contests.html" class="nav-link">Contests</a>
+                <a href="/test/submissions.html" class="nav-link">Submissions</a>
+                <a href="/test/profile.html" class="nav-link active">Profile</a>
+                <a href="#" onclick="signOut()" class="nav-link">Sign Out</a>
+            </nav>
         </div>
-    </div>
+    </header>
     <div class="container">
-        <div class="card" style="max-width: 900px; margin-bottom: 20px;">
-            <h2>My Profile</h2>
-            <div id="profile-summary">Loading...</div>
+        <h1>My Profile</h1>
+        <p>View your coding progress, statistics, and account information.</p>
+
+        <div class="card mb-6">
+            <div class="card-header">
+                <h2 class="card-title">Profile Information</h2>
+            </div>
+            <div id="profile-summary">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading profile...
+                </div>
+            </div>
         </div>
-        <div class="card" style="max-width: 900px; margin-bottom: 20px;">
-            <h2>Stats</h2>
-            <div id="stats-grid" class="grid-4" style="margin-bottom: 20px;">
-                <div class="stat">
-                    <div class="stat-label">Problems Solved</div>
-                    <div class="stat-value" id="problems-solved">-</div>
+
+        <div class="card mb-6">
+            <div class="card-header">
+                <h2 class="card-title">Statistics Overview</h2>
+            </div>
+            <div class="grid grid-4 mb-6">
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="problems-solved">-</div>
+                    <div class="profile-stat-label">Problems Solved</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">MCQ Sessions</div>
-                    <div class="stat-value" id="mcq-solved">-</div>
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="mcq-solved">-</div>
+                    <div class="profile-stat-label">MCQ Sessions</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Total Submissions</div>
-                    <div class="stat-value" id="total-submissions">-</div>
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="total-submissions">-</div>
+                    <div class="profile-stat-label">Total Submissions</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Accepted</div>
-                    <div class="stat-value" id="accepted-submissions">-</div>
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="accepted-submissions">-</div>
+                    <div class="profile-stat-label">Accepted</div>
                 </div>
             </div>
             
-            <h3 style="margin-top: 20px;">Difficulty Breakdown</h3>
-            <div id="difficulties-grid" class="grid-4" style="margin-bottom: 20px;">
-                <div class="stat">
-                    <div class="stat-label">Easy</div>
-                    <div class="stat-value" style="color: #4CAF50;" id="diff-easy">-</div>
+            <h3 class="mb-4">Difficulty Breakdown</h3>
+            <div class="grid grid-3 mb-6">
+                <div class="difficulty-stat difficulty-easy">
+                    <div class="profile-stat-number" style="color: var(--success-600);" id="diff-easy">-</div>
+                    <div class="profile-stat-label" style="color: var(--success-700);">Easy</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Medium</div>
-                    <div class="stat-value" style="color: #FF9800;" id="diff-medium">-</div>
+                <div class="difficulty-stat difficulty-medium">
+                    <div class="profile-stat-number" style="color: var(--warning-600);" id="diff-medium">-</div>
+                    <div class="profile-stat-label" style="color: var(--warning-700);">Medium</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Hard</div>
-                    <div class="stat-value" style="color: #F44336;" id="diff-hard">-</div>
+                <div class="difficulty-stat difficulty-hard">
+                    <div class="profile-stat-number" style="color: var(--error-600);" id="diff-hard">-</div>
+                    <div class="profile-stat-label" style="color: var(--error-700);">Hard</div>
                 </div>
             </div>
 
-            <h3 style="margin-top: 20px;">Topic Mastery</h3>
-            <div id="topics-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <h3 class="mb-4">Topic Mastery</h3>
+            <div id="topics-list" class="flex flex-wrap">
                 <!-- Topics will be injected here -->
             </div>
         </div>
-        <div class="card" style="max-width: 900px; margin-bottom: 20px;">
-            <h2>Streak</h2>
-            <div id="streak-summary">Loading...</div>
+
+        <div class="card mb-6">
+            <div class="card-header">
+                <h2 class="card-title">🔥 Streak Information</h2>
+            </div>
+            <div id="streak-summary">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading streak...
+                </div>
+            </div>
         </div>
+
         <div class="card" style="max-width: 600px;">
-            <h2>Change Password</h2>
-            <div id="message"></div>
+            <div class="card-header">
+                <h2 class="card-title">Change Password</h2>
+                <p class="card-description">Update your account password</p>
+            </div>
+            <div id="message" class="mb-4"></div>
             <form id="change-password">
-                <label for="current-password">Current Password:</label>
-                <input type="password" id="current-password" required>
-                <label for="new-password">New Password:</label>
-                <input type="password" id="new-password" required>
-                <button type="submit">Update Password</button>
+                <div class="form-group">
+                    <label for="current-password" class="form-label">Current Password</label>
+                    <input type="password" id="current-password" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-password" class="form-label">New Password</label>
+                    <input type="password" id="new-password" class="form-input" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Password</button>
             </form>
         </div>
     </div>
@@ -97,11 +192,24 @@
                 const { profile, stats, streak } = profileResult.data;
 
                 summaryEl.innerHTML = `
-                    <div><strong>Name:</strong> ${profile?.name || '-'} (${profile?.username || '-'})</div>
-                    <div><strong>Email:</strong> ${profile?.email || '-'} ${profile?.emailVerified ? '✅' : '❌'}</div>
-                    <div><strong>Role:</strong> ${profile?.role || '-'}</div>
-                    <div><strong>Phone:</strong> ${profile?.phone || 'Not set'}</div>
-                    <div><strong>Joined:</strong> ${profile?.createdAt ? formatDate(profile.createdAt) : '-'}</div>
+                    <div class="grid grid-2 gap-4">
+                        <div>
+                            <h4 class="mb-2">Personal Information</h4>
+                            <div class="space-y-2 text-sm">
+                                <div><strong>Name:</strong> ${profile?.name || 'Not set'}</div>
+                                <div><strong>Username:</strong> ${profile?.username || 'Not set'}</div>
+                                <div><strong>Email:</strong> ${profile?.email || 'Not set'} ${profile?.emailVerified ? '<span class="badge badge-success">✅ Verified</span>' : '<span class="badge badge-warning">❌ Unverified</span>'}</div>
+                                <div><strong>Phone:</strong> ${profile?.phone || 'Not set'}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="mb-2">Account Details</h4>
+                            <div class="space-y-2 text-sm">
+                                <div><strong>Role:</strong> <span class="badge badge-primary">${profile?.role || 'Not set'}</span></div>
+                                <div><strong>Member Since:</strong> ${profile?.createdAt ? formatDate(profile.createdAt) : 'Not recorded'}</div>
+                            </div>
+                        </div>
+                    </div>
                 `;
 
                 document.getElementById('problems-solved').textContent = stats?.problemsSolvedCount ?? '-';
@@ -122,26 +230,38 @@
                     topicsList.innerHTML = Object.entries(stats.topicMastery)
                         .sort((a, b) => b[1] - a[1]) // Sort by count descending
                         .map(([topic, count]) => `
-                            <div style="background: #f0f0f0; padding: 4px 12px; border-radius: 16px; font-size: 14px;">
-                                <strong>${topic}</strong>: ${count}
+                            <div class="topic-tag">
+                                <span>${topic}</span>
+                                <span class="topic-count">${count}</span>
                             </div>
                         `).join('');
                 } else {
-                    topicsList.innerHTML = '<div style="color: #666;">No topics mastered yet.</div>';
+                    topicsList.innerHTML = '<div class="text-gray-500">No topics mastered yet. Start solving problems to build your expertise!</div>';
                 }
 
                 if (streak) {
                     streakEl.innerHTML = `
-                        <div><strong>Current Streak:</strong> ${streak.currentStreak} days</div>
-                        <div><strong>Longest Streak:</strong> ${streak.longestStreak} days</div>
-                        <div><strong>Last Solve:</strong> ${streak.lastSolveDate || 'Not recorded'}</div>
+                        <div class="grid grid-3 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-primary-600">${streak.currentStreak}</div>
+                                <div class="text-sm text-gray-600">Current Streak</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-success-600">${streak.longestStreak}</div>
+                                <div class="text-sm text-gray-600">Longest Streak</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-sm font-medium">${streak.lastSolveDate ? formatDate(streak.lastSolveDate) : 'Not recorded'}</div>
+                                <div class="text-sm text-gray-600">Last Solve Date</div>
+                            </div>
+                        </div>
                     `;
                 } else {
-                    streakEl.textContent = 'No streak data yet.';
+                    streakEl.innerHTML = '<div class="text-gray-500">No streak data available yet. Start solving daily challenges!</div>';
                 }
             } else {
-                summaryEl.innerHTML = 'Failed to load profile summary';
-                streakEl.innerHTML = 'Failed to load streak';
+                summaryEl.innerHTML = '<div class="alert alert-error">Failed to load profile information</div>';
+                streakEl.innerHTML = '<div class="alert alert-error">Failed to load streak data</div>';
             }
 
             document.getElementById('change-password').addEventListener('submit', async (e) => {

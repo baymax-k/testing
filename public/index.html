@@ -1,101 +1,461 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CodeEthnics</title>
-  <link rel="stylesheet" href="/test/css/styles.css" />
-  <style>
-    .hero {
-      text-align: center;
-      max-width: 760px;
-      margin: 50px auto;
-    }
-
-    .hero h2 {
-      margin-bottom: 10px;
-      font-size: 34px;
-    }
-
-    .hero p {
-      color: #666;
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-
-    .hero .cta {
-      display: inline-block;
-      padding: 10px 18px;
-      margin: 0 6px;
-      border-radius: 6px;
-      text-decoration: none;
-      border: 1px solid #ddd;
-      color: #222;
-      background: #fff;
-      font-weight: 600;
-    }
-
-    .hero .cta.primary {
-      background: #007bff;
-      color: #fff;
-      border-color: #007bff;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeEthnics - Student Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/test/css/modern-styles.css">
+    <style>
+        .hero {
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            color: white;
+            text-align: center;
+            padding: var(--space-20) 0;
+            margin-bottom: var(--space-12);
+        }
+        
+        .hero-title {
+            font-size: clamp(var(--text-3xl), 5vw, 4rem);
+            font-weight: 700;
+            margin-bottom: var(--space-6);
+            line-height: 1.1;
+        }
+        
+        .hero-subtitle {
+            font-size: var(--text-xl);
+            opacity: 0.9;
+            margin-bottom: var(--space-8);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .hero-cta {
+            display: flex;
+            gap: var(--space-4);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .cta-primary {
+            background: white;
+            color: var(--primary-600);
+            padding: var(--space-4) var(--space-8);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .cta-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .cta-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: var(--space-4) var(--space-8);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .cta-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .features-section {
+            margin-bottom: var(--space-16);
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: var(--text-3xl);
+            font-weight: 700;
+            margin-bottom: var(--space-4);
+            color: var(--gray-900);
+        }
+        
+        .section-subtitle {
+            text-align: center;
+            font-size: var(--text-lg);
+            color: var(--gray-600);
+            margin-bottom: var(--space-12);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-8);
+        }
+        
+        .feature-card {
+            text-align: center;
+            padding: var(--space-8);
+            background: white;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+            transition: all 0.3s ease;
+            border: 1px solid var(--gray-100);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-200);
+        }
+        
+        .feature-icon {
+            font-size: 4rem;
+            margin-bottom: var(--space-6);
+            display: block;
+        }
+        
+        .feature-title {
+            font-size: var(--text-xl);
+            font-weight: 600;
+            margin-bottom: var(--space-4);
+            color: var(--gray-900);
+        }
+        
+        .feature-description {
+            color: var(--gray-600);
+            margin-bottom: var(--space-6);
+            line-height: 1.6;
+        }
+        
+        .feature-link {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            color: var(--primary-600);
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .feature-link:hover {
+            color: var(--primary-700);
+        }
+        
+        .status-section {
+            background: var(--gray-50);
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            margin-bottom: var(--space-12);
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-6);
+            margin-top: var(--space-6);
+        }
+        
+        .status-item {
+            text-align: center;
+            padding: var(--space-4);
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .status-number {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            color: var(--primary-600);
+            margin-bottom: var(--space-2);
+        }
+        
+        .status-label {
+            color: var(--gray-600);
+            font-size: var(--text-sm);
+        }
+        
+        .quick-links {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+            margin-top: var(--space-6);
+        }
+        
+        .quick-link {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-4);
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            text-decoration: none;
+            color: var(--gray-700);
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .quick-link:hover {
+            background: var(--primary-50);
+            border-color: var(--primary-200);
+            color: var(--primary-700);
+        }
+        
+        .link-icon {
+            font-size: var(--text-lg);
+        }
+        
+        @media (max-width: 768px) {
+            .hero {
+                padding: var(--space-12) 0;
+            }
+            
+            .hero-cta {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .cta-primary, .cta-secondary {
+                width: 100%;
+                max-width: 300px;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="header">
-    <h1>CodeEthnics</h1>
-    <div class="nav">
-      <a href="/test/login.html">Login</a>
-      <a href="/test/dashboard.html">Dashboard</a>
-      <a href="/test/problems.html">Problems</a>
-      <a href="/test/practice.html">Practice</a>
-      <a href="/test/potd.html">POTD</a>
-      <a href="/test/contests.html">Contests</a>
-      <a href="/api-docs" target="_blank" rel="noreferrer">Swagger</a>
-    </div>
-  </div>
-
-  <div class="container">
-    <div class="card hero">
-      <h2>Code. Compete. Improve.</h2>
-      <p>
-        Practice coding questions, join contests, track submissions, and improve your performance
-        every day.
-      </p>
-      <a class="cta primary" href="/test/login.html">Start Now</a>
-      <a class="cta" href="/test/problems.html">Browse Problems</a>
+    <div class="header">
+        <div class="header-content">
+            <a href="/test/" class="logo">CodeEthnics</a>
+            <nav class="nav">
+                <a href="/test/" class="nav-link active">Home</a>
+                <a href="/test/login.html" class="nav-link">Login</a>
+                <a href="/test/test-all-features.html" class="nav-link">Test Suite</a>
+                <a href="/api-docs" class="nav-link">API Docs</a>
+            </nav>
+        </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
-        <h3>Student Portal</h3>
-        <p><a href="/test/dashboard.html">Dashboard</a></p>
-        <p><a href="/test/problems.html">Problems</a></p>
-        <p><a href="/test/practice.html">Practice</a></p>
-        <p><a href="/test/potd.html">POTD</a></p>
-        <p><a href="/test/submissions.html">Submissions</a></p>
-        <p><a href="/test/contests.html">Contests</a></p>
-        <p><a href="/test/profile.html">Profile</a></p>
-      </div>
-      <div class="card">
-        <h3>Quick Access</h3>
-        <p><a href="/test/login.html">Sign In / Sign Up</a></p>
-        <p><a href="/test/problem.html?slug=fizzbuzz">Try FizzBuzz</a></p>
-        <p><a href="/test/problem.html?slug=two-sum">Try Two Sum</a></p>
-        <p><a href="/test/contests.html">Upcoming Contests</a></p>
-        <p><a href="/test/submissions.html">My Attempts</a></p>
-      </div>
+    <div class="hero">
+        <div class="container">
+            <h1 class="hero-title">CodeEthnics Student Panel</h1>
+            <p class="hero-subtitle">
+                Master programming through interactive challenges, real-world projects, and comprehensive practice sessions
+            </p>
+            <div class="hero-cta">
+                <a href="/test/login.html" class="cta-primary">
+                    🚀 Start Learning
+                </a>
+                <a href="/test/test-all-features.html" class="cta-secondary">
+                    🧪 Test Features
+                </a>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <script src="/test/js/utils.js"></script>
-  <script>
-    fetchAPI('/me').then((result) => {
-      if (result && result.status === 200) {
-        window.location.href = '/test/dashboard.html';
-      }
-    });
-  </script>
+    <div class="container">
+        <!-- Status Section -->
+        <div class="status-section">
+            <h2 class="section-title">🎯 Platform Status</h2>
+            <p class="section-subtitle">
+                All systems operational with comprehensive test data ready for exploration
+            </p>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-number">2</div>
+                    <div class="status-label">Test Users</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-number">20</div>
+                    <div class="status-label">MCQ Questions</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-number">3</div>
+                    <div class="status-label">DSA Problems</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-number">5</div>
+                    <div class="status-label">Arduino Projects</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-number">30</div>
+                    <div class="status-label">Daily Challenges</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="features-section">
+            <h2 class="section-title">✨ Platform Features</h2>
+            <p class="section-subtitle">
+                Explore our comprehensive learning ecosystem designed for modern developers
+            </p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">🔐</span>
+                    <h3 class="feature-title">Secure Authentication</h3>
+                    <p class="feature-description">
+                        Complete auth system with email verification, password reset, and Google OAuth integration
+                    </p>
+                    <a href="/test/login.html" class="feature-link">
+                        Try Authentication →
+                    </a>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">🧠</span>
+                    <h3 class="feature-title">MCQ Practice</h3>
+                    <p class="feature-description">
+                        Interactive multiple choice questions with instant feedback and progress tracking
+                    </p>
+                    <a href="/test/practice.html" class="feature-link">
+                        Start Practice →
+                    </a>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">💻</span>
+                    <h3 class="feature-title">DSA Playground</h3>
+                    <p class="feature-description">
+                        Full-featured code editor with multi-language support and real-time testing
+                    </p>
+                    <a href="/test/problems.html" class="feature-link">
+                        Solve Problems →
+                    </a>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">🔧</span>
+                    <h3 class="feature-title">Arduino Platform</h3>
+                    <p class="feature-description">
+                        Hardware programming challenges with circuit simulation and code compilation
+                    </p>
+                    <a href="/test/arduino.html" class="feature-link">
+                        Build Circuits →
+                    </a>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">🌟</span>
+                    <h3 class="feature-title">Daily Challenges</h3>
+                    <p class="feature-description">
+                        Maintain your coding streak with curated daily programming challenges
+                    </p>
+                    <a href="/test/potd.html" class="feature-link">
+                        Today's Challenge →
+                    </a>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">🏆</span>
+                    <h3 class="feature-title">Competitive Programming</h3>
+                    <p class="feature-description">
+                        Join contests, compete with peers, and climb the leaderboards
+                    </p>
+                    <a href="/test/contests.html" class="feature-link">
+                        Join Contest →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="quick-links">
+            <h2 class="section-title">🔗 Quick Navigation</h2>
+            <p class="section-subtitle">
+                Jump directly to any section of the platform
+            </p>
+            <div class="links-grid">
+                <a href="/test/login.html" class="quick-link">
+                    <span class="link-icon">🔐</span>
+                    Login Portal
+                </a>
+                <a href="/test/dashboard.html" class="quick-link">
+                    <span class="link-icon">📊</span>
+                    Dashboard
+                </a>
+                <a href="/test/practice.html" class="quick-link">
+                    <span class="link-icon">🧠</span>
+                    MCQ Practice
+                </a>
+                <a href="/test/problems.html" class="quick-link">
+                    <span class="link-icon">💻</span>
+                    Problem Set
+                </a>
+                <a href="/test/arduino.html" class="quick-link">
+                    <span class="link-icon">🔧</span>
+                    Arduino Lab
+                </a>
+                <a href="/test/potd.html" class="quick-link">
+                    <span class="link-icon">🌟</span>
+                    Daily Challenge
+                </a>
+                <a href="/test/contests.html" class="quick-link">
+                    <span class="link-icon">🏆</span>
+                    Contests
+                </a>
+                <a href="/test/submissions.html" class="quick-link">
+                    <span class="link-icon">📝</span>
+                    Submissions
+                </a>
+                <a href="/test/profile.html" class="quick-link">
+                    <span class="link-icon">👤</span>
+                    Profile
+                </a>
+                <a href="/test/test-all-features.html" class="quick-link">
+                    <span class="link-icon">🧪</span>
+                    Test Suite
+                </a>
+                <a href="/api-docs" class="quick-link">
+                    <span class="link-icon">📚</span>
+                    API Documentation
+                </a>
+            </div>
+        </div>
+
+        <!-- Credentials Info -->
+        <div class="card mt-8 p-6" style="background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%); border-color: var(--success-200);">
+            <h3 class="text-center mb-4" style="color: var(--success-800);">🔐 Test Credentials</h3>
+            <div class="grid grid-2 gap-6">
+                <div class="text-center">
+                    <h4 style="color: var(--success-700);">Student Account</h4>
+                    <p style="color: var(--success-600); font-family: monospace;">
+                        <strong>Email:</strong> student@codeethnics.com<br>
+                        <strong>Password:</strong> Student@1234
+                    </p>
+                </div>
+                <div class="text-center">
+                    <h4 style="color: var(--success-700);">Admin Account</h4>
+                    <p style="color: var(--success-600); font-family: monospace;">
+                        <strong>Email:</strong> admin@codeethnics.com<br>
+                        <strong>Password:</strong> Admin@1234
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer style="background: var(--gray-900); color: white; text-align: center; padding: var(--space-8) 0; margin-top: var(--space-16);">
+        <div class="container">
+            <p>&copy; 2024 CodeEthnics. Built with ❤️ for developers.</p>
+        </div>
+    </footer>
 </body>
 </html>
