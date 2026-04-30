@@ -43,8 +43,8 @@ services:
       "redis-server",
       "--appendonly", "yes",
       "--appendfsync", "everysec",
-      "--maxmemory", "256mb",
-      "--maxmemory-policy", "allkeys-lru",
+      "--maxmemory", "512mb",
+      "--maxmemory-policy", "noeviction",
       "--requirepass", "${REDIS_PASSWORD:-redis_default}"
     ]
     volumes:
@@ -70,16 +70,26 @@ services:
       - "2358:2358"
     privileged: true
     depends_on:
-      - judge0-db
-      - judge0-redis
+      judge0-db:
+        condition: service_healthy
+      judge0-redis:
+        condition: service_healthy
+    env_file:
+      - judge0.conf
     environment:
       - REDIS_HOST=judge0-redis
+      - REDIS_PORT=6379
       - POSTGRES_HOST=judge0-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=2N6TXZac7z5aYmRqH5FmhqNyAVJt5r4f
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2358/config"]
+      test: ["CMD", "curl", "-f", "http://localhost:2358/about"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 60s
     <<: *default-logging
     restart: unless-stopped
     networks:
@@ -93,11 +103,22 @@ services:
       - ./judge0.conf:/judge0.conf:ro
     privileged: true
     depends_on:
-      - judge0-db
-      - judge0-redis
+      judge0-db:
+        condition: service_healthy
+      judge0-redis:
+        condition: service_healthy
+      judge0-server:
+        condition: service_healthy
+    env_file:
+      - judge0.conf
     environment:
       - REDIS_HOST=judge0-redis
+      - REDIS_PORT=6379
       - POSTGRES_HOST=judge0-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=2N6TXZac7z5aYmRqH5FmhqNyAVJt5r4f
     <<: *default-logging
     restart: unless-stopped
     networks:
@@ -106,8 +127,10 @@ services:
   # PostgreSQL database for Judge0
   judge0-db:
     image: postgres:16.2
-    env_file:
-      - judge0.conf
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: 2N6TXZac7z5aYmRqH5FmhqNyAVJt5r4f
     volumes:
       - judge0_data:/var/lib/postgresql/data/
     healthcheck:
@@ -126,11 +149,10 @@ services:
     command: [
       "redis-server",
       "--appendonly", "no",
-      "--maxmemory", "128mb",
-      "--maxmemory-policy", "allkeys-lru"
+      "--maxmemory", "256mb",
+      "--maxmemory-policy", "allkeys-lru",
+      "--requirepass", "judge0secret"   # add this
     ]
-    env_file:
-      - judge0.conf
     volumes:
       - judge0_redis_data:/data
     healthcheck:
@@ -151,20 +173,24 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - POSTGRES_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/codeethnics
+      - PORT=3001
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_default}@redis:6379/0
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/codeethnics?schema=public
       - NODE_ENV=development
     volumes:
       - arduino_cache:/app/cache
       - /tmp/arduino-builds:/tmp/arduino-builds
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
     ports:
       - "3001:3001"
     <<: *default-logging
@@ -181,16 +207,19 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - POSTGRES_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/codeethnics
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_default}@redis:6379/0
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/codeethnics?schema=public
       - ARDUINO_COMPILER_URL=http://arduino-compiler:3001
       - CDN_API_KEY=${CDN_API_KEY:-}
       - CDN_API_SECRET=${CDN_API_SECRET:-}
       - NODE_ENV=development
     depends_on:
-      - postgres
-      - redis
-      - arduino-compiler
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      arduino-compiler:
+        condition: service_healthy
     <<: *default-logging
     restart: unless-stopped
     networks:
