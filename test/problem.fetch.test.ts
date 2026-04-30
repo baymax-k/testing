@@ -1,6 +1,66 @@
 import express from "express";
 import request from "supertest";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("../src/modules/services/codingProblem.service.js", () => {
+  const allProblems = [
+    {
+      id: "two-sum",
+      slug: "two-sum",
+      title: "Two Sum",
+      difficulty: "easy",
+      tags: ["arrays", "hash-map"],
+    },
+    {
+      id: "binary-search",
+      slug: "binary-search",
+      title: "Binary Search",
+      difficulty: "medium",
+      tags: ["arrays", "searching"],
+    },
+  ];
+
+  return {
+    listCodingProblems: vi.fn(async (params: { page: number; limit: number; difficulty?: string; tag?: string; search?: string }) => {
+      let filtered = allProblems.slice();
+
+      if (params.difficulty) {
+        filtered = filtered.filter((problem) => problem.difficulty === params.difficulty);
+      }
+      if (params.tag) {
+        filtered = filtered.filter((problem) => problem.tags.includes(params.tag as string));
+      }
+      if (params.search) {
+        filtered = filtered.filter((problem) =>
+          problem.title.toLowerCase().includes(params.search as string) ||
+          problem.id.toLowerCase().includes(params.search as string)
+        );
+      }
+
+      const start = (params.page - 1) * params.limit;
+      return {
+        problems: filtered.slice(start, start + params.limit),
+        total: filtered.length,
+      };
+    }),
+    getCodingProblemDetail: vi.fn(async (slug: string) => {
+      if (slug !== "two-sum") return null;
+      return {
+        id: "two-sum",
+        slug: "two-sum",
+        title: "Two Sum",
+        difficulty: "easy",
+        tags: ["arrays", "hash-map"],
+        description: "Return two indices.",
+        constraints: "n >= 2",
+        timeLimits: { default: 5 },
+        memoryLimit: 256,
+        sampleTestCases: [{ input: "4\\n2 7 11 15\\n9", output: "0 1" }],
+      };
+    }),
+  };
+});
+
 import { listProblems, getProblem } from "../src/modules/controllers/problem.controller.js";
 
 const app = express();

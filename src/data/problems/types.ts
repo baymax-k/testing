@@ -22,6 +22,7 @@ export interface HiddenTestCase {
 }
 
 export interface TimeLimits {
+  default?: number;
   c?: number;
   cpp?: number;
   rust?: number;

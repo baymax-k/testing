@@ -38,24 +38,49 @@ app.set("trust proxy", 1);
 
 // Security headers
 // Note: Google OAuth requires frame-src and connect-src permissions
-app.use(
-  helmet({
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://accounts.google.com"],
-        scriptSrcAttr: ["'none'"], // Strongly discourage inline scripts
-        styleSrc: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
-        styleSrcElem: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'", "https://accounts.google.com"],
-        frameSrc: ["'self'", "https://accounts.google.com"],
+// For /test routes in development, we allow unsafe-inline for easier testing
+app.use((req, res, next) => {
+  const isTestRoute = req.path.startsWith('/test');
+  const isDevelopment = env.nodeEnv !== 'production';
+  
+  if (isTestRoute && isDevelopment) {
+    // Relaxed CSP for test pages in development
+    helmet({
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+          scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers for test pages
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'", "https://accounts.google.com"],
+          frameSrc: ["'self'", "https://accounts.google.com"],
+        },
       },
-    },
-  })
-);
+    })(req, res, next);
+  } else {
+    // Strict CSP for production and API routes
+    helmet({
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://accounts.google.com"],
+          scriptSrcAttr: ["'none'"], // Strongly discourage inline scripts
+          styleSrc: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          styleSrcElem: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'", "https://accounts.google.com"],
+          frameSrc: ["'self'", "https://accounts.google.com"],
+        },
+      },
+    })(req, res, next);
+  }
+});
 
 app.use(cors(corsOptions));
 

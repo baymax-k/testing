@@ -10,8 +10,8 @@ export class ArduinoValidators {
     return [
       body('problemId')
         .isString()
-        .custom(isCUID)
-        .withMessage('Problem ID must be a valid CUID or test ID'),
+        .matches(/^[a-z0-9-]+$/)
+        .withMessage('Problem ID must be a valid CUID or slug'),
       
       body('code')
         .isString()
@@ -39,8 +39,8 @@ export class ArduinoValidators {
       query('problemId')
         .optional()
         .isString()
-        .custom(isCUID)
-        .withMessage('Problem ID must be a valid CUID if provided'),
+        .matches(/^[a-z0-9-]+$/)
+        .withMessage('Problem ID must be a valid CUID or slug if provided'),
       
       query('limit')
         .optional()
@@ -86,8 +86,8 @@ export class ArduinoValidators {
     return [
       param('problemId')
         .isString()
-        .custom(isCUID)
-        .withMessage('Problem ID must be a valid CUID or test ID'),
+        .matches(/^[a-z0-9-]+$/)
+        .withMessage('Problem ID must be a valid CUID or slug'),
     ];
   }
 }

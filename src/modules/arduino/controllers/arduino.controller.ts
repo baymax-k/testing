@@ -122,7 +122,8 @@ export class ArduinoController {
 
       const simulateResult = await arduinoCompilerService.simulate(
         submission.hexFile,
-        testCasesForSimulation
+        testCasesForSimulation,
+        submission.sourceCode
       );
 
       if (!simulateResult.success) {

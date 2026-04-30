@@ -1,5 +1,4 @@
 import { prisma } from "../../config/prisma.js";
-import { getProblems } from "../../data/problems/index.js";
 
 export interface DifficultyStats {
   easy: number;
@@ -88,19 +87,32 @@ export async function getStudentProfile(userId: string): Promise<StudentProfileR
   const difficultyBreakdown: DifficultyStats = { easy: 0, medium: 0, hard: 0 };
   const topicMastery: Record<string, number> = {};
 
-  const allProblems = getProblems();
-  const problemMap = new Map(allProblems.map(p => [p.slug, p]));
+  const acceptedQuestionIds = acceptedProblemIds.map(({ problemId }) => problemId);
+  if (acceptedQuestionIds.length > 0) {
+    const solvedQuestions = await prisma.question.findMany({
+      where: {
+        id: {
+          in: acceptedQuestionIds,
+        },
+      },
+      select: {
+        difficulty: true,
+        tags: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
 
-  for (const { problemId } of acceptedProblemIds) {
-    const problem = problemMap.get(problemId);
-    if (problem) {
-      const diff = problem.difficulty || "easy";
-      if (diff in difficultyBreakdown) {
-        difficultyBreakdown[diff as keyof DifficultyStats]++;
+    for (const question of solvedQuestions) {
+      const difficulty = question.difficulty.toLowerCase();
+      if (difficulty in difficultyBreakdown) {
+        difficultyBreakdown[difficulty as keyof DifficultyStats]++;
       }
-      
-      for (const tag of problem.tags || []) {
-        topicMastery[tag] = (topicMastery[tag] || 0) + 1;
+
+      for (const tag of question.tags) {
+        topicMastery[tag.name] = (topicMastery[tag.name] || 0) + 1;
       }
     }
   }
