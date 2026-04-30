@@ -23,6 +23,7 @@
     "seed": "tsx src/scripts/seed.ts",
     "seed:mcq": "tsx src/scripts/seed-mcq.ts",
     "seed:coding": "tsx src/scripts/seed-coding.ts",
+    "seed:questions": "tsx src/scripts/import-questions-json.ts",
     "seed:college": "tsx src/scripts/college-seed.ts",
     "seed:college:performance": "tsx src/scripts/college-performance-seed.ts",
     "seed:product": "tsx src/scripts/product-seed.ts",
