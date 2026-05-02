@@ -20,7 +20,7 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from "../auth/auth.service.js";
-import { uploadAvatarToS3 } from "../../utils/avatarUpload.js";
+import { generateAvatarUploadUrl, getAvatarPublicUrl, uploadAvatarToS3 } from "../../utils/avatarUpload.js";
 
 // ─── Product Admin Validators ─────────────────────────────────────────────────
 
@@ -75,6 +75,17 @@ const updateProfileSchema = z.object({
   name: z.string().min(1, "Name is required").max(100).optional(),
   phone: z.string().max(20).optional().nullable(),
   companyName: z.string().max(200).optional(),
+  avatarKey: z.string().min(1, "Avatar key is required").optional(),
+});
+
+const avatarPresignSchema = z.object({
+  mimeType: z.enum(["image/jpeg", "image/jpg", "image/png", "image/webp"], {
+    message: "Unsupported avatar mime type",
+  }),
+});
+
+const avatarConfirmSchema = z.object({
+  key: z.string().min(1, "Avatar key is required"),
 });
 
 const updateSettingsSchema = z.object({
@@ -693,18 +704,38 @@ export async function updateProfile(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const updateData: { name?: string; phone?: string | null; image?: string } = {
+      ...(data.name && { name: data.name }),
+      ...(data.phone !== undefined && { phone: data.phone }),
+    };
+
+    if (data.avatarKey) {
+      const expectedPrefix = `avatars/product-admin/${user.id}/`;
+      if (!data.avatarKey.startsWith(expectedPrefix)) {
+        res.status(403).json({ error: "Invalid avatar key" });
+        return;
+      }
+      updateData.image = getAvatarPublicUrl(data.avatarKey);
+    }
+
     const updated = await prisma.user.update({
       where: { id: req.user.userId },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.phone !== undefined && { phone: data.phone }),
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        image: true,
       },
     });
 
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user: safeUser(updated),
+      user: { ...safeUser(updated), image: updated.image },
     });
   } catch (err: any) {
     console.error("[updateProfile]", err);
@@ -769,6 +800,116 @@ export async function uploadAvatar(req: AuthRequest, res: Response): Promise<voi
   } catch (err: any) {
     console.error("[uploadAvatar]", err);
     res.status(500).json({ error: err.message || "Failed to upload avatar" });
+  }
+}
+
+/**
+ * POST /api/product-admin/avatar/presign
+ * Generate a presigned S3 upload URL for avatar uploads.
+ */
+export async function presignAvatar(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const validation = avatarPresignSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: "Validation failed", details: validation.error.issues });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.role !== "product_admin") {
+      res.status(403).json({ error: "This endpoint is for product admins only" });
+      return;
+    }
+
+    const presign = await generateAvatarUploadUrl({
+      userId: user.id,
+      scope: "product-admin",
+      mimeType: validation.data.mimeType,
+    });
+
+    res.status(200).json({
+      success: true,
+      uploadUrl: presign.uploadUrl,
+      key: presign.key,
+      publicUrl: presign.publicUrl,
+      expiresIn: presign.expiresIn,
+      headers: { "Content-Type": validation.data.mimeType },
+    });
+  } catch (err: any) {
+    console.error("[presignAvatar]", err);
+    res.status(500).json({ error: err.message || "Failed to generate upload URL" });
+  }
+}
+
+/**
+ * POST /api/product-admin/avatar/confirm
+ * Persist avatar URL after the client uploads to S3.
+ */
+export async function confirmAvatarUpload(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const validation = avatarConfirmSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: "Validation failed", details: validation.error.issues });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.role !== "product_admin") {
+      res.status(403).json({ error: "This endpoint is for product admins only" });
+      return;
+    }
+
+    const key = validation.data.key;
+    const expectedPrefix = `avatars/product-admin/${user.id}/`;
+    if (!key.startsWith(expectedPrefix)) {
+      res.status(403).json({ error: "Invalid avatar key" });
+      return;
+    }
+
+    const publicUrl = getAvatarPublicUrl(key);
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { image: publicUrl },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        image: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Avatar updated successfully",
+      avatarUrl: publicUrl,
+      user: updated,
+    });
+  } catch (err: any) {
+    console.error("[confirmAvatarUpload]", err);
+    res.status(500).json({ error: err.message || "Failed to confirm avatar upload" });
   }
 }
 

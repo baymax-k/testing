@@ -28,7 +28,7 @@ import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
 import { parseAvatarUpload } from "../../middleware/avatarUpload.js";
-import { uploadAvatarToS3 } from "../../utils/avatarUpload.js";
+import { generateAvatarUploadUrl, getAvatarPublicUrl, uploadAvatarToS3 } from "../../utils/avatarUpload.js";
 import { TestStatus } from "@prisma/client";
 import type { Role } from "@prisma/client";
 
@@ -163,6 +163,17 @@ const verifyOtpSchema = z.object({
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
   image: z.string().regex(/^https?:\/\/.+/, "Invalid image URL").optional(),
+  avatarKey: z.string().min(1, "Avatar key is required").optional(),
+});
+
+const avatarPresignSchema = z.object({
+  mimeType: z.enum(["image/jpeg", "image/jpg", "image/png", "image/webp"], {
+    message: "Unsupported avatar mime type",
+  }),
+});
+
+const avatarConfirmSchema = z.object({
+  key: z.string().min(1, "Avatar key is required"),
 });
 
 // ─── User Management Validation Schemas ─────────────────────────────────────────
@@ -740,6 +751,9 @@ async function createSingleStudentAccount(
  *                 type: string
  *                 format: uri
  *                 example: https://cdn.example.com/avatar.png
+ *               avatarKey:
+ *                 type: string
+ *                 example: avatars/college-admin/USER_ID/123.png
  *             additionalProperties: false
  *     responses:
  *       "200":
@@ -1772,6 +1786,46 @@ async function createSingleStudentAccount(
  *       "200":
  *         description: Avatar uploaded successfully
  *
+ * /api/college-admin/avatar/presign:
+ *   post:
+ *     tags: [College Admin - Auth]
+ *     summary: Generate presigned avatar upload URL
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mimeType:
+ *                 type: string
+ *                 example: image/png
+ *     responses:
+ *       "200":
+ *         description: Presigned URL generated
+ *
+ * /api/college-admin/avatar/confirm:
+ *   post:
+ *     tags: [College Admin - Auth]
+ *     summary: Confirm avatar upload and update profile
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               key:
+ *                 type: string
+ *                 example: avatars/college-admin/USER_ID/123.png
+ *     responses:
+ *       "200":
+ *         description: Avatar updated
+ *
  * /api/college-admin/batches/{batchId}/students:
  *   post:
  *     tags: [College Admin - Batches]
@@ -2649,7 +2703,7 @@ router.put(
         return;
       }
 
-      let { name, image } = validation.data;
+      let { name, image, avatarKey } = validation.data;
 
       if (req.file) {
         const uploadedAvatar = await uploadAvatarToS3({
@@ -2659,6 +2713,13 @@ router.put(
           scope: "college-admin",
         });
         image = uploadedAvatar.url;
+      } else if (avatarKey) {
+        const expectedPrefix = `avatars/college-admin/${user.id}/`;
+        if (!avatarKey.startsWith(expectedPrefix)) {
+          res.status(403).json({ error: "Invalid avatar key" });
+          return;
+        }
+        image = getAvatarPublicUrl(avatarKey);
       }
 
       // Build update object with only provided fields
@@ -2693,6 +2754,109 @@ router.put(
         error: "Internal server error",
         message: "An error occurred while updating profile",
       });
+    }
+  }
+);
+
+/**
+ * POST /api/college-admin/avatar/presign
+ * Generate a presigned S3 upload URL for avatar uploads.
+ */
+router.post(
+  "/avatar/presign",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user;
+
+      if (!user?.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const validation = avatarPresignSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({ error: "Validation failed", details: validation.error.issues });
+        return;
+      }
+
+      const presign = await generateAvatarUploadUrl({
+        userId: user.id,
+        scope: "college-admin",
+        mimeType: validation.data.mimeType,
+      });
+
+      res.status(200).json({
+        success: true,
+        uploadUrl: presign.uploadUrl,
+        key: presign.key,
+        publicUrl: presign.publicUrl,
+        expiresIn: presign.expiresIn,
+        headers: { "Content-Type": validation.data.mimeType },
+      });
+    } catch (error: any) {
+      console.error("[college-admin/avatar/presign] Error:", error);
+      res.status(500).json({ error: error?.message || "Failed to generate upload URL" });
+    }
+  }
+);
+
+/**
+ * POST /api/college-admin/avatar/confirm
+ * Persist avatar URL after the client uploads to S3.
+ */
+router.post(
+  "/avatar/confirm",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user;
+
+      if (!user?.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const validation = avatarConfirmSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({ error: "Validation failed", details: validation.error.issues });
+        return;
+      }
+
+      const key = validation.data.key;
+      const expectedPrefix = `avatars/college-admin/${user.id}/`;
+      if (!key.startsWith(expectedPrefix)) {
+        res.status(403).json({ error: "Invalid avatar key" });
+        return;
+      }
+
+      const publicUrl = getAvatarPublicUrl(key);
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { image: publicUrl },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          emailVerified: true,
+          image: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Avatar updated successfully",
+        avatarUrl: publicUrl,
+        profile: updatedUser,
+      });
+    } catch (error: any) {
+      console.error("[college-admin/avatar/confirm] Error:", error);
+      res.status(500).json({ error: error?.message || "Failed to confirm avatar upload" });
     }
   }
 );

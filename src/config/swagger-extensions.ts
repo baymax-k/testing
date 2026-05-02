@@ -687,6 +687,44 @@
  *     responses:
  *       "200":
  *         description: Successful operation
+ * /api/product-admin/avatar/presign:
+ *   post:
+ *     tags: [Product Admin]
+ *     summary: POST /api/product-admin/avatar/presign
+ *     security:
+ *       - cookieAuth: []
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mimeType:
+ *                 type: string
+ *                 example: image/png
+ *     responses:
+ *       "200":
+ *         description: Successful operation
+ * /api/product-admin/avatar/confirm:
+ *   post:
+ *     tags: [Product Admin]
+ *     summary: POST /api/product-admin/avatar/confirm
+ *     security:
+ *       - cookieAuth: []
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               key:
+ *                 type: string
+ *                 example: avatars/product-admin/USER_ID/123.png
+ *     responses:
+ *       "200":
+ *         description: Successful operation
  * /api/product-admin/auth/sign-up:
  *   post:
  *     tags: [Product Admin]
