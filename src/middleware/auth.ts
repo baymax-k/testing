@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken, ACCESS_TOKEN_COOKIE } from "../modules/auth/auth.service.js";
 import type { AccessTokenPayload } from "../modules/auth/auth.service.js";
 import { fromNodeHeaders } from "better-auth/node";
-import { auth, prisma } from "../config/auth.js";
+import { auth, prisma } from "../config/auth";
 import { Prisma } from "@prisma/client";
 
 export interface AuthRequest extends Request {

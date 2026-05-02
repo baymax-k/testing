@@ -1,4 +1,4 @@
-import { prisma } from "../../config/prisma.js";
+import { prisma } from "../../config/auth.js";
 import { TestStatus, QuestionType } from "@prisma/client";
 
 export interface CreateTestInput {
@@ -663,7 +663,7 @@ export class TestService {
         content: data.content,
         marks: data.marks,
         options: data.options ?? undefined,
-        correctAnswer: typeof data.correctAnswer === 'string' ? parseInt(data.correctAnswer, 10) : data.correctAnswer ?? undefined,
+        correctAnswer: data.correctAnswer ?? undefined,
         explanation: data.explanation ?? undefined,
         orderIndex: data.orderIndex ?? questionCount,
         createdBy: 'system',
