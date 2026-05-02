@@ -3,7 +3,7 @@ import { verifyAccessToken, ACCESS_TOKEN_COOKIE } from "../modules/auth/auth.ser
 import type { AccessTokenPayload } from "../modules/auth/auth.service";
 import { fromNodeHeaders } from "better-auth/node";
 import { auth, prisma } from "../config/auth";
-import { Prisma } from "../generated/prisma/client";
+import { Prisma } from "@prisma/client";
 
 export interface AuthRequest extends Request {
   user?: {
