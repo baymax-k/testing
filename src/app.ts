@@ -91,17 +91,27 @@ app.use("/api/public/tests", publicRoutes);
 // Must be the LAST app.use() — Express identifies it by the 4-argument signature.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
   console.error("[unhandled error]", err);
-  
+
+  const statusFromError = (err as { status?: number; statusCode?: number }) ?? {};
+  const status =
+    typeof statusFromError.status === "number"
+      ? statusFromError.status
+      : typeof statusFromError.statusCode === "number"
+        ? statusFromError.statusCode
+        : 500;
+
   let message: string;
-  if (process.env.NODE_ENV === "production") {
-    message = "Internal server error";
+  if (status === 400 && (err as { type?: string })?.type === "entity.parse.failed") {
+    message = "Invalid JSON payload";
+  } else if (process.env.NODE_ENV === "production") {
+    message = status === 400 ? "Bad request" : "Internal server error";
   } else if (err instanceof Error) {
     message = err.message;
   } else {
     message = String(err);
   }
-  
-  res.status(500).json({ error: message });
+
+  res.status(status).json({ error: message });
 });
 
 export default app;
