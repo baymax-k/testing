@@ -28,7 +28,7 @@ import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
 import { parseAvatarUpload } from "../../middleware/avatarUpload.js";
-import { generateAvatarUploadUrl, getAvatarPublicUrl, uploadAvatarToS3 } from "../../utils/avatarUpload.js";
+import { generateAvatarReadUrl, generateAvatarUploadUrl, getAvatarPublicUrl, uploadAvatarToS3 } from "../../utils/avatarUpload.js";
 import { TestStatus } from "@prisma/client";
 import type { Role } from "@prisma/client";
 
@@ -2667,9 +2667,16 @@ router.get(
         return;
       }
 
+      const signedImage = userDetails.image
+        ? await generateAvatarReadUrl(userDetails.image)
+        : userDetails.image;
+
       res.json({
         success: true,
-        profile: userDetails,
+        profile: {
+          ...userDetails,
+          image: signedImage,
+        },
       });
     } catch (error) {
       console.error("[college-admin/profile] Error:", error);
@@ -2704,6 +2711,7 @@ router.put(
       }
 
       let { name, image, avatarKey } = validation.data;
+      let signedImage: string | undefined = image;
 
       if (req.file) {
         const uploadedAvatar = await uploadAvatarToS3({
@@ -2713,6 +2721,7 @@ router.put(
           scope: "college-admin",
         });
         image = uploadedAvatar.url;
+        signedImage = await generateAvatarReadUrl(uploadedAvatar.key);
       } else if (avatarKey) {
         const expectedPrefix = `avatars/college-admin/${user.id}/`;
         if (!avatarKey.startsWith(expectedPrefix)) {
@@ -2720,6 +2729,7 @@ router.put(
           return;
         }
         image = getAvatarPublicUrl(avatarKey);
+        signedImage = await generateAvatarReadUrl(avatarKey);
       }
 
       // Build update object with only provided fields
@@ -2743,10 +2753,17 @@ router.put(
         },
       });
 
+      const responseImage =
+        signedImage ??
+        (updatedUser.image ? await generateAvatarReadUrl(updatedUser.image) : updatedUser.image);
+
       res.json({
         success: true,
         message: "Profile updated successfully",
-        profile: updatedUser,
+        profile: {
+          ...updatedUser,
+          image: responseImage,
+        },
       });
     } catch (error) {
       console.error("[college-admin/profile] Error:", error);
@@ -2833,6 +2850,7 @@ router.post(
       }
 
       const publicUrl = getAvatarPublicUrl(key);
+      const signedAvatarUrl = await generateAvatarReadUrl(key);
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: { image: publicUrl },
@@ -2851,8 +2869,11 @@ router.post(
       res.status(200).json({
         success: true,
         message: "Avatar updated successfully",
-        avatarUrl: publicUrl,
-        profile: updatedUser,
+        avatarUrl: signedAvatarUrl,
+        profile: {
+          ...updatedUser,
+          image: signedAvatarUrl,
+        },
       });
     } catch (error: any) {
       console.error("[college-admin/avatar/confirm] Error:", error);
@@ -2891,6 +2912,8 @@ router.post(
         scope: "college-admin",
       });
 
+      const signedAvatarUrl = await generateAvatarReadUrl(uploadedAvatar.key);
+
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: { image: uploadedAvatar.url },
@@ -2909,8 +2932,11 @@ router.post(
       res.status(200).json({
         success: true,
         message: "Avatar uploaded successfully",
-        avatarUrl: uploadedAvatar.url,
-        profile: updatedUser,
+        avatarUrl: signedAvatarUrl,
+        profile: {
+          ...updatedUser,
+          image: signedAvatarUrl,
+        },
       });
     } catch (error: any) {
       console.error("[college-admin/avatar] Error:", error);

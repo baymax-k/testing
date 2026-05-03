@@ -20,7 +20,7 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from "../auth/auth.service.js";
-import { generateAvatarUploadUrl, getAvatarPublicUrl, uploadAvatarToS3 } from "../../utils/avatarUpload.js";
+import { generateAvatarReadUrl, generateAvatarUploadUrl, getAvatarPublicUrl, uploadAvatarToS3 } from "../../utils/avatarUpload.js";
 
 // ─── Product Admin Validators ─────────────────────────────────────────────────
 
@@ -673,7 +673,8 @@ export async function getCurrentUser(req: AuthRequest, res: Response): Promise<v
 
 /**
  * PATCH /api/product-admin/profile
- * Updates product admin's profile (name, phone, company info)
+ * PUT /api/product-admin/profile
+ * Updates product admin's profile (name, phone, company info, avatar).
  */
 export async function updateProfile(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -709,13 +710,25 @@ export async function updateProfile(req: AuthRequest, res: Response): Promise<vo
       ...(data.phone !== undefined && { phone: data.phone }),
     };
 
-    if (data.avatarKey) {
+    let signedImage: string | undefined;
+
+    if (req.file) {
+      const uploadedAvatar = await uploadAvatarToS3({
+        fileBuffer: req.file.buffer,
+        mimeType: req.file.mimetype,
+        userId: user.id,
+        scope: "product-admin",
+      });
+      updateData.image = uploadedAvatar.url;
+      signedImage = await generateAvatarReadUrl(uploadedAvatar.key);
+    } else if (data.avatarKey) {
       const expectedPrefix = `avatars/product-admin/${user.id}/`;
       if (!data.avatarKey.startsWith(expectedPrefix)) {
         res.status(403).json({ error: "Invalid avatar key" });
         return;
       }
       updateData.image = getAvatarPublicUrl(data.avatarKey);
+      signedImage = await generateAvatarReadUrl(data.avatarKey);
     }
 
     const updated = await prisma.user.update({
@@ -732,10 +745,14 @@ export async function updateProfile(req: AuthRequest, res: Response): Promise<vo
       },
     });
 
+    const responseImage =
+      signedImage ??
+      (updated.image ? await generateAvatarReadUrl(updated.image) : updated.image);
+
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user: { ...safeUser(updated), image: updated.image },
+      user: { ...safeUser(updated), image: responseImage },
     });
   } catch (err: any) {
     console.error("[updateProfile]", err);
@@ -777,6 +794,8 @@ export async function uploadAvatar(req: AuthRequest, res: Response): Promise<voi
       scope: "product-admin",
     });
 
+    const signedAvatarUrl = await generateAvatarReadUrl(uploadedAvatar.key);
+
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: { image: uploadedAvatar.url },
@@ -794,8 +813,11 @@ export async function uploadAvatar(req: AuthRequest, res: Response): Promise<voi
     res.status(200).json({
       success: true,
       message: "Avatar uploaded successfully",
-      avatarUrl: uploadedAvatar.url,
-      user: updated,
+      avatarUrl: signedAvatarUrl,
+      user: {
+        ...updated,
+        image: signedAvatarUrl,
+      },
     });
   } catch (err: any) {
     console.error("[uploadAvatar]", err);
@@ -887,6 +909,7 @@ export async function confirmAvatarUpload(req: AuthRequest, res: Response): Prom
     }
 
     const publicUrl = getAvatarPublicUrl(key);
+    const signedAvatarUrl = await generateAvatarReadUrl(key);
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: { image: publicUrl },
@@ -904,8 +927,11 @@ export async function confirmAvatarUpload(req: AuthRequest, res: Response): Prom
     res.status(200).json({
       success: true,
       message: "Avatar updated successfully",
-      avatarUrl: publicUrl,
-      user: updated,
+      avatarUrl: signedAvatarUrl,
+      user: {
+        ...updated,
+        image: signedAvatarUrl,
+      },
     });
   } catch (err: any) {
     console.error("[confirmAvatarUpload]", err);

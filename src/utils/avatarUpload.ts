@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export type AvatarScope = "college-admin" | "product-admin";
@@ -32,6 +32,7 @@ type PresignAvatarUploadResult = {
 
 const DEFAULT_AVATAR_FOLDER = "avatars";
 const DEFAULT_PRESIGN_TTL_SECONDS = 600;
+const DEFAULT_READ_TTL_SECONDS = 3600;
 const ALLOWED_AVATAR_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -107,10 +108,53 @@ function toPublicUrl(bucket: string, region: string, key: string): string {
   return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
 }
 
+function extractKeyFromUrl(url: string): string | null {
+  const bucket = requireEnv("AWS_S3_BUCKET", ["AWS_S3_BUCKET_NAME", "S3_BUCKET_NAME"]);
+  const region = requireEnv("AWS_REGION", ["AWS_DEFAULT_REGION"]);
+  const configuredBase = process.env.AWS_S3_PUBLIC_BASE_URL?.trim();
+
+  if (configuredBase) {
+    const normalizedBase = configuredBase.endsWith("/")
+      ? configuredBase.slice(0, -1)
+      : configuredBase;
+    if (url.startsWith(`${normalizedBase}/`)) {
+      return url.slice(normalizedBase.length + 1);
+    }
+  }
+
+  const defaultBase = `https://${bucket}.s3.${region}.amazonaws.com/`;
+  if (url.startsWith(defaultBase)) {
+    return url.slice(defaultBase.length);
+  }
+
+  return null;
+}
+
 export function getAvatarPublicUrl(key: string): string {
   const bucket = requireEnv("AWS_S3_BUCKET", ["AWS_S3_BUCKET_NAME", "S3_BUCKET_NAME"]);
   const region = requireEnv("AWS_REGION", ["AWS_DEFAULT_REGION"]);
   return toPublicUrl(bucket, region, key);
+}
+
+export async function generateAvatarReadUrl(
+  keyOrUrl: string,
+  expiresInSeconds: number = DEFAULT_READ_TTL_SECONDS
+): Promise<string> {
+  const key = keyOrUrl.startsWith("http") ? extractKeyFromUrl(keyOrUrl) : keyOrUrl;
+  if (!key) {
+    return keyOrUrl;
+  }
+
+  const bucket = requireEnv("AWS_S3_BUCKET", ["AWS_S3_BUCKET_NAME", "S3_BUCKET_NAME"]);
+  const s3 = getS3Client();
+  return getSignedUrl(
+    s3,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    }),
+    { expiresIn: expiresInSeconds }
+  );
 }
 
 export async function uploadAvatarToS3(
