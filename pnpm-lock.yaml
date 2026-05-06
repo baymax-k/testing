@@ -24,7 +24,7 @@ importers:
         specifier: ^7.6.0
         version: 7.6.0
       '@prisma/client':
-        specifier: ^7.8.0
+        specifier: ^7.6.0
         version: 7.8.0(prisma@7.8.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
       '@types/uuid':
         specifier: ^11.0.0
@@ -136,7 +136,7 @@ importers:
         specifier: ^4.0.18
         version: 4.1.2(vitest@4.1.2)
       prisma:
-        specifier: ^7.8.0
+        specifier: ^7.6.0
         version: 7.8.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       supertest:
         specifier: ^7.2.2

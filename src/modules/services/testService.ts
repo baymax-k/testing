@@ -39,7 +39,7 @@ export interface CreateQuestionInput {
   difficulty?: string;
   marks: number;
   options?: string[] | null;
-  correctAnswer?: string | null;
+  correctAnswer?: number | null;
   explanation?: string | null;
   orderIndex?: number;
 }
@@ -49,7 +49,7 @@ export interface UpdateQuestionInput {
   content?: string;
   marks?: number;
   options?: string[] | null;
-  correctAnswer?: string | null;
+  correctAnswer?: number | null;
   explanation?: string | null;
   orderIndex?: number;
 }

@@ -3652,7 +3652,7 @@ router.post(
         return;
       }
 
-      const { questions, ...data } = validation.data;
+      const data = validation.data;
 
       let resolvedCollegeId: string | null = null;
       if (currentUser.role === "super_admin") {
@@ -5635,6 +5635,21 @@ const optionalStringId = z.preprocess(
   z.string().optional()
 );
 
+// Coerce optional numeric inputs (including numeric strings) to integers.
+const optionalInt = z.preprocess(
+  (val) => {
+    if (val === null || val === "" || typeof val === "undefined") {
+      return undefined;
+    }
+    if (typeof val === "string") {
+      const parsed = Number.parseInt(val, 10);
+      return Number.isNaN(parsed) ? val : parsed;
+    }
+    return val;
+  },
+  z.number().int().min(0).optional()
+);
+
 const updateTestSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
@@ -5655,7 +5670,7 @@ const createQuestionSchema = z.object({
   content: z.string().min(1, "Question content is required"),
   marks: z.number().int().min(1).max(100),
   options: z.array(z.string()).min(2).max(10).optional(),
-  correctAnswer: z.string().optional(),
+  correctAnswer: optionalInt,
   explanation: z.string().max(500).optional(),
   orderIndex: z.number().int().min(0).optional(),
 });
@@ -5680,7 +5695,7 @@ const updateQuestionSchema = z.object({
   content: z.string().min(1).optional(),
   marks: z.number().int().min(1).max(100).optional(),
   options: z.array(z.string()).min(2).max(10).optional(),
-  correctAnswer: z.string().optional(),
+  correctAnswer: optionalInt,
   explanation: z.string().max(500).optional(),
   orderIndex: z.number().int().min(0).optional(),
 });
