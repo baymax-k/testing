@@ -5411,7 +5411,7 @@ router.post(
         return;
       }
 
-      const data = validation.data;
+      const { questions, ...data } = validation.data;
 
       // Convert date strings to Date objects
       const testData = {
