@@ -3,6 +3,7 @@
 import { Router } from "express";
 import { loginLimiter, authLimiter } from "../../config/index.js";
 import { requireAuth } from "../../middleware/auth.js";
+import { parseAvatarUpload } from "../../middleware/avatarUpload.js";
 import {
   signUp,
   signIn,
@@ -47,7 +48,8 @@ router.get("/me", requireAuth, getCurrentUser);
 
 // ─── Profile & Settings ───────────────────────────────────────────────────────
 
-router.patch("/profile", requireAuth, updateProfile);
+router.put("/profile", requireAuth, parseAvatarUpload, updateProfile);
+router.patch("/profile", requireAuth, parseAvatarUpload, updateProfile);
 router.get("/settings", requireAuth, getSettings);
 router.patch("/settings", requireAuth, updateSettings);
 

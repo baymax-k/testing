@@ -405,14 +405,31 @@ export async function deleteProductAdmin(req: AuthRequest, res: Response): Promi
       return;
     }
 
-    await prisma.user.delete({
-      where: { id: adminId },
-    });
+    const reassignedTo = req.user.userId;
+
+    await prisma.$transaction([
+      prisma.college.updateMany({
+        where: { createdById: adminId },
+        data: { createdById: reassignedTo },
+      }),
+      prisma.test.updateMany({
+        where: { createdById: adminId },
+        data: { createdById: reassignedTo },
+      }),
+      prisma.hackathon.updateMany({
+        where: { createdByUserId: adminId },
+        data: { createdByUserId: reassignedTo },
+      }),
+      prisma.user.delete({
+        where: { id: adminId },
+      }),
+    ]);
 
     res.status(200).json({
       success: true,
       message: "Product admin deleted successfully",
       deletedAdminId: adminId,
+      reassignedTo,
     });
   } catch (err: any) {
     console.error("[rbac/product-admins/delete] Error:", err);

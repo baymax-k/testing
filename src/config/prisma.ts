@@ -45,7 +45,10 @@ function resolveRdsCertPath(): string | null {
   if (process.env.NODE_ENV === "production") return null;
   if (!process.env.RDS_SSL_CERT) return null;
 
-  const certPath = path.resolve(__dirname, "../..", process.env.RDS_SSL_CERT);
+  const rawPath = process.env.RDS_SSL_CERT;
+  const certPath = path.isAbsolute(rawPath)
+    ? rawPath
+    : path.resolve(process.cwd(), rawPath);
   return fs.existsSync(certPath) ? certPath : null;
 }
 

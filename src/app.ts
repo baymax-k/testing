@@ -129,17 +129,26 @@ app.use("/api/public/tests", publicRoutes);
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
   console.error("[unhandled error]", err);
 
-  let statusCode = 500;
-  let message: string;
+  const statusFromError = (err as { status?: number; statusCode?: number }) ?? {};
+  const status =
+    typeof statusFromError.status === "number"
+      ? statusFromError.status
+      : typeof statusFromError.statusCode === "number"
+        ? statusFromError.statusCode
+        : 500;
 
-  if (err instanceof Error) {
-    // Don't expose error details in production
-    message = env.nodeEnv === "production" ? "Internal server error" : err.message;
+  let message: string;
+  if (status === 400 && (err as { type?: string })?.type === "entity.parse.failed") {
+    message = "Invalid JSON payload";
+  } else if (process.env.NODE_ENV === "production") {
+    message = status === 400 ? "Bad request" : "Internal server error";
+  } else if (err instanceof Error) {
+    message = err.message;
   } else {
     message = env.nodeEnv === "production" ? "Internal server error" : String(err);
   }
 
-  res.status(statusCode).json({ error: message });
+  res.status(status).json({ error: message });
 });
 
 export default app;

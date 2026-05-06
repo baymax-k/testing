@@ -9,10 +9,12 @@ import productAdminRbacRoutes from "../product-admin/rbac.routes.js";
 import productAdminHackathonRoutes from "../product-admin/hackathon.routes.js";
 import productAdminDashboardRoutes from "../product-admin/dashboard.routes.js";
 import productAdminUsersRoutes from "../product-admin/users.routes.js";
-import { uploadAvatar } from "../product-admin/auth.controller.js";
+import { confirmAvatarUpload, presignAvatar, uploadAvatar } from "../product-admin/auth.controller.js";
 
 const router: Router = Router();
 
+router.post("/avatar/presign", requireAuth, presignAvatar);
+router.post("/avatar/confirm", requireAuth, confirmAvatarUpload);
 router.post("/avatar", requireAuth, parseAvatarUpload, uploadAvatar);
 
 // ─── Mount Auth Routes ────────────────────────────────────────────────────────
