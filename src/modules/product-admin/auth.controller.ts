@@ -652,8 +652,10 @@ export async function getCurrentUser(req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    const signedImage = user.image ? await generateAvatarReadUrl(user.image) : user.image;
+
     res.status(200).json({
-      user: safeUser(user),
+      user: { ...safeUser(user), image: signedImage },
     });
   } catch (err) {
     console.error("[getCurrentUser]", err);
