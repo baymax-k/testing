@@ -49,7 +49,7 @@ router.get("/me", requireAuth, getCurrentUser);
 // ─── Profile & Settings ───────────────────────────────────────────────────────
 
 router.put("/profile", requireAuth, parseAvatarUpload, updateProfile);
-router.patch("/profile", requireAuth, updateProfile);
+router.patch("/profile", requireAuth, parseAvatarUpload, updateProfile);
 router.get("/settings", requireAuth, getSettings);
 router.patch("/settings", requireAuth, updateSettings);
 
