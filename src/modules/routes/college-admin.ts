@@ -3352,7 +3352,7 @@ router.post(
         return;
       }
 
-      const data = validation.data;
+      const { questions, ...data } = validation.data;
 
       // Role-based restrictions
       if (currentUser.role === "hod" || currentUser.role === "dept_admin") {
@@ -5231,20 +5231,6 @@ const optionalStringId = z.preprocess(
   z.string().optional()
 );
 
-const createTestSchema = z.object({
-  title: z.string().min(1, "Title is required").max(200, "Title too long"),
-  description: z.string().max(1000).optional(),
-  instructions: z.string().max(2000).optional(),
-  durationMinutes: z.number().int().min(1).max(600).optional(),
-  maxAttempts: z.number().int().min(1).max(10).optional(),
-  maximumMarks: z.number().int().min(0).optional(),
-  passingMarks: z.number().int().min(0).optional(),
-  scheduledStartTime: optionalDateString,
-  scheduledEndTime: optionalDateString,
-  departmentId: optionalStringId,
-  batchId: optionalStringId,
-});
-
 const updateTestSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
@@ -5268,6 +5254,21 @@ const createQuestionSchema = z.object({
   correctAnswer: z.string().optional(),
   explanation: z.string().max(500).optional(),
   orderIndex: z.number().int().min(0).optional(),
+});
+
+const createTestSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title too long"),
+  description: z.string().max(1000).optional(),
+  instructions: z.string().max(2000).optional(),
+  durationMinutes: z.number().int().min(1).max(600).optional(),
+  maxAttempts: z.number().int().min(1).max(10).optional(),
+  maximumMarks: z.number().int().min(0).optional(),
+  passingMarks: z.number().int().min(0).optional(),
+  scheduledStartTime: optionalDateString,
+  scheduledEndTime: optionalDateString,
+  departmentId: optionalStringId,
+  batchId: optionalStringId,
+  questions: z.array(createQuestionSchema).max(200).optional(),
 });
 
 const updateQuestionSchema = z.object({
@@ -5431,7 +5432,14 @@ router.post(
         testData.departmentId = user.departmentId;
       }
 
-      const test = await TestService.createTest(testData);
+      let test = await TestService.createTest(testData);
+
+      if (questions && questions.length > 0) {
+        for (const question of questions) {
+          await TestService.addQuestion(test.id, question);
+        }
+        test = await TestService.getTestById(test.id);
+      }
 
       res.status(201).json({
         success: true,

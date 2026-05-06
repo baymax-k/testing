@@ -62,7 +62,6 @@ const verifyForgotPasswordOtpSchema = z.object({
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Invalid email"),
-  otp: z.string().length(6, "OTP must be 6 digits"),
   newPassword: z.string().min(8, "Password must be at least 8 characters").max(128),
 });
 
@@ -469,7 +468,7 @@ export async function verifyForgotPasswordOtp(req: Request, res: Response): Prom
 
 /**
  * POST /api/v1/product-admin/auth/reset-password
- * Resets password with OTP verification.
+ * Resets password without OTP verification.
  */
 export async function resetPassword(req: Request, res: Response): Promise<void> {
   try {
@@ -483,13 +482,6 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
 
     if (user.role !== "product_admin") {
       res.status(403).json({ error: "This endpoint is for product admins only" });
-      return;
-    }
-
-    const otpResult = await verifyOTP(data.email, "forget-password", data.otp);
-    const isOtpValid = typeof otpResult === "boolean" ? otpResult : otpResult.valid;
-    if (!isOtpValid) {
-      res.status(400).json({ error: "Invalid or expired OTP" });
       return;
     }
 
