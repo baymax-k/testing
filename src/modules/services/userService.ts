@@ -1,4 +1,4 @@
-import { prisma } from "../../config/prisma.js";
+import { prisma } from "../../config/auth.js";
 import type { Role } from "@prisma/client";
 
 export interface CreateUserInput {

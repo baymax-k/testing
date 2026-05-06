@@ -4,139 +4,211 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Practice - CodeEthnics</title>
-    <link rel="stylesheet" href="/test/css/styles.css">
+    <link rel="stylesheet" href="/test/css/modern-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="header">
-        <h1>CodeEthnics</h1>
-        <div class="nav">
-            <a href="/test/dashboard.html">Dashboard</a>
-            <a href="/test/problems.html">Problems</a>
-            <a href="/test/practice.html">Practice</a>
-            <a href="/test/arduino.html">Arduino</a>
-            <a href="/test/potd.html">POTD</a>
-            <a href="/test/contests.html">Contests</a>
-            <a href="/test/submissions.html">Submissions</a>
-            <a href="/test/profile.html">Profile</a>
-            <a href="#" onclick="signOut()">Sign Out</a>
+    <header class="header">
+        <div class="header-content">
+            <a href="/test/dashboard.html" class="logo">CodeEthnics</a>
+            <nav class="nav">
+                <a href="/test/dashboard.html" class="nav-link">Dashboard</a>
+                <a href="/test/problems.html" class="nav-link">Problems</a>
+                <a href="/test/practice.html" class="nav-link active">Practice</a>
+                <a href="/test/arduino.html" class="nav-link">Arduino</a>
+                <a href="/test/potd.html" class="nav-link">POTD</a>
+                <a href="/test/contests.html" class="nav-link">Contests</a>
+                <a href="/test/submissions.html" class="nav-link">Submissions</a>
+                <a href="/test/profile.html" class="nav-link">Profile</a>
+                <a href="#" onclick="signOut()" class="nav-link">Sign Out</a>
+            </nav>
         </div>
-    </div>
+    </header>
 
     <div class="container">
-        <h2>Practice Mode</h2>
+        <h1>Practice Mode</h1>
+        <p>Sharpen your skills with targeted practice sessions and MCQ challenges.</p>
 
-        <div class="grid">
+        <div class="grid grid-2">
             <div class="card">
-                <h3>Practice Problems</h3>
-                <form id="practice-filter-form">
-                    <label>Difficulty</label>
-                    <select id="filter-difficulty">
-                        <option value="">All</option>
-                        <option value="easy">easy</option>
-                        <option value="medium">medium</option>
-                        <option value="hard">hard</option>
-                    </select>
-                    <label>Type</label>
-                    <select id="filter-type">
-                        <option value="">All</option>
-                        <option value="mcq">mcq</option>
-                        <option value="dsa">dsa</option>
-                    </select>
-                    <label>Tag</label>
-                    <input id="filter-tag" type="text" placeholder="arrays">
-                    <button type="submit">Load Problems</button>
+                <div class="card-header">
+                    <h3 class="card-title">Practice Problems</h3>
+                    <p class="card-description">Filter and browse available practice problems</p>
+                </div>
+                <form id="practice-filter-form" class="form-group">
+                    <div class="form-group">
+                        <label class="form-label">Difficulty</label>
+                        <select id="filter-difficulty" class="form-select">
+                            <option value="">All</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Type</label>
+                        <select id="filter-type" class="form-select">
+                            <option value="">All</option>
+                            <option value="mcq">MCQ</option>
+                            <option value="dsa">DSA</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tag</label>
+                        <input id="filter-tag" type="text" class="form-input" placeholder="arrays, math, etc.">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Load Problems</button>
                 </form>
-                <div id="practice-list">Loading...</div>
+                <div id="practice-list" class="mt-4">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading problems...
+                    </div>
+                </div>
             </div>
 
             <div class="card">
-                <h3>MCQ Topics & Stats</h3>
-                <button onclick="loadTopicsAndStats()">Refresh Topics/Stats</button>
-                <p><strong>Topics</strong></p>
-                <div id="topic-list">-</div>
-                <p><strong>Stats</strong></p>
-                <div id="stats-box">-</div>
+                <div class="card-header">
+                    <h3 class="card-title">MCQ Topics & Stats</h3>
+                    <p class="card-description">View available topics and your performance statistics</p>
+                </div>
+                <button onclick="loadTopicsAndStats()" class="btn btn-secondary mb-4">Refresh Topics/Stats</button>
+                <div class="mb-4">
+                    <h4>Topics</h4>
+                    <div id="topic-list" class="text-gray-600">-</div>
+                </div>
+                <div>
+                    <h4>Statistics</h4>
+                    <div id="stats-box" class="text-gray-600">-</div>
+                </div>
             </div>
         </div>
 
-        <div class="grid" style="margin-top: 20px;">
+        <div class="grid grid-2 mt-6">
             <div class="card">
-                <h3>Create MCQ Session</h3>
+                <div class="card-header">
+                    <h3 class="card-title">Create MCQ Session</h3>
+                    <p class="card-description">Start a new practice session with specific topics</p>
+                </div>
                 <form id="create-session-form">
-                    <label>Topics (comma separated)</label>
-                    <input id="session-topics" type="text" placeholder="arrays,math" required>
-                    <label>Difficulty (optional)</label>
-                    <select id="session-difficulty">
-                        <option value="">Any</option>
-                        <option value="easy">easy</option>
-                        <option value="medium">medium</option>
-                        <option value="hard">hard</option>
-                    </select>
-                    <button type="submit">Create Session</button>
+                    <div class="form-group">
+                        <label class="form-label">Topics (comma separated)</label>
+                        <input id="session-topics" type="text" class="form-input" placeholder="arrays,math" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Difficulty (optional)</label>
+                        <select id="session-difficulty" class="form-select">
+                            <option value="">Any</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Session</button>
                 </form>
-                <div id="session-create-result"></div>
+                <div id="session-create-result" class="mt-4"></div>
             </div>
 
             <div class="card">
-                <h3>Random MCQ Set</h3>
+                <div class="card-header">
+                    <h3 class="card-title">Random MCQ Set</h3>
+                    <p class="card-description">Generate a random set of questions for practice</p>
+                </div>
                 <form id="random-form">
-                    <label>Topics (comma separated)</label>
-                    <input id="random-topics" type="text" placeholder="arrays,math" required>
-                    <label>Count</label>
-                    <input id="random-count" type="number" min="1" max="25" value="10">
-                    <button type="submit">Generate Random Set</button>
+                    <div class="form-group">
+                        <label class="form-label">Topics (comma separated)</label>
+                        <input id="random-topics" type="text" class="form-input" placeholder="arrays,math" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Count</label>
+                        <input id="random-count" type="number" class="form-input" min="1" max="25" value="10">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Random Set</button>
                 </form>
-                <div id="random-result"></div>
+                <div id="random-result" class="mt-4"></div>
             </div>
         </div>
 
-        <div class="grid" style="margin-top: 20px;">
+        <div class="grid grid-2 mt-6">
             <div class="card">
-                <h3>Practice Problem Detail</h3>
-                <label>Problem ID</label>
-                <input id="practice-problem-id" type="text" placeholder="question id">
-                <button onclick="loadPracticeProblemDetail()">Load Problem Detail</button>
-                <div id="practice-problem-detail" style="margin-top: 10px;">-</div>
+                <div class="card-header">
+                    <h3 class="card-title">Practice Problem Detail</h3>
+                    <p class="card-description">View details of a specific practice problem</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Problem ID</label>
+                    <input id="practice-problem-id" type="text" class="form-input" placeholder="Enter question ID">
+                </div>
+                <button onclick="loadPracticeProblemDetail()" class="btn btn-secondary">Load Problem Detail</button>
+                <div id="practice-problem-detail" class="mt-4">-</div>
             </div>
+            
             <div class="card">
-                <h3>Instant MCQ Submit</h3>
-                <label>Question ID</label>
-                <input id="instant-mcq-question-id" type="text" placeholder="question id">
-                <label>Selected Option</label>
-                <input id="instant-mcq-option" type="number" min="0" placeholder="0">
-                <button onclick="submitInstantMcq()">Submit Single MCQ</button>
-                <div id="instant-mcq-result" style="margin-top: 10px;">-</div>
+                <div class="card-header">
+                    <h3 class="card-title">Instant MCQ Submit</h3>
+                    <p class="card-description">Submit a single MCQ answer for testing</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Question ID</label>
+                    <input id="instant-mcq-question-id" type="text" class="form-input" placeholder="Enter question ID">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Selected Option</label>
+                    <input id="instant-mcq-option" type="number" class="form-input" min="0" placeholder="0">
+                </div>
+                <button onclick="submitInstantMcq()" class="btn btn-success">Submit Single MCQ</button>
+                <div id="instant-mcq-result" class="mt-4">-</div>
             </div>
         </div>
 
-        <div class="card" style="margin-top: 20px;">
-            <h3>MCQ Session Player</h3>
-            <label>Session ID</label>
-            <input id="active-session-id" type="text" placeholder="Paste session id">
-            <button onclick="loadSessionById()">Load Session</button>
-            <div id="session-player" style="margin-top: 10px;"></div>
-            <button onclick="submitLoadedSession()" style="margin-top: 10px;">Submit Loaded Session</button>
-            <div id="session-submit-result"></div>
+        <div class="card mt-6">
+            <div class="card-header">
+                <h3 class="card-title">MCQ Session Player</h3>
+                <p class="card-description">Load and complete an MCQ practice session</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Session ID</label>
+                <input id="active-session-id" type="text" class="form-input" placeholder="Paste session ID here">
+            </div>
+            <button onclick="loadSessionById()" class="btn btn-primary">Load Session</button>
+            <div id="session-player" class="mt-4"></div>
+            <button onclick="submitLoadedSession()" class="btn btn-success mt-4">Submit Loaded Session</button>
+            <div id="session-submit-result" class="mt-4"></div>
         </div>
 
-        <div class="grid" style="margin-top: 20px;">
+        <div class="grid grid-3 mt-6">
             <div class="card">
-                <h3>MCQ History</h3>
-                <button onclick="loadHistory()">Refresh History</button>
+                <div class="card-header">
+                    <h3 class="card-title">MCQ History</h3>
+                    <p class="card-description">View your past MCQ sessions</p>
+                </div>
+                <button onclick="loadHistory()" class="btn btn-secondary mb-4">Refresh History</button>
                 <div id="history-list">-</div>
             </div>
+            
             <div class="card">
-                <h3>History Detail</h3>
-                <label>Session ID</label>
-                <input id="history-detail-session-id" type="text" placeholder="session id">
-                <button onclick="loadHistoryDetail()">Load History Detail</button>
-                <div id="history-detail-box" style="margin-top: 10px;">-</div>
+                <div class="card-header">
+                    <h3 class="card-title">History Detail</h3>
+                    <p class="card-description">Review answers from a specific session</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Session ID</label>
+                    <input id="history-detail-session-id" type="text" class="form-input" placeholder="Enter session ID">
+                </div>
+                <button onclick="loadHistoryDetail()" class="btn btn-secondary">Load History Detail</button>
+                <div id="history-detail-box" class="mt-4">-</div>
             </div>
+            
             <div class="card">
-                <h3>Practice Activity</h3>
-                <button onclick="trackVisit()">Track Visit</button>
-                <button onclick="loadActivity()">Load Activity</button>
-                <div id="activity-box" style="margin-top: 10px;">-</div>
+                <div class="card-header">
+                    <h3 class="card-title">Practice Activity</h3>
+                    <p class="card-description">Track your practice activity</p>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <button onclick="trackVisit()" class="btn btn-secondary btn-sm">Track Visit</button>
+                    <button onclick="loadActivity()" class="btn btn-secondary btn-sm">Load Activity</button>
+                </div>
+                <div id="activity-box">-</div>
             </div>
         </div>
     </div>
@@ -165,14 +237,20 @@
 
             if (result && result.status === 200) {
                 const html = result.data.problems.map((p) => `
-                    <div class="item">
-                        <strong>${p.title}</strong> (${p.type}) ${getDifficultyBadge(p.difficulty)}<br>
-                        Tags: ${p.tags.join(', ')}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4 class="card-title">${p.title}</h4>
+                            <div class="flex items-center gap-2">
+                                <span class="badge badge-primary">${p.type.toUpperCase()}</span>
+                                ${getDifficultyBadge(p.difficulty)}
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600">Tags: ${p.tags.join(', ')}</p>
                     </div>
                 `).join('');
-                document.getElementById('practice-list').innerHTML = html || 'No practice questions found.';
+                document.getElementById('practice-list').innerHTML = html || '<div class="alert alert-info">No practice questions found.</div>';
             } else {
-                document.getElementById('practice-list').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load practice problems'}</div>`;
+                document.getElementById('practice-list').innerHTML = `<div class="alert alert-error">${result?.data?.error || 'Failed to load practice problems'}</div>`;
             }
         }
 
@@ -216,10 +294,10 @@
 
             if (result && result.status === 200) {
                 const sessionId = result.data.session.id;
-                document.getElementById('session-create-result').innerHTML = `<div class="success">Session created: ${sessionId}. Paste it in the player to solve.</div>`;
+                document.getElementById('session-create-result').innerHTML = `<div class="alert alert-success">Session created: ${sessionId}. Paste it in the player to solve.</div>`;
                 document.getElementById('active-session-id').value = sessionId;
             } else {
-                document.getElementById('session-create-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to create session'}</div>`;
+                document.getElementById('session-create-result').innerHTML = `<div class="alert alert-error">${result?.data?.error || 'Failed to create session'}</div>`;
             }
         }
 
@@ -234,10 +312,15 @@
             });
 
             if (result && result.status === 200) {
-                const html = result.data.questions.map((q) => `<div class="item"><strong>${q.title}</strong> (${q.difficulty})</div>`).join('');
-                document.getElementById('random-result').innerHTML = html || 'No random questions generated';
+                const html = result.data.questions.map((q) => `
+                    <div class="card mb-2">
+                        <h4 class="card-title">${q.title}</h4>
+                        ${getDifficultyBadge(q.difficulty)}
+                    </div>
+                `).join('');
+                document.getElementById('random-result').innerHTML = html || '<div class="alert alert-info">No random questions generated</div>';
             } else {
-                document.getElementById('random-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to generate random set'}</div>`;
+                document.getElementById('random-result').innerHTML = `<div class="alert alert-error">${result?.data?.error || 'Failed to generate random set'}</div>`;
             }
         }
 
@@ -247,7 +330,7 @@
 
             const result = await fetchAPI(`/student/practice/mcq/session/${sessionId}`);
             if (!(result && result.status === 200)) {
-                document.getElementById('session-player').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load session'}</div>`;
+                document.getElementById('session-player').innerHTML = `<div class="alert alert-error">${result?.data?.error || 'Failed to load session'}</div>`;
                 return;
             }
 
@@ -260,25 +343,30 @@
             }
 
             const html = questions.map((q, index) => `
-                <div class="card" style="margin-bottom:10px;">
-                    <p><strong>Q${index + 1}. ${q.title}</strong></p>
-                    <p>${q.description || ''}</p>
-                    ${(q.options || []).map((option, optIndex) => `
-                        <label style="display:block; margin-bottom:6px;">
-                            <input
-                                type="radio"
-                                name="q-${q.id}"
-                                value="${optIndex}"
-                                ${selectedAnswers[q.id] === optIndex ? 'checked' : ''}
-                                onchange="setAnswer('${q.id}', ${optIndex})"
-                            />
-                            ${option}
-                        </label>
-                    `).join('')}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4 class="card-title">Q${index + 1}. ${q.title}</h4>
+                    </div>
+                    ${q.description ? `<p class="mb-4">${q.description}</p>` : ''}
+                    <div class="space-y-2">
+                        ${(q.options || []).map((option, optIndex) => `
+                            <label class="flex items-center gap-2 p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="q-${q.id}"
+                                    value="${optIndex}"
+                                    ${selectedAnswers[q.id] === optIndex ? 'checked' : ''}
+                                    onchange="setAnswer('${q.id}', ${optIndex})"
+                                    class="form-radio"
+                                />
+                                <span>${option}</span>
+                            </label>
+                        `).join('')}
+                    </div>
                 </div>
             `).join('');
 
-            document.getElementById('session-player').innerHTML = html || 'No questions found in session';
+            document.getElementById('session-player').innerHTML = html || '<div class="alert alert-info">No questions found in session</div>';
         }
 
         function setAnswer(questionId, selectedOption) {

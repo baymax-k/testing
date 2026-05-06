@@ -38,24 +38,49 @@ app.set("trust proxy", 1);
 
 // Security headers
 // Note: Google OAuth requires frame-src and connect-src permissions
-app.use(
-  helmet({
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://accounts.google.com"],
-        scriptSrcAttr: ["'none'"], // Strongly discourage inline scripts
-        styleSrc: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
-        styleSrcElem: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'", "https://accounts.google.com"],
-        frameSrc: ["'self'", "https://accounts.google.com"],
+// For /test routes in development, we allow unsafe-inline for easier testing
+app.use((req, res, next) => {
+  const isTestRoute = req.path.startsWith('/test');
+  const isDevelopment = env.nodeEnv !== 'production';
+  
+  if (isTestRoute && isDevelopment) {
+    // Relaxed CSP for test pages in development
+    helmet({
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+          scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers for test pages
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'", "https://accounts.google.com"],
+          frameSrc: ["'self'", "https://accounts.google.com"],
+        },
       },
-    },
-  })
-);
+    })(req, res, next);
+  } else {
+    // Strict CSP for production and API routes
+    helmet({
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://accounts.google.com"],
+          scriptSrcAttr: ["'none'"], // Strongly discourage inline scripts
+          styleSrc: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          styleSrcElem: ["'self'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'", "https://accounts.google.com"],
+          frameSrc: ["'self'", "https://accounts.google.com"],
+        },
+      },
+    })(req, res, next);
+  }
+});
 
 app.use(cors(corsOptions));
 
@@ -104,17 +129,26 @@ app.use("/api/public/tests", publicRoutes);
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
   console.error("[unhandled error]", err);
 
-  let statusCode = 500;
-  let message: string;
+  const statusFromError = (err as { status?: number; statusCode?: number }) ?? {};
+  const status =
+    typeof statusFromError.status === "number"
+      ? statusFromError.status
+      : typeof statusFromError.statusCode === "number"
+        ? statusFromError.statusCode
+        : 500;
 
-  if (err instanceof Error) {
-    // Don't expose error details in production
-    message = env.nodeEnv === "production" ? "Internal server error" : err.message;
+  let message: string;
+  if (status === 400 && (err as { type?: string })?.type === "entity.parse.failed") {
+    message = "Invalid JSON payload";
+  } else if (process.env.NODE_ENV === "production") {
+    message = status === 400 ? "Bad request" : "Internal server error";
+  } else if (err instanceof Error) {
+    message = err.message;
   } else {
     message = env.nodeEnv === "production" ? "Internal server error" : String(err);
   }
 
-  res.status(statusCode).json({ error: message });
+  res.status(status).json({ error: message });
 });
 
 export default app;

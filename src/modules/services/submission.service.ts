@@ -3,9 +3,10 @@
 
 import { prisma } from "../../config/prisma.js";
 import type { SubmissionStatus } from "@prisma/client";
-import { getProblems } from "../../data/problems/index.js";
-import { getProblemWithTestCases } from "../../data/problems/index.js";
-import type { TestCaseVisibility } from "../../data/problems/types.js";
+import {
+  getCodingProblemForExecution,
+  getCodingProblemSummariesByIds,
+} from "./codingProblem.service";
 import {
   runSync,
   executeTestCases,
@@ -13,6 +14,8 @@ import {
   type RunResult,
   type TestCaseResult,
 } from "./judge0.service.js";
+
+type TestCaseVisibility = "sample" | "public" | "hidden";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -86,7 +89,7 @@ export async function preSubmitCode(
     throw new Error(`Unsupported language: ${language}`);
   }
 
-  const problem = getProblemWithTestCases(problemId);
+  const problem = await getCodingProblemForExecution(problemId);
   if (!problem) {
     throw new Error(`Problem not found: ${problemId}`);
   }
@@ -100,7 +103,10 @@ export async function preSubmitCode(
     throw new Error(`No sample test cases configured for problem: ${problemId}`);
   }
 
-  const timeLimit = problem.timeLimits[language as keyof typeof problem.timeLimits] || 5;
+  const timeLimit =
+    problem.timeLimits[language as keyof typeof problem.timeLimits] ||
+    problem.timeLimits.default ||
+    5;
 
   const { results, allPassed, firstFailure } = await executeTestCases(
     sourceCode,
@@ -165,7 +171,7 @@ export async function submitCode(
   }
 
   // Load problem with hidden test cases
-  const problem = getProblemWithTestCases(problemId);
+  const problem = await getCodingProblemForExecution(problemId);
   if (!problem) {
     throw new Error(`Problem not found: ${problemId}`);
   }
@@ -179,7 +185,10 @@ export async function submitCode(
   const totalTestCases = taggedTestCases.length;
 
   // Get time limit for this language
-  const timeLimit = problem.timeLimits[language as keyof typeof problem.timeLimits] || 5;
+  const timeLimit =
+    problem.timeLimits[language as keyof typeof problem.timeLimits] ||
+    problem.timeLimits.default ||
+    5;
 
   // Create submission record (status: processing)
   const submission = await prisma.submission.create({
@@ -353,9 +362,9 @@ export async function getSubmissions(
     prisma.submission.count({ where }),
   ]);
 
-  const problemMap = new Map(getProblems().map((problem) => [problem.slug, problem]));
+  const problemMap = await getCodingProblemSummariesByIds(submissions.map((submission) => submission.problemId));
   const enriched = submissions.map((submission) => {
-    const problem = problemMap.get(submission.problemId) || null;
+    const problem = problemMap?.[submission.problemId] || null;
     return {
       ...submission,
       problem: problem

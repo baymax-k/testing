@@ -61,11 +61,7 @@ class ArduinoCompilerService {
 
   constructor() {
     // Get Arduino compiler service URL from environment or default
-    this.baseUrl =
-      process.env.ARDUINO_COMPILER_URL ||
-      process.env.ARDUINO_SERVICE_URL ||
-      process.env.COMPILER_SERVICE_URL ||
-      'http://localhost:8080';
+    this.baseUrl = process.env.ARDUINO_COMPILER_URL || 'http://localhost:3001';
     this.timeout = parseInt(process.env.ARDUINO_COMPILER_TIMEOUT || '30000');
   }
 
@@ -137,13 +133,14 @@ class ArduinoCompilerService {
   /**
    * Simulate Arduino hex file execution and validate test cases
    */
-  async simulate(hexFile: string, testCases: ArduinoTestCase[]): Promise<SimulateResponse> {
+  async simulate(hexFile: string, testCases: ArduinoTestCase[], code?: string): Promise<SimulateResponse> {
     try {
       const response: AxiosResponse<SimulateResponse> = await axios.post(
         `${this.baseUrl}/simulate`,
         {
           hexFile,
-          testCases
+          testCases,
+          code
         },
         {
           timeout: this.timeout,

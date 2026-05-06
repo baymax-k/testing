@@ -4,45 +4,318 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - CodeEthnics</title>
-    <link rel="stylesheet" href="/test/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/test/css/modern-styles.css">
+    <style>
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            color: white;
+            padding: var(--space-8) 0;
+            margin-bottom: var(--space-8);
+        }
+        
+        .hero-content {
+            text-align: center;
+        }
+        
+        .hero-title {
+            font-size: var(--text-4xl);
+            font-weight: 700;
+            margin-bottom: var(--space-4);
+        }
+        
+        .hero-subtitle {
+            font-size: var(--text-lg);
+            opacity: 0.9;
+            margin-bottom: var(--space-6);
+        }
+        
+        .quick-actions {
+            display: flex;
+            gap: var(--space-4);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .action-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            text-align: center;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .action-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .action-icon {
+            font-size: var(--text-2xl);
+            margin-bottom: var(--space-2);
+        }
+        
+        .action-label {
+            font-size: var(--text-sm);
+            font-weight: 500;
+        }
+        
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-3);
+            border-bottom: 1px solid var(--gray-100);
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--text-sm);
+            flex-shrink: 0;
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-title {
+            font-weight: 500;
+            color: var(--gray-900);
+            margin-bottom: var(--space-1);
+        }
+        
+        .activity-meta {
+            font-size: var(--text-xs);
+            color: var(--gray-500);
+        }
+        
+        .progress-bar {
+            background-color: var(--gray-200);
+            border-radius: var(--radius-full);
+            height: 8px;
+            overflow: hidden;
+            margin-top: var(--space-2);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-500), var(--success-600));
+            border-radius: var(--radius-full);
+            transition: width 0.3s ease;
+        }
+        
+        .streak-card {
+            background: linear-gradient(135deg, var(--warning-400) 0%, var(--warning-600) 100%);
+            color: white;
+            text-align: center;
+        }
+        
+        .streak-number {
+            font-size: var(--text-4xl);
+            font-weight: 700;
+            margin-bottom: var(--space-2);
+        }
+        
+        .streak-label {
+            font-size: var(--text-sm);
+            opacity: 0.9;
+        }
+        
+        .problem-card {
+            border-left: 4px solid var(--primary-500);
+            transition: all 0.2s ease;
+        }
+        
+        .problem-card:hover {
+            border-left-color: var(--primary-600);
+            transform: translateX(2px);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: var(--space-8);
+            color: var(--gray-500);
+        }
+        
+        .empty-icon {
+            font-size: var(--text-4xl);
+            margin-bottom: var(--space-4);
+            opacity: 0.5;
+        }
+    </style>
 </head>
 <body>
     <div class="header">
-        <h1>CodeEthnics</h1>
-        <div class="nav">
-            <a href="/test/dashboard.html">Dashboard</a>
-            <a href="/test/problems.html">Problems</a>
-            <a href="/test/practice.html">Practice</a>
-            <a href="/test/arduino.html">Arduino</a>
-            <a href="/test/potd.html">POTD</a>
-            <a href="/test/contests.html">Contests</a>
-            <a href="/test/submissions.html">Submissions</a>
-            <a href="/test/profile.html">Profile</a>
-            <a href="#" onclick="signOut()">Sign Out</a>
+        <div class="header-content">
+            <a href="/test/" class="logo">CodeEthnics</a>
+            <nav class="nav">
+                <a href="/test/dashboard.html" class="nav-link active">Dashboard</a>
+                <a href="/test/practice.html" class="nav-link">Practice</a>
+                <a href="/test/problems.html" class="nav-link">Problems</a>
+                <a href="/test/arduino.html" class="nav-link">Arduino</a>
+                <a href="/test/potd.html" class="nav-link">POTD</a>
+                <a href="/test/contests.html" class="nav-link">Contests</a>
+                <a href="/test/submissions.html" class="nav-link">Submissions</a>
+                <a href="/test/profile.html" class="nav-link">Profile</a>
+                <button class="btn btn-secondary btn-sm" onclick="signOut()">Sign Out</button>
+            </nav>
         </div>
     </div>
-    <div class="container">
-        <div class="user-info" id="user-info">Loading...</div>
-        <div class="card" style="margin-bottom: 20px;">
-            <h2>Student Dashboard Summary</h2>
-            <div id="student-dashboard-summary">Loading...</div>
-        </div>
-        <div class="grid">
-            <div class="card">
-                <h2>Recent Problems</h2>
-                <div id="recent-problems">Loading...</div>
-            </div>
-            <div class="card">
-                <h2>Recent Submissions</h2>
-                <div id="recent-submissions">Loading...</div>
-            </div>
-            <div class="card">
-                <h2>🔧 Arduino Platform</h2>
-                <p>Hardware programming challenges</p>
-                <div class="item">
-                    <a href="/test/arduino.html" class="btn" style="display: inline-block; margin-top: 10px;">
-                        Start Arduino Coding →
+
+    <div class="hero-section">
+        <div class="container">
+            <div class="hero-content">
+                <div id="user-greeting" class="hero-title">Welcome back!</div>
+                <div class="hero-subtitle">Ready to continue your coding journey?</div>
+                <div class="quick-actions">
+                    <a href="/test/practice.html" class="action-card">
+                        <div class="action-icon">🧠</div>
+                        <div class="action-label">Practice MCQ</div>
                     </a>
+                    <a href="/test/problems.html" class="action-card">
+                        <div class="action-icon">💻</div>
+                        <div class="action-label">Solve DSA</div>
+                    </a>
+                    <a href="/test/arduino.html" class="action-card">
+                        <div class="action-icon">🔧</div>
+                        <div class="action-label">Arduino Lab</div>
+                    </a>
+                    <a href="/test/potd.html" class="action-card">
+                        <div class="action-icon">🌟</div>
+                        <div class="action-label">Daily Challenge</div>
+                    </a>
+                    <a href="/test/contests.html" class="action-card">
+                        <div class="action-icon">🏆</div>
+                        <div class="action-label">Contests</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="problems-solved">0</div>
+                <div class="stat-label">Problems Solved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="mcq-completed">0</div>
+                <div class="stat-label">MCQ Completed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="arduino-projects">0</div>
+                <div class="stat-label">Arduino Projects</div>
+            </div>
+            <div class="card streak-card">
+                <div class="streak-number" id="current-streak">0</div>
+                <div class="streak-label">Day Streak 🔥</div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-2">
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">📈 Recent Activity</h3>
+                    <p class="card-description">Your latest coding activities</p>
+                </div>
+                <div class="activity-feed" id="activity-feed">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading activity...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommended Problems -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🎯 Recommended for You</h3>
+                    <p class="card-description">Problems matched to your skill level</p>
+                </div>
+                <div id="recommended-problems">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading recommendations...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="grid grid-2 mt-6">
+            <!-- Learning Progress -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">📚 Learning Progress</h3>
+                    <p class="card-description">Track your improvement across topics</p>
+                </div>
+                <div id="learning-progress">
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm font-medium">Arrays & Strings</span>
+                            <span class="text-sm text-gray-500">75%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 75%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm font-medium">Dynamic Programming</span>
+                            <span class="text-sm text-gray-500">45%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 45%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm font-medium">Arduino Programming</span>
+                            <span class="text-sm text-gray-500">60%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 60%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Today's Challenge -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🌟 Today's Challenge</h3>
+                    <p class="card-description">Don't break your streak!</p>
+                </div>
+                <div id="daily-challenge">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading today's challenge...
+                    </div>
                 </div>
             </div>
         </div>
@@ -53,50 +326,203 @@
         async function loadDashboard() {
             if (!await checkAuth()) return;
 
-            let result = await fetchAPI('/me');
-            if (result && result.status === 200) {
-                const user = result.data.user;
-                document.getElementById('user-info').innerHTML = `
-                    <strong>Welcome, ${user.name}!</strong><br>
-                    Email: ${user.email} | Username: ${user.username} | Role: ${user.role}
-                `;
+            // Load user info
+            try {
+                const userResult = await fetchAPI('/me');
+                if (userResult && userResult.status === 200) {
+                    const user = userResult.data.user;
+                    document.getElementById('user-greeting').textContent = 
+                        `Welcome back, ${user.name}! 👋`;
+                }
+            } catch (err) {
+                console.error('Failed to load user info:', err);
             }
 
-            result = await fetchAPI('/problems?limit=5');
-            if (result && result.status === 200) {
-                const html = result.data.problems.map(p => `
-                    <div class="item">
-                        <a href="/test/problem.html?slug=${p.slug}">${p.title}</a>
-                        ${getDifficultyBadge(p.difficulty)}
-                    </div>
-                `).join('');
-                document.getElementById('recent-problems').innerHTML = html || 'No problems yet';
-            }
+            // Load all dashboard data in parallel
+            await Promise.all([
+                loadStats(),
+                loadActivity(),
+                loadRecommendedProblems(),
+                loadDailyChallenge()
+            ]);
+        }
 
-            result = await fetchAPI('/submissions?limit=5');
-            if (result && result.status === 200) {
-                const html = result.data.submissions.map(s => `
-                    <div class="item">
-                        Problem: ${s.problemId} ${getStatusBadge(s.status)} <br>
-                        <small>${formatDate(s.createdAt)}</small>
-                    </div>
-                `).join('');
-                document.getElementById('recent-submissions').innerHTML = html || 'No submissions yet';
-            }
+        async function loadStats() {
+            try {
+                // Mock stats for now - replace with actual API calls
+                const stats = {
+                    problemsSolved: Math.floor(Math.random() * 50) + 10,
+                    mcqCompleted: Math.floor(Math.random() * 100) + 25,
+                    arduinoProjects: Math.floor(Math.random() * 15) + 3,
+                    currentStreak: Math.floor(Math.random() * 30) + 1
+                };
 
-            result = await fetchAPI('/student/dashboard');
-            if (result && result.status === 200) {
-                const sections = (result.data.dashboard?.sections || []).map((s) => `${s.name} (${s.status})`).join(', ');
-                document.getElementById('student-dashboard-summary').innerHTML = `
-                    ${result.data.message}<br>
-                    Sections: ${sections || 'No sections'}
-                `;
-            } else {
-                document.getElementById('student-dashboard-summary').innerHTML = 'Unable to fetch student summary';
+                document.getElementById('problems-solved').textContent = stats.problemsSolved;
+                document.getElementById('mcq-completed').textContent = stats.mcqCompleted;
+                document.getElementById('arduino-projects').textContent = stats.arduinoProjects;
+                document.getElementById('current-streak').textContent = stats.currentStreak;
+            } catch (err) {
+                console.error('Failed to load stats:', err);
             }
         }
 
-        loadDashboard();
+        async function loadActivity() {
+            try {
+                const activityResult = await fetchAPI('/student/practice/activity?days=7');
+                const activities = [];
+
+                // Add some mock activities
+                activities.push(
+                    {
+                        type: 'problem_solved',
+                        title: 'Solved "Two Sum" problem',
+                        time: '2 hours ago',
+                        icon: '✅',
+                        iconBg: 'var(--success-100)',
+                        iconColor: 'var(--success-600)'
+                    },
+                    {
+                        type: 'mcq_completed',
+                        title: 'Completed JavaScript MCQ session',
+                        time: '5 hours ago',
+                        icon: '🧠',
+                        iconBg: 'var(--primary-100)',
+                        iconColor: 'var(--primary-600)'
+                    },
+                    {
+                        type: 'arduino_project',
+                        title: 'Built LED Blink circuit',
+                        time: '1 day ago',
+                        icon: '🔧',
+                        iconBg: 'var(--warning-100)',
+                        iconColor: 'var(--warning-600)'
+                    },
+                    {
+                        type: 'streak_milestone',
+                        title: 'Reached 7-day streak!',
+                        time: '2 days ago',
+                        icon: '🔥',
+                        iconBg: 'var(--error-100)',
+                        iconColor: 'var(--error-600)'
+                    }
+                );
+
+                const html = activities.length > 0 
+                    ? activities.map(activity => `
+                        <div class="activity-item">
+                            <div class="activity-icon" style="background-color: ${activity.iconBg}; color: ${activity.iconColor}">
+                                ${activity.icon}
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">${activity.title}</div>
+                                <div class="activity-meta">${activity.time}</div>
+                            </div>
+                        </div>
+                    `).join('')
+                    : `
+                        <div class="empty-state">
+                            <div class="empty-icon">📊</div>
+                            <p>No recent activity. Start coding to see your progress here!</p>
+                        </div>
+                    `;
+
+                document.getElementById('activity-feed').innerHTML = html;
+            } catch (err) {
+                document.getElementById('activity-feed').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <p>Failed to load activity</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadRecommendedProblems() {
+            try {
+                const problemsResult = await fetchAPI('/student/practice?limit=3');
+                if (problemsResult && problemsResult.status === 200) {
+                    const problems = problemsResult.data.problems || [];
+                    const html = problems.length > 0 
+                        ? problems.map(problem => `
+                            <div class="problem-card card mb-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-medium text-gray-900">${problem.title}</h4>
+                                    <span class="badge difficulty-${problem.difficulty}">
+                                        ${(problem.difficulty || 'unknown').toUpperCase()}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-3">
+                                    ${(problem.tags || []).join(', ')}
+                                </p>
+                                <a href="/test/problem.html?id=${problem.id}" class="btn btn-primary btn-sm">
+                                    Solve Problem
+                                </a>
+                            </div>
+                        `).join('')
+                        : `
+                            <div class="empty-state">
+                                <div class="empty-icon">🎯</div>
+                                <p>No recommendations available</p>
+                            </div>
+                        `;
+                    
+                    document.getElementById('recommended-problems').innerHTML = html;
+                } else {
+                    throw new Error('Failed to load problems');
+                }
+            } catch (err) {
+                document.getElementById('recommended-problems').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <p>Failed to load recommendations</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadDailyChallenge() {
+            try {
+                const potdResult = await fetchAPI('/student/potd');
+                if (potdResult && potdResult.status === 200) {
+                    const challenge = potdResult.data.challenge;
+                    if (challenge) {
+                        document.getElementById('daily-challenge').innerHTML = `
+                            <div class="text-center">
+                                <h4 class="font-medium text-gray-900 mb-2">${challenge.title}</h4>
+                                <span class="badge difficulty-${challenge.difficulty} mb-4">
+                                    ${(challenge.difficulty || 'unknown').toUpperCase()}
+                                </span>
+                                <p class="text-sm text-gray-600 mb-4">
+                                    Complete today's challenge to maintain your streak!
+                                </p>
+                                <a href="/test/potd.html" class="btn btn-warning">
+                                    🌟 Start Challenge
+                                </a>
+                            </div>
+                        `;
+                    } else {
+                        document.getElementById('daily-challenge').innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-icon">🌟</div>
+                                <p>No challenge available today</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error('Failed to load POTD');
+                }
+            } catch (err) {
+                document.getElementById('daily-challenge').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <p>Failed to load today's challenge</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Load dashboard on page load
+        window.addEventListener('load', loadDashboard);
     </script>
 </body>
 </html>

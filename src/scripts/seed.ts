@@ -194,6 +194,11 @@ const dsaQuestions = [
     description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.",
     difficulty: "easy",
     tags: ["arrays", "hashmap"],
+    sampleTestCases: [
+      { input: "nums = [2,7,11,15], target = 9", output: "[0,1]", explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]." },
+      { input: "nums = [3,2,4], target = 6", output: "[1,2]", explanation: "Because nums[1] + nums[2] == 6, we return [1, 2]." },
+      { input: "nums = [3,3], target = 6", output: "[0,1]", explanation: "Because nums[0] + nums[1] == 6, we return [0, 1]." }
+    ],
     hiddenTestCases: [
       { input: "[2,7,11,15]\n9", output: "[0,1]" },
       { input: "[3,2,4]\n6", output: "[1,2]" },
@@ -206,6 +211,10 @@ const dsaQuestions = [
     description: "Write a function that reverses a string. The input string is given as an array of characters s.\n\nYou must do this by modifying the input array in-place with O(1) extra memory.",
     difficulty: "easy",
     tags: ["strings", "two-pointers"],
+    sampleTestCases: [
+      { input: 's = ["h","e","l","l","o"]', output: '["o","l","l","e","h"]', explanation: "Reverse the array of characters in-place." },
+      { input: 's = ["H","a","n","n","a","h"]', output: '["h","a","n","n","a","H"]', explanation: "Reverse the array of characters in-place." }
+    ],
     hiddenTestCases: [
       { input: "[\"h\",\"e\",\"l\",\"l\",\"o\"]", output: "[\"o\",\"l\",\"l\",\"e\",\"h\"]" },
       { input: "[\"H\",\"a\",\"n\",\"n\",\"a\",\"h\"]", output: "[\"h\",\"a\",\"n\",\"n\",\"a\",\"H\"]" }
@@ -217,6 +226,11 @@ const dsaQuestions = [
     description: "Given an integer array nums, find the subarray with the largest sum, and return its sum.",
     difficulty: "medium",
     tags: ["arrays", "divide-and-conquer", "dynamic-programming"],
+    sampleTestCases: [
+      { input: "nums = [-2,1,-3,4,-1,2,1,-5,4]", output: "6", explanation: "The subarray [4,-1,2,1] has the largest sum 6." },
+      { input: "nums = [1]", output: "1", explanation: "The subarray [1] has the largest sum 1." },
+      { input: "nums = [5,4,-1,7,8]", output: "23", explanation: "The subarray [5,4,-1,7,8] has the largest sum 23." }
+    ],
     hiddenTestCases: [
       { input: "[-2,1,-3,4,-1,2,1,-5,4]", output: "6" },
       { input: "[1]", output: "1" },
@@ -702,6 +716,7 @@ async function seed() {
         description: question.description,
         difficulty: question.difficulty,
         createdBy: adminUserId,
+        sampleTestCases: question.sampleTestCases,
         hiddenTestCases: question.hiddenTestCases,
         tags: {
           set: [],
@@ -715,6 +730,7 @@ async function seed() {
         description: question.description,
         difficulty: question.difficulty,
         createdBy: adminUserId,
+        sampleTestCases: question.sampleTestCases,
         hiddenTestCases: question.hiddenTestCases,
         tags: {
           connect: tagConnections,

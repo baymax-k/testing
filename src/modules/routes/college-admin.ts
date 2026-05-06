@@ -28,7 +28,7 @@ import { TestService } from "../services/testService.js";
 import { reportService } from "../services/reportService.js";
 import { dashboardService } from "../services/dashboardService.js";
 import { parseAvatarUpload } from "../../middleware/avatarUpload.js";
-import { uploadAvatarToS3 } from "../../utils/avatarUpload.js";
+import { generateAvatarReadUrl, generateAvatarUploadUrl, getAvatarPublicUrl, uploadAvatarToS3 } from "../../utils/avatarUpload.js";
 import { TestStatus } from "@prisma/client";
 import type { Role } from "@prisma/client";
 
@@ -163,6 +163,17 @@ const verifyOtpSchema = z.object({
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
   image: z.string().regex(/^https?:\/\/.+/, "Invalid image URL").optional(),
+  avatarKey: z.string().min(1, "Avatar key is required").optional(),
+});
+
+const avatarPresignSchema = z.object({
+  mimeType: z.enum(["image/jpeg", "image/jpg", "image/png", "image/webp"], {
+    message: "Unsupported avatar mime type",
+  }),
+});
+
+const avatarConfirmSchema = z.object({
+  key: z.string().min(1, "Avatar key is required"),
 });
 
 // ─── User Management Validation Schemas ─────────────────────────────────────────
@@ -1006,6 +1017,9 @@ async function enforceCollegeScope(
  *                 type: string
  *                 format: uri
  *                 example: https://cdn.example.com/avatar.png
+ *               avatarKey:
+ *                 type: string
+ *                 example: avatars/college-admin/USER_ID/123.png
  *             additionalProperties: false
  *     responses:
  *       "200":
@@ -2038,6 +2052,46 @@ async function enforceCollegeScope(
  *       "200":
  *         description: Avatar uploaded successfully
  *
+ * /api/college-admin/avatar/presign:
+ *   post:
+ *     tags: [College Admin - Auth]
+ *     summary: Generate presigned avatar upload URL
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mimeType:
+ *                 type: string
+ *                 example: image/png
+ *     responses:
+ *       "200":
+ *         description: Presigned URL generated
+ *
+ * /api/college-admin/avatar/confirm:
+ *   post:
+ *     tags: [College Admin - Auth]
+ *     summary: Confirm avatar upload and update profile
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               key:
+ *                 type: string
+ *                 example: avatars/college-admin/USER_ID/123.png
+ *     responses:
+ *       "200":
+ *         description: Avatar updated
+ *
  * /api/college-admin/batches/{batchId}/students:
  *   post:
  *     tags: [College Admin - Batches]
@@ -2911,9 +2965,16 @@ router.get(
         return;
       }
 
+      const signedImage = userDetails.image
+        ? await generateAvatarReadUrl(userDetails.image)
+        : userDetails.image;
+
       res.json({
         success: true,
-        profile: userDetails,
+        profile: {
+          ...userDetails,
+          image: signedImage,
+        },
       });
     } catch (error) {
       console.error("[college-admin/profile] Error:", error);
@@ -2947,7 +3008,8 @@ router.put(
         return;
       }
 
-      let { name, image } = validation.data;
+      let { name, image, avatarKey } = validation.data;
+      let signedImage: string | undefined = image;
 
       if (req.file) {
         const uploadedAvatar = await uploadAvatarToS3({
@@ -2957,6 +3019,15 @@ router.put(
           scope: "college-admin",
         });
         image = uploadedAvatar.url;
+        signedImage = await generateAvatarReadUrl(uploadedAvatar.key);
+      } else if (avatarKey) {
+        const expectedPrefix = `avatars/college-admin/${user.id}/`;
+        if (!avatarKey.startsWith(expectedPrefix)) {
+          res.status(403).json({ error: "Invalid avatar key" });
+          return;
+        }
+        image = getAvatarPublicUrl(avatarKey);
+        signedImage = await generateAvatarReadUrl(avatarKey);
       }
 
       // Build update object with only provided fields
@@ -2981,10 +3052,17 @@ router.put(
         },
       });
 
+      const responseImage =
+        signedImage ??
+        (updatedUser.image ? await generateAvatarReadUrl(updatedUser.image) : updatedUser.image);
+
       res.json({
         success: true,
         message: "Profile updated successfully",
-        profile: updatedUser,
+        profile: {
+          ...updatedUser,
+          image: responseImage,
+        },
       });
     } catch (error) {
       console.error("[college-admin/profile] Error:", error);
@@ -2992,6 +3070,113 @@ router.put(
         error: "Internal server error",
         message: "An error occurred while updating profile",
       });
+    }
+  }
+);
+
+/**
+ * POST /api/college-admin/avatar/presign
+ * Generate a presigned S3 upload URL for avatar uploads.
+ */
+router.post(
+  "/avatar/presign",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user;
+
+      if (!user?.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const validation = avatarPresignSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({ error: "Validation failed", details: validation.error.issues });
+        return;
+      }
+
+      const presign = await generateAvatarUploadUrl({
+        userId: user.id,
+        scope: "college-admin",
+        mimeType: validation.data.mimeType,
+      });
+
+      res.status(200).json({
+        success: true,
+        uploadUrl: presign.uploadUrl,
+        key: presign.key,
+        publicUrl: presign.publicUrl,
+        expiresIn: presign.expiresIn,
+        headers: { "Content-Type": validation.data.mimeType },
+      });
+    } catch (error: any) {
+      console.error("[college-admin/avatar/presign] Error:", error);
+      res.status(500).json({ error: error?.message || "Failed to generate upload URL" });
+    }
+  }
+);
+
+/**
+ * POST /api/college-admin/avatar/confirm
+ * Persist avatar URL after the client uploads to S3.
+ */
+router.post(
+  "/avatar/confirm",
+  requireAuth,
+  requireRole("product_admin", "college_admin", "principal", "hod", "mentor", "dept_admin"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user;
+
+      if (!user?.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const validation = avatarConfirmSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({ error: "Validation failed", details: validation.error.issues });
+        return;
+      }
+
+      const key = validation.data.key;
+      const expectedPrefix = `avatars/college-admin/${user.id}/`;
+      if (!key.startsWith(expectedPrefix)) {
+        res.status(403).json({ error: "Invalid avatar key" });
+        return;
+      }
+
+      const publicUrl = getAvatarPublicUrl(key);
+      const signedAvatarUrl = await generateAvatarReadUrl(key);
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { image: publicUrl },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          emailVerified: true,
+          image: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Avatar updated successfully",
+        avatarUrl: signedAvatarUrl,
+        profile: {
+          ...updatedUser,
+          image: signedAvatarUrl,
+        },
+      });
+    } catch (error: any) {
+      console.error("[college-admin/avatar/confirm] Error:", error);
+      res.status(500).json({ error: error?.message || "Failed to confirm avatar upload" });
     }
   }
 );
@@ -3026,6 +3211,8 @@ router.post(
         scope: "college-admin",
       });
 
+      const signedAvatarUrl = await generateAvatarReadUrl(uploadedAvatar.key);
+
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: { image: uploadedAvatar.url },
@@ -3044,8 +3231,11 @@ router.post(
       res.status(200).json({
         success: true,
         message: "Avatar uploaded successfully",
-        avatarUrl: uploadedAvatar.url,
-        profile: updatedUser,
+        avatarUrl: signedAvatarUrl,
+        profile: {
+          ...updatedUser,
+          image: signedAvatarUrl,
+        },
       });
     } catch (error: any) {
       console.error("[college-admin/avatar] Error:", error);
@@ -3462,7 +3652,7 @@ router.post(
         return;
       }
 
-      const data = validation.data;
+      const { questions, ...data } = validation.data;
 
       let resolvedCollegeId: string | null = null;
       if (currentUser.role === "super_admin") {
@@ -5445,20 +5635,6 @@ const optionalStringId = z.preprocess(
   z.string().optional()
 );
 
-const createTestSchema = z.object({
-  title: z.string().min(1, "Title is required").max(200, "Title too long"),
-  description: z.string().max(1000).optional(),
-  instructions: z.string().max(2000).optional(),
-  durationMinutes: z.number().int().min(1).max(600).optional(),
-  maxAttempts: z.number().int().min(1).max(10).optional(),
-  maximumMarks: z.number().int().min(0).optional(),
-  passingMarks: z.number().int().min(0).optional(),
-  scheduledStartTime: optionalDateString,
-  scheduledEndTime: optionalDateString,
-  departmentId: optionalStringId,
-  batchId: optionalStringId,
-});
-
 const updateTestSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
@@ -5482,6 +5658,21 @@ const createQuestionSchema = z.object({
   correctAnswer: z.string().optional(),
   explanation: z.string().max(500).optional(),
   orderIndex: z.number().int().min(0).optional(),
+});
+
+const createTestSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title too long"),
+  description: z.string().max(1000).optional(),
+  instructions: z.string().max(2000).optional(),
+  durationMinutes: z.number().int().min(1).max(600).optional(),
+  maxAttempts: z.number().int().min(1).max(10).optional(),
+  maximumMarks: z.number().int().min(0).optional(),
+  passingMarks: z.number().int().min(0).optional(),
+  scheduledStartTime: optionalDateString,
+  scheduledEndTime: optionalDateString,
+  departmentId: optionalStringId,
+  batchId: optionalStringId,
+  questions: z.array(createQuestionSchema).max(200).optional(),
 });
 
 const updateQuestionSchema = z.object({
@@ -5624,7 +5815,7 @@ router.post(
         return;
       }
 
-      const data = validation.data;
+      const { questions, ...data } = validation.data;
 
       // Convert date strings to Date objects
       const testData = {
@@ -5645,7 +5836,14 @@ router.post(
         testData.departmentId = user.departmentId;
       }
 
-      const test = await TestService.createTest(testData);
+      let test = await TestService.createTest(testData);
+
+      if (questions && questions.length > 0) {
+        for (const question of questions) {
+          await TestService.addQuestion(test.id, question);
+        }
+        test = await TestService.getTestById(test.id);
+      }
 
       res.status(201).json({
         success: true,

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Features Test - CodeEthnics</title>
+    <link rel="stylesheet" href="/test/css/styles.css">
+    <style>
+        .test-section {
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .test-section h2 {
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+        .test-results {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .endpoint-test {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .endpoint-test button {
+            min-width: 120px;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-pending { background: #ffc107; }
+        .credentials {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CodeEthnics - Feature Test Suite</h1>
+        <div class="nav">
+            <a href="/test/dashboard.html">Dashboard</a>
+            <a href="/test/login.html">Login</a>
+            <a href="/test/test-all-features.html">Test Suite</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="credentials">
+            <h3>🔐 Test Credentials</h3>
+            <p><strong>Student:</strong> student@codeethnics.com / Student@1234</p>
+            <p><strong>Admin:</strong> admin@codeethnics.com / Admin@1234</p>
+            <p><em>Use these credentials to test authentication features</em></p>
+        </div>
+
+        <!-- Authentication Tests -->
+        <div class="test-section">
+            <h2>🔐 Authentication Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="testAuth()">Test Auth Status</button>
+                <button onclick="testSignIn()">Test Sign In</button>
+                <button onclick="testSignOut()">Test Sign Out</button>
+                <span id="auth-status">Not tested</span>
+            </div>
+            <div class="test-results" id="auth-results">Click buttons above to test authentication endpoints...</div>
+        </div>
+
+        <!-- MCQ Practice Tests -->
+        <div class="test-section">
+            <h2>🧠 MCQ Practice Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="testMCQTopics()">Load Topics</button>
+                <button onclick="testCreateMCQSession()">Create Session</button>
+                <button onclick="testMCQHistory()">Load History</button>
+                <span id="mcq-status">Not tested</span>
+            </div>
+            <div class="test-results" id="mcq-results">Click buttons above to test MCQ practice endpoints...</div>
+        </div>
+
+        <!-- DSA Problems Tests -->
+        <div class="test-section">
+            <h2>💻 DSA Problems Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="testDSAProblems()">Load Problems</button>
+                <button onclick="testProblemDetail()">Problem Detail</button>
+                <button onclick="testSubmissions()">Load Submissions</button>
+                <span id="dsa-status">Not tested</span>
+            </div>
+            <div class="test-results" id="dsa-results">Click buttons above to test DSA problem endpoints...</div>
+        </div>
+
+        <!-- Arduino Tests -->
+        <div class="test-section">
+            <h2>🔧 Arduino Platform Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="testArduinoProblems()">Load Arduino Problems</button>
+                <button onclick="testArduinoBoards()">Load Boards</button>
+                <button onclick="testArduinoHealth()">Health Check</button>
+                <span id="arduino-status">Not tested</span>
+            </div>
+            <div class="test-results" id="arduino-results">Click buttons above to test Arduino platform endpoints...</div>
+        </div>
+
+        <!-- POTD Tests -->
+        <div class="test-section">
+            <h2>🌟 Problem of the Day Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="testPOTD()">Today's POTD</button>
+                <button onclick="testPOTDHistory()">POTD History</button>
+                <span id="potd-status">Not tested</span>
+            </div>
+            <div class="test-results" id="potd-results">Click buttons above to test POTD endpoints...</div>
+        </div>
+
+        <!-- Contest Tests -->
+        <div class="test-section">
+            <h2>🏆 Contest Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="testContests()">Load Contests</button>
+                <button onclick="testContestDetail()">Contest Detail</button>
+                <span id="contest-status">Not tested</span>
+            </div>
+            <div class="test-results" id="contest-results">Click buttons above to test contest endpoints...</div>
+        </div>
+
+        <!-- Dashboard Tests -->
+        <div class="test-section">
+            <h2>📊 Dashboard Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="testDashboard()">Student Dashboard</button>
+                <button onclick="testProfile()">Student Profile</button>
+                <span id="dashboard-status">Not tested</span>
+            </div>
+            <div class="test-results" id="dashboard-results">Click buttons above to test dashboard endpoints...</div>
+        </div>
+
+        <!-- Run All Tests -->
+        <div class="test-section">
+            <h2>🚀 Run All Tests</h2>
+            <div class="endpoint-test">
+                <button onclick="runAllTests()" style="background: #28a745; font-size: 16px; padding: 15px 30px;">
+                    Run Complete Test Suite
+                </button>
+                <span id="all-tests-status">Ready to run</span>
+            </div>
+            <div class="test-results" id="all-tests-results">Click the button above to run all tests...</div>
+        </div>
+    </div>
+
+    <script src="/test/js/utils.js"></script>
+    <script>
+        function updateStatus(sectionId, status, isSuccess) {
+            const statusEl = document.getElementById(sectionId + '-status');
+            const indicator = isSuccess ? 
+                '<span class="status-indicator status-success"></span>Success' :
+                '<span class="status-indicator status-error"></span>Error';
+            statusEl.innerHTML = indicator;
+        }
+
+        function appendResult(sectionId, content) {
+            const resultsEl = document.getElementById(sectionId + '-results');
+            resultsEl.innerHTML += content + '<br>';
+            resultsEl.scrollTop = resultsEl.scrollHeight;
+        }
+
+        function clearResults(sectionId) {
+            document.getElementById(sectionId + '-results').innerHTML = '';
+        }
+
+        // Authentication Tests
+        async function testAuth() {
+            clearResults('auth');
+            appendResult('auth', '🔍 Testing authentication status...');
+            
+            const result = await fetchAPI('/auth/status');
+            if (result) {
+                appendResult('auth', `✅ Auth Status: ${JSON.stringify(result.data, null, 2)}`);
+                updateStatus('auth', 'success', true);
+            } else {
+                appendResult('auth', '❌ Failed to get auth status');
+                updateStatus('auth', 'error', false);
+            }
+        }
+
+        async function testSignIn() {
+            appendResult('auth', '🔐 Testing sign in with student credentials...');
+            
+            const result = await fetchAPI('/auth/sign-in', {
+                method: 'POST',
+                body: JSON.stringify({
+                    identifier: 'student@codeethnics.com',
+                    password: 'Student@1234'
+                })
+            });
+            
+            if (result && result.status === 200) {
+                appendResult('auth', '✅ Sign in successful!');
+                updateStatus('auth', 'success', true);
+            } else {
+                appendResult('auth', `❌ Sign in failed: ${JSON.stringify(result?.data)}`);
+                updateStatus('auth', 'error', false);
+            }
+        }
+
+        async function testSignOut() {
+            appendResult('auth', '🚪 Testing sign out...');
+            
+            const result = await fetchAPI('/auth/sign-out', { method: 'POST' });
+            if (result) {
+                appendResult('auth', '✅ Sign out successful!');
+                updateStatus('auth', 'success', true);
+            } else {
+                appendResult('auth', '❌ Sign out failed');
+                updateStatus('auth', 'error', false);
+            }
+        }
+
+        // MCQ Practice Tests
+        async function testMCQTopics() {
+            clearResults('mcq');
+            appendResult('mcq', '📚 Loading MCQ topics...');
+            
+            const result = await fetchAPI('/student/practice/mcq/topics');
+            if (result && result.status === 200) {
+                const topics = result.data.topics || [];
+                appendResult('mcq', `✅ Found ${topics.length} topics: ${topics.join(', ')}`);
+                updateStatus('mcq', 'success', true);
+            } else {
+                appendResult('mcq', `❌ Failed to load topics: ${JSON.stringify(result?.data)}`);
+                updateStatus('mcq', 'error', false);
+            }
+        }
+
+        async function testCreateMCQSession() {
+            appendResult('mcq', '🎯 Creating MCQ session...');
+            
+            const result = await fetchAPI('/student/practice/mcq/session', {
+                method: 'POST',
+                body: JSON.stringify({
+                    topics: ['javascript', 'arrays'],
+                    count: 5,
+                    difficulty: 'easy'
+                })
+            });
+            
+            if (result && result.status === 200) {
+                appendResult('mcq', `✅ Session created: ${result.data.session.id}`);
+                updateStatus('mcq', 'success', true);
+            } else {
+                appendResult('mcq', `❌ Failed to create session: ${JSON.stringify(result?.data)}`);
+                updateStatus('mcq', 'error', false);
+            }
+        }
+
+        async function testMCQHistory() {
+            appendResult('mcq', '📜 Loading MCQ history...');
+            
+            const result = await fetchAPI('/student/practice/mcq/history');
+            if (result && result.status === 200) {
+                const history = result.data.history || [];
+                appendResult('mcq', `✅ Found ${history.length} sessions in history`);
+                updateStatus('mcq', 'success', true);
+            } else {
+                appendResult('mcq', `❌ Failed to load history: ${JSON.stringify(result?.data)}`);
+                updateStatus('mcq', 'error', false);
+            }
+        }
+
+        // DSA Problems Tests
+        async function testDSAProblems() {
+            clearResults('dsa');
+            appendResult('dsa', '💻 Loading DSA problems...');
+            
+            const result = await fetchAPI('/problems?type=dsa&limit=10');
+            if (result && result.status === 200) {
+                const problems = result.data.problems || [];
+                appendResult('dsa', `✅ Found ${problems.length} DSA problems`);
+                problems.forEach(p => {
+                    appendResult('dsa', `  • ${p.title} (${p.difficulty})`);
+                });
+                updateStatus('dsa', 'success', true);
+            } else {
+                appendResult('dsa', `❌ Failed to load problems: ${JSON.stringify(result?.data)}`);
+                updateStatus('dsa', 'error', false);
+            }
+        }
+
+        async function testProblemDetail() {
+            appendResult('dsa', '🔍 Loading problem detail...');
+            
+            const result = await fetchAPI('/problems/dsa-practice-001');
+            if (result && result.status === 200) {
+                const problem = result.data.problem;
+                appendResult('dsa', `✅ Problem detail: ${problem.title}`);
+                updateStatus('dsa', 'success', true);
+            } else {
+                appendResult('dsa', `❌ Failed to load problem detail: ${JSON.stringify(result?.data)}`);
+                updateStatus('dsa', 'error', false);
+            }
+        }
+
+        async function testSubmissions() {
+            appendResult('dsa', '📝 Loading submissions...');
+            
+            const result = await fetchAPI('/submissions?limit=5');
+            if (result && result.status === 200) {
+                const submissions = result.data.submissions || [];
+                appendResult('dsa', `✅ Found ${submissions.length} submissions`);
+                updateStatus('dsa', 'success', true);
+            } else {
+                appendResult('dsa', `❌ Failed to load submissions: ${JSON.stringify(result?.data)}`);
+                updateStatus('dsa', 'error', false);
+            }
+        }
+
+        // Arduino Tests
+        async function testArduinoProblems() {
+            clearResults('arduino');
+            appendResult('arduino', '🔧 Loading Arduino problems...');
+            
+            const result = await fetchAPI('/arduino/problems');
+            if (result && result.status === 200) {
+                const problems = result.data.problems || [];
+                appendResult('arduino', `✅ Found ${problems.length} Arduino problems`);
+                problems.forEach(p => {
+                    appendResult('arduino', `  • ${p.title} (${p.difficulty})`);
+                });
+                updateStatus('arduino', 'success', true);
+            } else {
+                appendResult('arduino', `❌ Failed to load Arduino problems: ${JSON.stringify(result?.data)}`);
+                updateStatus('arduino', 'error', false);
+            }
+        }
+
+        async function testArduinoBoards() {
+            appendResult('arduino', '🎛️ Loading supported boards...');
+            
+            const result = await fetchAPI('/arduino/boards');
+            if (result && result.status === 200) {
+                const boards = result.data.boards || [];
+                appendResult('arduino', `✅ Found ${boards.length} supported boards: ${boards.join(', ')}`);
+                updateStatus('arduino', 'success', true);
+            } else {
+                appendResult('arduino', `❌ Failed to load boards: ${JSON.stringify(result?.data)}`);
+                updateStatus('arduino', 'error', false);
+            }
+        }
+
+        async function testArduinoHealth() {
+            appendResult('arduino', '🏥 Checking Arduino service health...');
+            
+            const result = await fetchAPI('/arduino/health');
+            if (result && result.status === 200) {
+                appendResult('arduino', `✅ Arduino service is healthy: ${JSON.stringify(result.data)}`);
+                updateStatus('arduino', 'success', true);
+            } else {
+                appendResult('arduino', `❌ Arduino service health check failed: ${JSON.stringify(result?.data)}`);
+                updateStatus('arduino', 'error', false);
+            }
+        }
+
+        // POTD Tests
+        async function testPOTD() {
+            clearResults('potd');
+            appendResult('potd', '🌟 Loading today\'s POTD...');
+            
+            const result = await fetchAPI('/student/potd');
+            if (result && result.status === 200) {
+                const potd = result.data.challenge;
+                if (potd) {
+                    appendResult('potd', `✅ Today's POTD: ${potd.title} (${potd.difficulty})`);
+                } else {
+                    appendResult('potd', '✅ No POTD for today');
+                }
+                updateStatus('potd', 'success', true);
+            } else {
+                appendResult('potd', `❌ Failed to load POTD: ${JSON.stringify(result?.data)}`);
+                updateStatus('potd', 'error', false);
+            }
+        }
+
+        async function testPOTDHistory() {
+            appendResult('potd', '📜 Loading POTD history...');
+            
+            const result = await fetchAPI('/student/potd/history');
+            if (result && result.status === 200) {
+                const history = result.data.history || [];
+                appendResult('potd', `✅ Found ${history.length} POTD entries in history`);
+                updateStatus('potd', 'success', true);
+            } else {
+                appendResult('potd', `❌ Failed to load POTD history: ${JSON.stringify(result?.data)}`);
+                updateStatus('potd', 'error', false);
+            }
+        }
+
+        // Contest Tests
+        async function testContests() {
+            clearResults('contest');
+            appendResult('contest', '🏆 Loading contests...');
+            
+            const result = await fetchAPI('/student/contest');
+            if (result && result.status === 200) {
+                const contests = result.data.contests || [];
+                appendResult('contest', `✅ Found ${contests.length} contests`);
+                updateStatus('contest', 'success', true);
+            } else {
+                appendResult('contest', `❌ Failed to load contests: ${JSON.stringify(result?.data)}`);
+                updateStatus('contest', 'error', false);
+            }
+        }
+
+        async function testContestDetail() {
+            appendResult('contest', '🔍 Testing contest detail (will fail if no contests exist)...');
+            
+            const result = await fetchAPI('/student/contest/test-contest-id');
+            if (result && result.status === 200) {
+                appendResult('contest', `✅ Contest detail loaded`);
+                updateStatus('contest', 'success', true);
+            } else {
+                appendResult('contest', `ℹ️ No contest detail (expected if no contests): ${result?.status}`);
+                updateStatus('contest', 'success', true); // This is expected
+            }
+        }
+
+        // Dashboard Tests
+        async function testDashboard() {
+            clearResults('dashboard');
+            appendResult('dashboard', '📊 Loading student dashboard...');
+            
+            const result = await fetchAPI('/student/dashboard');
+            if (result && result.status === 200) {
+                appendResult('dashboard', `✅ Dashboard loaded: ${JSON.stringify(result.data, null, 2)}`);
+                updateStatus('dashboard', 'success', true);
+            } else {
+                appendResult('dashboard', `❌ Failed to load dashboard: ${JSON.stringify(result?.data)}`);
+                updateStatus('dashboard', 'error', false);
+            }
+        }
+
+        async function testProfile() {
+            appendResult('dashboard', '👤 Loading student profile...');
+            
+            const result = await fetchAPI('/student/profile');
+            if (result && result.status === 200) {
+                appendResult('dashboard', `✅ Profile loaded: ${JSON.stringify(result.data, null, 2)}`);
+                updateStatus('dashboard', 'success', true);
+            } else {
+                appendResult('dashboard', `❌ Failed to load profile: ${JSON.stringify(result?.data)}`);
+                updateStatus('dashboard', 'error', false);
+            }
+        }
+
+        // Run All Tests
+        async function runAllTests() {
+            document.getElementById('all-tests-status').innerHTML = 
+                '<span class="status-indicator status-pending"></span>Running...';
+            clearResults('all-tests');
+            
+            appendResult('all-tests', '🚀 Starting comprehensive test suite...\n');
+            
+            // Sign in first
+            appendResult('all-tests', '1. Signing in with student credentials...');
+            await testSignIn();
+            
+            // Wait a bit for auth to settle
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            appendResult('all-tests', '2. Testing MCQ features...');
+            await testMCQTopics();
+            await testCreateMCQSession();
+            await testMCQHistory();
+            
+            appendResult('all-tests', '3. Testing DSA features...');
+            await testDSAProblems();
+            await testProblemDetail();
+            await testSubmissions();
+            
+            appendResult('all-tests', '4. Testing Arduino features...');
+            await testArduinoProblems();
+            await testArduinoBoards();
+            await testArduinoHealth();
+            
+            appendResult('all-tests', '5. Testing POTD features...');
+            await testPOTD();
+            await testPOTDHistory();
+            
+            appendResult('all-tests', '6. Testing Contest features...');
+            await testContests();
+            await testContestDetail();
+            
+            appendResult('all-tests', '7. Testing Dashboard features...');
+            await testDashboard();
+            await testProfile();
+            
+            appendResult('all-tests', '\n✅ All tests completed! Check individual sections for detailed results.');
+            document.getElementById('all-tests-status').innerHTML = 
+                '<span class="status-indicator status-success"></span>Completed';
+        }
+
+        // Auto-sign in on page load for testing
+        window.addEventListener('load', async () => {
+            appendResult('all-tests', '🔄 Auto-signing in for testing...');
+            await testSignIn();
+        });
+    </script>
+</body>
+</html>

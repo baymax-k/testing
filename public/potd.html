@@ -4,54 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POTD - CodeEthnics</title>
-    <link rel="stylesheet" href="/test/css/styles.css">
+    <link rel="stylesheet" href="/test/css/modern-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="header">
-        <h1>CodeEthnics</h1>
-        <div class="nav">
-            <a href="/test/dashboard.html">Dashboard</a>
-            <a href="/test/problems.html">Problems</a>
-            <a href="/test/practice.html">Practice</a>
-            <a href="/test/potd.html">POTD</a>
-            <a href="/test/contests.html">Contests</a>
-            <a href="/test/submissions.html">Submissions</a>
-            <a href="/test/profile.html">Profile</a>
-            <a href="#" onclick="signOut()">Sign Out</a>
+    <header class="header">
+        <div class="header-content">
+            <a href="/test/dashboard.html" class="logo">CodeEthnics</a>
+            <nav class="nav">
+                <a href="/test/dashboard.html" class="nav-link">Dashboard</a>
+                <a href="/test/problems.html" class="nav-link">Problems</a>
+                <a href="/test/practice.html" class="nav-link">Practice</a>
+                <a href="/test/arduino.html" class="nav-link">Arduino</a>
+                <a href="/test/potd.html" class="nav-link active">POTD</a>
+                <a href="/test/contests.html" class="nav-link">Contests</a>
+                <a href="/test/submissions.html" class="nav-link">Submissions</a>
+                <a href="/test/profile.html" class="nav-link">Profile</a>
+                <a href="#" onclick="signOut()" class="nav-link">Sign Out</a>
+            </nav>
         </div>
-    </div>
+    </header>
 
     <div class="container">
-        <h2>Problem of the Day</h2>
+        <h1>Problem of the Day</h1>
+        <p>Challenge yourself with daily coding problems and maintain your streak!</p>
 
-        <div class="card" id="streak-box">Loading streak...</div>
-
-        <div class="grid" style="margin-top: 20px;">
-            <div class="card" id="potd-box">Loading today's challenge...</div>
-            <div class="card">
-                <h3>Submit Today's Challenge</h3>
-                <form id="potd-form">
-                    <input type="hidden" id="daily-challenge-id" />
-
-                    <label>MCQ Selected Option (0-based)</label>
-                    <input id="potd-selected-option" type="number" min="0" placeholder="Use for MCQ" />
-
-                    <label>Language ID (for DSA only)</label>
-                    <input id="potd-language-id" type="number" min="1" placeholder="Example: 71 for Python" />
-
-                    <label>Source Code (for DSA only)</label>
-                    <textarea id="potd-source-code" placeholder="Paste code for DSA POTD"></textarea>
-
-                    <button type="submit">Submit POTD</button>
-                </form>
-                <div id="potd-submit-result" style="margin-top: 10px;"></div>
+        <div class="card mb-6" id="streak-box">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading streak...
             </div>
         </div>
 
-        <div class="card" style="margin-top: 20px;">
-            <h3>POTD History</h3>
-            <button onclick="loadPotdHistory()">Refresh History</button>
-            <div id="potd-history" style="margin-top: 10px;">Loading...</div>
+        <div class="grid grid-2">
+            <div class="card" id="potd-box">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading today's challenge...
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Submit Today's Challenge</h3>
+                    <p class="card-description">Submit your solution for today's problem</p>
+                </div>
+                <form id="potd-form">
+                    <input type="hidden" id="daily-challenge-id" />
+
+                    <div class="form-group">
+                        <label class="form-label">MCQ Selected Option (0-based)</label>
+                        <input id="potd-selected-option" type="number" class="form-input" min="0" placeholder="Use for MCQ problems" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Language ID (for DSA only)</label>
+                        <input id="potd-language-id" type="number" class="form-input" min="1" placeholder="Example: 71 for Python" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Source Code (for DSA only)</label>
+                        <textarea id="potd-source-code" class="form-textarea" placeholder="Paste your code for DSA POTD"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Submit POTD</button>
+                </form>
+                <div id="potd-submit-result" class="mt-4"></div>
+            </div>
+        </div>
+
+        <div class="card mt-6">
+            <div class="card-header">
+                <h3 class="card-title">POTD History</h3>
+                <p class="card-description">View your past daily challenge attempts</p>
+            </div>
+            <button onclick="loadPotdHistory()" class="btn btn-secondary mb-4">Refresh History</button>
+            <div id="potd-history">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading history...
+                </div>
+            </div>
         </div>
     </div>
 
@@ -62,19 +95,33 @@
             if (result && result.status === 200) {
                 const s = result.data.streak;
                 document.getElementById('streak-box').innerHTML = `
-                    <strong>Current Streak:</strong> ${s.currentStreak}<br>
-                    <strong>Longest Streak:</strong> ${s.longestStreak}<br>
-                    <strong>Last Solve Date:</strong> ${s.lastSolveDate ? formatDate(s.lastSolveDate) : 'N/A'}
+                    <div class="card-header">
+                        <h3 class="card-title">🔥 Your Streak</h3>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-primary-600">${s.currentStreak}</div>
+                            <div class="text-sm text-gray-600">Current Streak</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-success-600">${s.longestStreak}</div>
+                            <div class="text-sm text-gray-600">Longest Streak</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-sm font-medium">${s.lastSolveDate ? formatDate(s.lastSolveDate) : 'N/A'}</div>
+                            <div class="text-sm text-gray-600">Last Solve Date</div>
+                        </div>
+                    </div>
                 `;
             } else {
-                document.getElementById('streak-box').innerHTML = '<div class="error">Failed to load streak</div>';
+                document.getElementById('streak-box').innerHTML = '<div class="alert alert-error">Failed to load streak</div>';
             }
         }
 
         async function loadTodayPotd() {
             const result = await fetchAPI('/student/potd');
             if (!(result && result.status === 200)) {
-                document.getElementById('potd-box').innerHTML = `<div class="error">${result?.data?.error || 'Failed to load POTD'}</div>`;
+                document.getElementById('potd-box').innerHTML = `<div class="alert alert-error">${result?.data?.error || 'Failed to load POTD'}</div>`;
                 return;
             }
 
@@ -82,15 +129,23 @@
             const question = challenge.question;
             document.getElementById('daily-challenge-id').value = challenge.id;
 
-            const optionsHtml = (question.options || []).map((opt, index) => `<li>${index}. ${opt}</li>`).join('');
+            const optionsHtml = (question.options || []).map((opt, index) => `
+                <div class="p-2 bg-gray-50 rounded border-l-4 border-gray-300">
+                    <span class="font-medium">${index}.</span> ${opt}
+                </div>
+            `).join('');
 
             document.getElementById('potd-box').innerHTML = `
-                <h3>${question.title}</h3>
-                <p><strong>Type:</strong> ${question.type}</p>
-                <p><strong>Difficulty:</strong> ${question.difficulty}</p>
-                <p>${question.description || ''}</p>
-                ${optionsHtml ? `<p><strong>Options</strong></p><ol>${optionsHtml}</ol>` : ''}
-                <p><strong>Status:</strong> ${result.data.solved ? 'Already solved today' : 'Not solved yet'}</p>
+                <div class="card-header">
+                    <h3 class="card-title">${question.title}</h3>
+                    <div class="flex gap-2">
+                        <span class="badge badge-primary">${question.type.toUpperCase()}</span>
+                        ${getDifficultyBadge(question.difficulty)}
+                        ${result.data.solved ? '<span class="badge badge-success">✅ Solved</span>' : '<span class="badge badge-gray">⏳ Pending</span>'}
+                    </div>
+                </div>
+                ${question.description ? `<p class="mb-4">${question.description}</p>` : ''}
+                ${optionsHtml ? `<div class="mb-4"><h4 class="mb-2">Options:</h4><div class="space-y-2">${optionsHtml}</div></div>` : ''}
             `;
         }
 
@@ -98,7 +153,7 @@
             event.preventDefault();
             const dailyChallengeId = document.getElementById('daily-challenge-id').value;
             if (!dailyChallengeId) {
-                document.getElementById('potd-submit-result').innerHTML = '<div class="error">No active daily challenge</div>';
+                document.getElementById('potd-submit-result').innerHTML = '<div class="alert alert-error">No active daily challenge</div>';
                 return;
             }
 
@@ -117,12 +172,17 @@
             });
 
             if (result && result.status === 200) {
-                document.getElementById('potd-submit-result').innerHTML = `<div class="success">Submitted successfully.<br><pre>${JSON.stringify(result.data, null, 2)}</pre></div>`;
+                document.getElementById('potd-submit-result').innerHTML = `
+                    <div class="alert alert-success">
+                        <h4>Submitted successfully!</h4>
+                        <pre class="mt-2 text-sm">${JSON.stringify(result.data, null, 2)}</pre>
+                    </div>
+                `;
                 await loadStreak();
                 await loadTodayPotd();
                 await loadPotdHistory();
             } else {
-                document.getElementById('potd-submit-result').innerHTML = `<div class="error">${result?.data?.error || 'Failed to submit POTD'}</div>`;
+                document.getElementById('potd-submit-result').innerHTML = `<div class="alert alert-error">${result?.data?.error || 'Failed to submit POTD'}</div>`;
             }
         }
 
@@ -130,15 +190,21 @@
             const result = await fetchAPI('/student/potd/history?limit=20&page=1');
             if (result && result.status === 200) {
                 const html = result.data.history.map((h) => `
-                    <div class="item">
-                        ${formatDate(h.date)} - ${h.question.title} (${h.question.type})<br>
-                        Difficulty: ${h.question.difficulty}<br>
-                        Solved: ${h.solved ? 'Yes' : 'No'} ${h.solved ? `| Correct: ${h.isCorrect}` : ''}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4 class="card-title">${h.question.title}</h4>
+                            <div class="flex gap-2">
+                                <span class="badge badge-primary">${h.question.type.toUpperCase()}</span>
+                                ${getDifficultyBadge(h.question.difficulty)}
+                                ${h.solved ? (h.isCorrect ? '<span class="badge badge-success">✅ Correct</span>' : '<span class="badge badge-warning">❌ Incorrect</span>') : '<span class="badge badge-gray">⏳ Not Solved</span>'}
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600">${formatDate(h.date)}</p>
                     </div>
                 `).join('');
-                document.getElementById('potd-history').innerHTML = html || 'No history found';
+                document.getElementById('potd-history').innerHTML = html || '<div class="alert alert-info">No history found</div>';
             } else {
-                document.getElementById('potd-history').innerHTML = '<div class="error">Failed to load history</div>';
+                document.getElementById('potd-history').innerHTML = '<div class="alert alert-error">Failed to load history</div>';
             }
         }
 

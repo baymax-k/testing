@@ -3,13 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Problem - CodeEthnics</title>
+    <title>Problem Solver - CodeEthnics</title>
     <link rel="stylesheet" href="/test/css/styles.css">
     <style>
-        .problem-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .code-editor textarea { height: 350px; }
-        .buttons button { margin-bottom: 10px; }
-        @media (max-width: 768px) { .problem-layout { grid-template-columns: 1fr; } }
+        .problem-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: calc(100vh - 120px);
+        }
+        
+        .problem-panel {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 15px 20px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .code-editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .editor-toolbar {
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .editor-textarea {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border: none;
+            padding: 15px;
+            resize: none;
+            outline: none;
+            background: #f8f9fa;
+        }
+        
+        .test-cases {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        
+        .test-case {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .test-case:last-child {
+            border-bottom: none;
+        }
+        
+        .test-case.passed {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        
+        .test-case.failed {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .action-buttons {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .language-select {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .results-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .problem-meta {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .meta-tag {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .difficulty-easy { background: #d4edda; color: #155724; }
+        .difficulty-medium { background: #fff3cd; color: #856404; }
+        .difficulty-hard { background: #f8d7da; color: #721c24; }
+        
+        .tag {
+            background: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .problem-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -17,8 +197,9 @@
         <h1>CodeEthnics</h1>
         <div class="nav">
             <a href="/test/dashboard.html">Dashboard</a>
-            <a href="/test/problems.html">Problems</a>
             <a href="/test/practice.html">Practice</a>
+            <a href="/test/problems.html">Problems</a>
+            <a href="/test/arduino.html">Arduino</a>
             <a href="/test/potd.html">POTD</a>
             <a href="/test/contests.html">Contests</a>
             <a href="/test/submissions.html">Submissions</a>
@@ -26,175 +207,423 @@
             <a href="#" onclick="signOut()">Sign Out</a>
         </div>
     </div>
+
     <div class="container">
-        <div class="problem-layout">
-            <div class="card" id="problem-content">
-                Loading problem...
-            </div>
-            <div class="card code-editor">
-                <h3>Solution</h3>
-                <label for="language">Language</label>
-                <select id="language">
-                    <option value="javascript" selected>JavaScript</option>
-                    <option value="python">Python</option>
-                    <option value="cpp">C++</option>
-                    <option value="java">Java</option>
-                    <option value="go">Go</option>
-                    <option value="rust">Rust</option>
-                    <option value="c">C</option>
-                </select>
-                <textarea id="code" placeholder="Write your code here..."></textarea>
-                <label for="custom-input">Custom Input (stdin)</label>
-                <textarea id="custom-input" placeholder="Optional custom input"></textarea>
-                <div id="result-message"></div>
-                <div class="buttons">
-                    <button onclick="runCode()">▶ Run Code</button>
-                    <button onclick="testAgainstSamples()">⚙ Test Samples</button>
-                    <button onclick="submitCode()">✓ Submit</button>
+        <div class="problem-container">
+            <!-- Problem Description Panel -->
+            <div class="problem-panel">
+                <div class="panel-header">
+                    📝 Problem Description
                 </div>
-                <div id="result"></div>
+                <div class="panel-content">
+                    <div id="problem-loading" class="loading">
+                        Loading problem...
+                    </div>
+                    <div id="problem-content" style="display: none;">
+                        <div class="problem-meta" id="problem-meta"></div>
+                        <h3 id="problem-title"></h3>
+                        <div id="problem-description"></div>
+                        
+                        <h4>Sample Test Cases</h4>
+                        <div class="test-cases" id="sample-test-cases">
+                            <div class="test-case">No sample test cases available</div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Code Editor Panel -->
+            <div class="problem-panel">
+                <div class="panel-header">
+                    💻 Code Editor
+                </div>
+                <div class="code-editor">
+                    <div class="editor-toolbar">
+                        <label for="language-select">Language:</label>
+                        <select id="language-select" class="language-select">
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="cpp">C++</option>
+                            <option value="java">Java</option>
+                            <option value="c">C</option>
+                        </select>
+                        <div style="flex: 1;"></div>
+                        <span id="editor-status">Ready</span>
+                    </div>
+                    <textarea 
+                        id="code-editor" 
+                        class="editor-textarea" 
+                        placeholder="Write your solution here..."
+                        spellcheck="false"
+                    ></textarea>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="runCode()">▶️ Run Code</button>
+                    <button class="btn btn-success" onclick="submitCode()">✅ Submit</button>
+                    <button class="btn btn-secondary" onclick="resetCode()">🔄 Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="results-panel" id="results-panel" style="display: none;">
+            <h4>🧪 Test Results</h4>
+            <div id="test-results"></div>
+        </div>
+
+        <!-- Submission Results -->
+        <div class="results-panel" id="submission-results" style="display: none;">
+            <h4>📊 Submission Results</h4>
+            <div id="submission-details"></div>
         </div>
     </div>
 
     <script src="/test/js/utils.js"></script>
     <script>
-        const problemSlug = getURLParam('slug');
         let currentProblem = null;
+        let currentLanguage = 'python';
+        
+        // Language templates
+        const codeTemplates = {
+            python: `def solution():
+    # Write your solution here
+    pass
+
+# Test your solution
+if __name__ == "__main__":
+    result = solution()
+    print(result)`,
+            javascript: `function solution() {
+    // Write your solution here
+    return null;
+}
+
+// Test your solution
+console.log(solution());`,
+            cpp: `#include <iostream>
+#include <vector>
+using namespace std;
+
+class Solution {
+public:
+    // Write your solution here
+    void solve() {
+        
+    }
+};
+
+int main() {
+    Solution sol;
+    sol.solve();
+    return 0;
+}`,
+            java: `public class Solution {
+    // Write your solution here
+    public void solve() {
+        
+    }
+    
+    public static void main(String[] args) {
+        Solution sol = new Solution();
+        sol.solve();
+    }
+}`,
+            c: `#include <stdio.h>
+
+// Write your solution here
+void solution() {
+    
+}
+
+int main() {
+    solution();
+    return 0;
+}`
+        };
 
         async function loadProblem() {
-            if (!await checkAuth()) return;
-            if (!problemSlug) {
-                document.getElementById('problem-content').innerHTML = '<div class="error">No problem specified</div>';
-                return;
+            const urlParams = new URLSearchParams(window.location.search);
+            const problemId = urlParams.get('id') || urlParams.get('slug') || 'dsa-practice-001';
+            
+            try {
+                const result = await fetchAPI(`/problems/${problemId}`);
+                if (result && result.status === 200) {
+                    currentProblem = result.data.problem;
+                    displayProblem(currentProblem);
+                    loadCodeTemplate();
+                } else {
+                    document.getElementById('problem-loading').innerHTML = 
+                        `❌ Failed to load problem: ${result?.data?.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                document.getElementById('problem-loading').innerHTML = 
+                    `❌ Error loading problem: ${error.message}`;
             }
+        }
 
-            const result = await fetchAPI(`/problems/${problemSlug}`);
-            if (result && result.status === 200) {
-                const p = result.data.problem;
-                currentProblem = p;
-                const sampleCases = (p.sampleTestCases || []).map(tc => `
-                    <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
-                        <strong>Input:</strong>
-                        <pre>${tc.input}</pre>
-                        <strong>Output:</strong>
-                        <pre>${tc.output}</pre>
-                        ${tc.explanation ? `<em>${tc.explanation}</em>` : ''}
+        function displayProblem(problem) {
+            document.getElementById('problem-loading').style.display = 'none';
+            document.getElementById('problem-content').style.display = 'block';
+            
+            // Update title
+            document.getElementById('problem-title').textContent = problem.title;
+            document.title = `${problem.title} - CodeEthnics`;
+            
+            // Update meta information
+            const metaHtml = `
+                <span class="meta-tag difficulty-${problem.difficulty}">${problem.difficulty.toUpperCase()}</span>
+                ${(problem.tags || []).map(tag => `<span class="tag">${tag}</span>`).join('')}
+            `;
+            document.getElementById('problem-meta').innerHTML = metaHtml;
+            
+            // Update description (convert markdown-like content to HTML)
+            const description = problem.description
+                .replace(/#{1,6}\s+(.+)/g, '<h4>$1</h4>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`(.+?)`/g, '<code>$1</code>')
+                .replace(/```([\\s\\S]*?)```/g, '<pre>$1</pre>')
+                .replace(/\\n/g, '<br>');
+            
+            document.getElementById('problem-description').innerHTML = description;
+            
+            // Display sample test cases
+            if (problem.sampleTestCases && problem.sampleTestCases.length > 0) {
+                const testCasesHtml = problem.sampleTestCases.map((testCase, index) => `
+                    <div class="test-case">
+                        <strong>Example ${index + 1}:</strong><br>
+                        <strong>Input:</strong> ${testCase.input}<br>
+                        <strong>Output:</strong> ${testCase.output}<br>
+                        ${testCase.explanation ? `<strong>Explanation:</strong> ${testCase.explanation}` : ''}
                     </div>
-                `).join('') || '<p>No sample test cases yet.</p>';
-
-                document.getElementById('problem-content').innerHTML = `
-                    <h2>${p.title}</h2>
-                    <p>${getDifficultyBadge(p.difficulty)}</p>
-                    <p>${p.description}</p>
-                    <p><strong>Constraints:</strong> ${p.constraints}</p>
-                    <p><strong>Time Limits:</strong> ${Object.entries(p.timeLimits).map(([lang, limit]) => `${lang}: ${limit}s`).join(' | ')}</p>
-                    <p><strong>Memory Limit:</strong> ${p.memoryLimit} MB</p>
-                    <h3>Sample Test Cases</h3>
-                    ${sampleCases}
-                    <p><strong>Tags:</strong> ${p.tags.join(', ')}</p>
-                `;
-            } else {
-                document.getElementById('problem-content').innerHTML = '<div class="error">Failed to load problem</div>';
+                `).join('');
+                document.getElementById('sample-test-cases').innerHTML = testCasesHtml;
             }
+        }
+
+        function loadCodeTemplate() {
+            const language = document.getElementById('language-select').value;
+            currentLanguage = language;
+            
+            // Load saved code or template
+            const savedCode = localStorage.getItem(`code_${currentProblem.id}_${language}`);
+            const code = savedCode || codeTemplates[language] || codeTemplates.python;
+            
+            document.getElementById('code-editor').value = code;
+            updateEditorStatus('Ready');
+        }
+
+        function saveCode() {
+            if (currentProblem) {
+                const code = document.getElementById('code-editor').value;
+                localStorage.setItem(`code_${currentProblem.id}_${currentLanguage}`, code);
+            }
+        }
+
+        function updateEditorStatus(status) {
+            document.getElementById('editor-status').textContent = status;
         }
 
         async function runCode() {
-            if (!currentProblem) return;
-            const code = document.getElementById('code').value;
-            const language = document.getElementById('language').value;
-            const stdin = document.getElementById('custom-input').value.trim();
-            if (!code) {
-                showMessage('result', 'Please write some code first', 'error');
-                return;
-            }
-
-            showMessage('result', 'Running...', 'success');
-            const result = await fetchAPI('/submissions/run', {
-                method: 'POST',
-                body: JSON.stringify({
-                    language,
-                    sourceCode: code,
-                    stdin: stdin || undefined
-                })
-            });
-
-            if (result && result.status === 200) {
-                const output = result.data.stdout?.trim() || 'No output';
-                const stderr = result.data.stderr?.trim();
-                const compileOutput = result.data.compileOutput?.trim();
-                const status = result.data.status || 'Executed';
-                const meta = `Time: ${result.data.time || '—'}s | Memory: ${result.data.memory ? `${result.data.memory} KB` : '—'}`;
-                showMessage('result', `✓ ${status}<br><pre>${output}</pre>${stderr ? `<p>stderr:<pre>${stderr}</pre></p>` : ''}${compileOutput ? `<p>compiler:<pre>${compileOutput}</pre></p>` : ''}<p>${meta}</p>`, 'success');
-            } else {
-                showMessage('result', 'Execution failed', 'error');
-            }
-        }
-
-        async function testAgainstSamples() {
             if (!currentProblem) {
-                showMessage('result', 'Problem not loaded yet', 'error');
+                alert('No problem loaded');
                 return;
             }
 
-            const code = document.getElementById('code').value;
-            const language = document.getElementById('language').value;
-            if (!code) {
-                showMessage('result', 'Please write some code first', 'error');
+            const code = document.getElementById('code-editor').value;
+            if (!code.trim()) {
+                alert('Please write some code first');
                 return;
             }
 
-            showMessage('result', 'Testing against sample cases...', 'success');
-            const result = await fetchAPI('/submissions/test', {
-                method: 'POST',
-                body: JSON.stringify({
-                    problemId: currentProblem.id,
-                    language,
-                    sourceCode: code
-                })
-            });
+            saveCode();
+            updateEditorStatus('Running...');
+            document.getElementById('results-panel').style.display = 'block';
+            document.getElementById('test-results').innerHTML = '<div class="loading">Running test cases...</div>';
 
-            if (result && result.status === 200) {
-                const summary = `${result.data.testCasesPassed}/${result.data.totalTestCases} sample tests passed (${result.data.status})`;
-                const cases = result.data.testCaseResults.map(tc => `#${tc.index}: ${tc.passed ? '✅' : '❌'} - ${tc.status}`).join('<br>');
-                showMessage('result', `${summary}<br>${cases}`, result.data.status === 'accepted' ? 'success' : 'error');
-            } else {
-                showMessage('result', result?.data?.error || 'Sample tests failed', 'error');
+            try {
+                const result = await fetchAPI('/submissions/test', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        problemId: currentProblem.id,
+                        language: currentLanguage,
+                        sourceCode: code
+                    })
+                });
+
+                if (result && result.status === 200) {
+                    displayTestResults(result.data);
+                    updateEditorStatus('Run completed');
+                } else {
+                    document.getElementById('test-results').innerHTML = 
+                        `<div class="test-case failed">❌ Run failed: ${result?.data?.error || 'Unknown error'}</div>`;
+                    updateEditorStatus('Run failed');
+                }
+            } catch (error) {
+                document.getElementById('test-results').innerHTML = 
+                    `<div class="test-case failed">❌ Error: ${error.message}</div>`;
+                updateEditorStatus('Error');
             }
         }
 
         async function submitCode() {
             if (!currentProblem) {
-                showMessage('result', 'Problem not loaded yet', 'error');
-                return;
-            }
-            const code = document.getElementById('code').value;
-            const language = document.getElementById('language').value;
-            if (!code) {
-                showMessage('result', 'Please write some code first', 'error');
+                alert('No problem loaded');
                 return;
             }
 
-            showMessage('result', 'Submitting...', 'success');
-            const result = await fetchAPI('/submissions', {
-                method: 'POST',
-                body: JSON.stringify({
-                    problemId: currentProblem.id,
-                    language,
-                    sourceCode: code
-                })
-            });
+            const code = document.getElementById('code-editor').value;
+            if (!code.trim()) {
+                alert('Please write some code first');
+                return;
+            }
 
-            if (result && result.status === 200) {
-                const summary = `${result.data.status} — ${result.data.testCasesPassed}/${result.data.totalTestCases} tests`;
-                showMessage('result', `✓ ${summary}. Submission ID: ${result.data.submissionId}`, 'success');
-            } else {
-                const message = result?.data?.error || result?.data?.message || 'Submission failed';
-                showMessage('result', message, 'error');
+            saveCode();
+            updateEditorStatus('Submitting...');
+            document.getElementById('submission-results').style.display = 'block';
+            document.getElementById('submission-details').innerHTML = '<div class="loading">Submitting solution...</div>';
+
+            try {
+                const result = await fetchAPI('/submissions', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        problemId: currentProblem.id,
+                        language: currentLanguage,
+                        sourceCode: code
+                    })
+                });
+
+                if (result && result.status === 200) {
+                    const submissionId = result.data.submissionId;
+                    pollSubmissionResult(submissionId);
+                } else {
+                    document.getElementById('submission-details').innerHTML = 
+                        `<div class="test-case failed">❌ Submission failed: ${result?.data?.error || 'Unknown error'}</div>`;
+                    updateEditorStatus('Submission failed');
+                }
+            } catch (error) {
+                document.getElementById('submission-details').innerHTML = 
+                    `<div class="test-case failed">❌ Error: ${error.message}</div>`;
+                updateEditorStatus('Error');
             }
         }
 
-        loadProblem();
+        async function pollSubmissionResult(submissionId) {
+            const maxAttempts = 30; // 30 seconds max
+            let attempts = 0;
+
+            const poll = async () => {
+                attempts++;
+                
+                try {
+                    const result = await fetchAPI(`/submissions/${submissionId}`);
+                    
+                    if (result && result.status === 200) {
+                        const submission = result.data.submission;
+                        
+                        if (submission.status === 'processing' && attempts < maxAttempts) {
+                            setTimeout(poll, 1000); // Poll every second
+                            return;
+                        }
+                        
+                        displaySubmissionResult(submission);
+                        updateEditorStatus(`Submitted - ${submission.status}`);
+                    } else {
+                        document.getElementById('submission-details').innerHTML = 
+                            `<div class="test-case failed">❌ Failed to get submission result</div>`;
+                        updateEditorStatus('Error');
+                    }
+                } catch (error) {
+                    document.getElementById('submission-details').innerHTML = 
+                        `<div class="test-case failed">❌ Error: ${error.message}</div>`;
+                    updateEditorStatus('Error');
+                }
+            };
+
+            poll();
+        }
+
+        function displayTestResults(results) {
+            // Handle both old and new format
+            const testCases = results.testCaseResults || results.testCases || [];
+            
+            if (testCases.length === 0) {
+                document.getElementById('test-results').innerHTML = 
+                    '<div class="test-case">No test results available</div>';
+                return;
+            }
+            
+            const html = testCases.map((testCase) => {
+                const status = testCase.passed ? 'passed' : 'failed';
+                const icon = testCase.passed ? '✅' : '❌';
+                const index = testCase.index || 0;
+                
+                return `
+                    <div class="test-case ${status}">
+                        ${icon} <strong>Test Case ${index}</strong><br>
+                        <strong>Input:</strong> <code>${testCase.input || 'N/A'}</code><br>
+                        <strong>Expected:</strong> <code>${testCase.expectedOutput || testCase.expected || 'N/A'}</code><br>
+                        <strong>Output:</strong> <code>${testCase.actualOutput || testCase.output || 'N/A'}</code><br>
+                        ${testCase.errorOutput || testCase.error ? `<strong>Error:</strong> <pre>${testCase.errorOutput || testCase.error}</pre>` : ''}
+                        <strong>Status:</strong> ${testCase.status || (testCase.passed ? 'passed' : 'failed')}
+                    </div>
+                `;
+            }).join('');
+
+            // Add summary at the top
+            const summary = `
+                <div class="test-case ${results.status === 'accepted' ? 'passed' : 'failed'}">
+                    <strong>Overall Status:</strong> ${results.status || 'unknown'}<br>
+                    <strong>Test Cases Passed:</strong> ${results.testCasesPassed || 0}/${results.totalTestCases || testCases.length}<br>
+                    ${results.runtime ? `<strong>Max Runtime:</strong> ${results.runtime}s<br>` : ''}
+                    ${results.memory ? `<strong>Max Memory:</strong> ${results.memory} KB<br>` : ''}
+                </div>
+            `;
+
+            document.getElementById('test-results').innerHTML = summary + html;
+        }
+
+        function displaySubmissionResult(submission) {
+            const statusClass = submission.status === 'accepted' ? 'passed' : 'failed';
+            const icon = submission.status === 'accepted' ? '✅' : '❌';
+            
+            const html = `
+                <div class="test-case ${statusClass}">
+                    ${icon} <strong>Status:</strong> ${submission.status.replace('_', ' ').toUpperCase()}<br>
+                    <strong>Test Cases Passed:</strong> ${submission.testCasesPassed}/${submission.totalTestCases}<br>
+                    ${submission.runtime ? `<strong>Runtime:</strong> ${submission.runtime}<br>` : ''}
+                    ${submission.memory ? `<strong>Memory:</strong> ${submission.memory} KB<br>` : ''}
+                    ${submission.errorOutput ? `<strong>Error:</strong> ${submission.errorOutput}<br>` : ''}
+                    <strong>Submitted:</strong> ${formatDate(submission.createdAt)}
+                </div>
+            `;
+
+            document.getElementById('submission-details').innerHTML = html;
+        }
+
+        function resetCode() {
+            if (confirm('Are you sure you want to reset your code? This will restore the template.')) {
+                loadCodeTemplate();
+                updateEditorStatus('Code reset');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('language-select').addEventListener('change', loadCodeTemplate);
+        document.getElementById('code-editor').addEventListener('input', () => {
+            updateEditorStatus('Modified');
+        });
+
+        // Auto-save code every 30 seconds
+        setInterval(saveCode, 30000);
+
+        // Load problem on page load
+        window.addEventListener('load', async () => {
+            if (!await checkAuth()) return;
+            loadProblem();
+        });
+
+        // Save code before leaving
+        window.addEventListener('beforeunload', saveCode);
     </script>
 </body>
 </html>

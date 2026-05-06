@@ -4,26 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contests - CodeEthnics</title>
-    <link rel="stylesheet" href="/test/css/styles.css">
+    <link rel="stylesheet" href="/test/css/modern-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="header">
-        <h1>CodeEthnics</h1>
-        <div class="nav">
-            <a href="/test/dashboard.html">Dashboard</a>
-            <a href="/test/problems.html">Problems</a>
-            <a href="/test/practice.html">Practice</a>
-            <a href="/test/potd.html">POTD</a>
-            <a href="/test/contests.html">Contests</a>
-            <a href="/test/submissions.html">Submissions</a>
-            <a href="/test/profile.html">Profile</a>
-            <a href="#" onclick="signOut()">Sign Out</a>
+    <header class="header">
+        <div class="header-content">
+            <a href="/test/dashboard.html" class="logo">CodeEthnics</a>
+            <nav class="nav">
+                <a href="/test/dashboard.html" class="nav-link">Dashboard</a>
+                <a href="/test/problems.html" class="nav-link">Problems</a>
+                <a href="/test/practice.html" class="nav-link">Practice</a>
+                <a href="/test/arduino.html" class="nav-link">Arduino</a>
+                <a href="/test/potd.html" class="nav-link">POTD</a>
+                <a href="/test/contests.html" class="nav-link active">Contests</a>
+                <a href="/test/submissions.html" class="nav-link">Submissions</a>
+                <a href="/test/profile.html" class="nav-link">Profile</a>
+                <a href="#" onclick="signOut()" class="nav-link">Sign Out</a>
+            </nav>
         </div>
-    </div>
+    </header>
+    
     <div class="container">
-        <h2>Contests</h2>
-        <p>Join a contest first, then open details while it is active.</p>
-        <div id="contests-list">Loading...</div>
+        <h1>Contests</h1>
+        <p>Join competitive programming contests and test your skills against others.</p>
+        
+        <div class="alert alert-info mb-6">
+            <strong>Note:</strong> Join a contest first, then open details while it is active.
+        </div>
+        
+        <div id="contests-list">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading contests...
+            </div>
+        </div>
     </div>
 
     <script src="/test/js/utils.js"></script>
@@ -35,17 +50,23 @@
             if (result && result.status === 200) {
                 const html = result.data.contests.map(c => `
                     <div class="card">
-                        <h3><a href="/test/contest.html?id=${c.id}">${c.title}</a></h3>
-                        <p>${c.description || 'No description'}</p>
-                        <p>Start: ${formatDate(c.startTime)}</p>
-                        <p>End: ${formatDate(c.endTime)}</p>
-                        <button onclick="joinContest('${c.id}')">Join Contest</button>
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <a href="/test/contest.html?id=${c.id}" class="text-primary-600 hover:text-primary-700">${c.title}</a>
+                            </h3>
+                        </div>
+                        <p class="mb-4">${c.description || 'No description available'}</p>
+                        <div class="mb-4 text-sm text-gray-600">
+                            <div><strong>Start:</strong> ${formatDate(c.startTime)}</div>
+                            <div><strong>End:</strong> ${formatDate(c.endTime)}</div>
+                        </div>
+                        <button onclick="joinContest('${c.id}')" class="btn btn-primary">Join Contest</button>
                     </div>
                 `).join('');
-                document.getElementById('contests-list').innerHTML = html || '<div class="error">No contests yet</div>';
+                document.getElementById('contests-list').innerHTML = html || '<div class="alert alert-info">No contests available yet</div>';
             } else {
                 const message = result?.data?.error || 'Failed to load contests';
-                document.getElementById('contests-list').innerHTML = `<div class="error">${message}</div>`;
+                document.getElementById('contests-list').innerHTML = `<div class="alert alert-error">${message}</div>`;
             }
         }
 
@@ -56,9 +77,9 @@
             });
 
             if (result && result.status === 200) {
-                alert('Joined contest successfully. You can now open contest details.');
+                showToast('Joined contest successfully. You can now open contest details.', 'success');
             } else {
-                alert(result?.data?.error || 'Failed to join contest');
+                showToast(result?.data?.error || 'Failed to join contest', 'error');
             }
         }
 
