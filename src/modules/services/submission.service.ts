@@ -6,7 +6,7 @@ import type { SubmissionStatus } from "@prisma/client";
 import {
   getCodingProblemForExecution,
   getCodingProblemSummariesByIds,
-} from "./codingProblem.service";
+} from "./codingProblem.service.js";
 import {
   runSync,
   executeTestCases,
