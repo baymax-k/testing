@@ -35,19 +35,140 @@ export interface RandomOptions {
   difficulty?: "easy" | "medium" | "hard" | undefined;
   excludeIds?: string[];
   seed?: string;
+  chooseAllInTopics?: boolean;
+}
+
+type CandidateQuestion = {
+  id: string;
+  tags: Array<{ name: string }>;
+};
+
+function normalizeTopics(topics: string[] | undefined): string[] {
+  return Array.from(new Set((topics ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean)));
+}
+
+function buildTopicBuckets(candidates: CandidateQuestion[], topics: string[]): Map<string, string[]> {
+  const topicSet = new Set(topics);
+  const buckets = new Map<string, string[]>();
+
+  for (const topic of topics) {
+    buckets.set(topic, []);
+  }
+
+  for (const candidate of candidates) {
+    const candidateTopics = new Set(
+      (candidate.tags ?? [])
+        .map((tag) => (typeof tag?.name === "string" ? tag.name.trim().toLowerCase() : ""))
+        .filter((name) => name.length > 0 && topicSet.has(name))
+    );
+
+    for (const topic of candidateTopics) {
+      buckets.get(topic)?.push(candidate.id);
+    }
+  }
+
+  return buckets;
+}
+
+function pickBalancedIds(
+  candidates: CandidateQuestion[],
+  topics: string[],
+  requestedCount: number,
+  seed: string
+): string[] {
+  if (requestedCount <= 0 || candidates.length === 0) {
+    return [];
+  }
+
+  if (topics.length <= 1) {
+    return seededShuffle(candidates.map((c) => c.id), seed).slice(0, requestedCount);
+  }
+
+  const buckets = buildTopicBuckets(candidates, topics);
+  const activeTopics = topics.filter((topic) => (buckets.get(topic)?.length ?? 0) > 0);
+
+  if (activeTopics.length === 0) {
+    return seededShuffle(candidates.map((c) => c.id), seed).slice(0, requestedCount);
+  }
+
+  const selected = new Set<string>();
+  const topicOrder = seededShuffle(activeTopics, `${seed}:topic-order`);
+  const basePerTopic = Math.floor(requestedCount / activeTopics.length);
+
+  // Phase 1: Equal baseline picks per topic
+  for (const topic of topicOrder) {
+    const topicIds = seededShuffle(buckets.get(topic) ?? [], `${seed}:${topic}:baseline`);
+    for (const id of topicIds) {
+      if (selected.size >= requestedCount) break;
+      if (selected.has(id)) continue;
+      selected.add(id);
+      if (
+        basePerTopic > 0 &&
+        Array.from(selected).filter((selectedId) => (buckets.get(topic) ?? []).includes(selectedId)).length >=
+          basePerTopic
+      ) {
+        break;
+      }
+    }
+  }
+
+  // Phase 2: Round-robin fill for remaining slots
+  if (selected.size < requestedCount) {
+    const bucketQueues = new Map<string, string[]>();
+    for (const topic of topicOrder) {
+      const queue = seededShuffle(buckets.get(topic) ?? [], `${seed}:${topic}:remainder`).filter(
+        (id) => !selected.has(id)
+      );
+      bucketQueues.set(topic, queue);
+    }
+
+    let madeProgress = true;
+    while (selected.size < requestedCount && madeProgress) {
+      madeProgress = false;
+      for (const topic of topicOrder) {
+        if (selected.size >= requestedCount) break;
+        const queue = bucketQueues.get(topic) ?? [];
+        while (queue.length > 0) {
+          const id = queue.shift()!;
+          if (selected.has(id)) continue;
+          selected.add(id);
+          madeProgress = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // Phase 3: Any leftover from global pool (still deterministic)
+  if (selected.size < requestedCount) {
+    const global = seededShuffle(candidates.map((c) => c.id), `${seed}:global`).filter((id) => !selected.has(id));
+    for (const id of global) {
+      if (selected.size >= requestedCount) break;
+      selected.add(id);
+    }
+  }
+
+  return Array.from(selected).slice(0, requestedCount);
 }
 
 export async function generateRandomMcqSet(userId: string, opts: RandomOptions) {
-  const count = Math.min(opts.count ?? 10, 25);
-  const topics = (opts.topics ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const topics = normalizeTopics(opts.topics);
+  const chooseAllInTopics = Boolean(opts.chooseAllInTopics);
+  const requestedCount = chooseAllInTopics ? Number.MAX_SAFE_INTEGER : Math.min(opts.count ?? 10, 100);
 
   // Build where clause for candidate pool
   const where: any = { type: "mcq" };
   if (opts.difficulty) where.difficulty = opts.difficulty;
   if (topics.length) where.tags = { some: { name: { in: topics } } };
 
-  // Fetch full candidate ids (pool before exclusions)
-  const fullCandidates = await prisma.question.findMany({ where, select: { id: true } });
+  // Fetch full candidate ids + tags (pool before exclusions)
+  const fullCandidates = await prisma.question.findMany({
+    where,
+    select: {
+      id: true,
+      tags: { select: { name: true } },
+    },
+  });
   const fullIds = fullCandidates.map((r) => r.id);
 
   // Exclude previously solved MCQs for this user.
@@ -85,19 +206,20 @@ export async function generateRandomMcqSet(userId: string, opts: RandomOptions) 
   const explicitExcludes = new Set((opts.excludeIds ?? []).filter(Boolean));
 
   // Apply exclusions
-  let candidateIds = fullIds.filter((id) => !solvedIds.has(id) && !explicitExcludes.has(id));
+  let candidatePool = fullCandidates.filter((candidate) => !solvedIds.has(candidate.id) && !explicitExcludes.has(candidate.id));
 
   let reset = false;
   // If pool is smaller than requested, allow refill from full pool and mark reset
-  if (candidateIds.length < count) {
+  if (!chooseAllInTopics && candidatePool.length < requestedCount) {
     reset = true;
     // refill by allowing repeats from full pool (drop exclusions)
-    candidateIds = fullIds.slice();
+    candidatePool = fullCandidates.slice();
   }
 
   const seed = opts.seed ?? `${userId}:${Date.now()}`;
-  const shuffled = seededShuffle(candidateIds, seed);
-  const selectedIds = shuffled.slice(0, Math.min(count, shuffled.length));
+  const selectedIds = chooseAllInTopics
+    ? seededShuffle(candidatePool.map((candidate) => candidate.id), seed)
+    : pickBalancedIds(candidatePool, topics, requestedCount, seed);
 
   // Fetch question summaries
   const questions = await prisma.question.findMany({
@@ -122,7 +244,7 @@ export async function generateRandomMcqSet(userId: string, opts: RandomOptions) 
     data: {
       userId,
       seed,
-      filters: { topics, difficulty: opts.difficulty ?? null },
+      filters: { topics, difficulty: opts.difficulty ?? null, chooseAllInTopics },
       questionIds: selectedIds,
       count: selectedIds.length,
       expiresAt,
@@ -132,7 +254,7 @@ export async function generateRandomMcqSet(userId: string, opts: RandomOptions) 
   return {
     questions: ordered,
     seed,
-    poolSize: candidateIds.length,
+    poolSize: candidatePool.length,
     reset,
   };
 }

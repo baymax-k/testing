@@ -136,19 +136,39 @@ describe("MCQ Submission Logic - Unit Tests", () => {
       expect(res.body.error).toBe("MCQ session already submitted");
     });
 
-    it("returns 400 if user answers are incomplete", async () => {
+    it("allows incomplete answers and gives no score for unanswered questions", async () => {
       (prisma.mCQPracticeSession.findFirst as any).mockResolvedValue({
         id: "session-1",
         status: "in_progress",
         questionIds: ["q1", "q2"],
       });
 
+      (prisma.question.findMany as any).mockResolvedValue([
+        { id: "q1", title: "Q1", options: ["A", "B", "C"], correctAnswer: 1 },
+        { id: "q2", title: "Q2", options: ["X", "Y"], correctAnswer: 0 },
+      ]);
+
+      (prisma.mCQPracticeSession.update as any).mockResolvedValue({
+        id: "session-1",
+        status: "submitted",
+        topics: ["strings"],
+        totalQuestions: 2,
+        correctCount: 1,
+        score: 10,
+        submittedAt: new Date(),
+      });
+
       const res = await request(app)
         .post("/api/v1/practice/mcq/session")
         .send({ sessionId: "session-1", answers: [{ questionId: "q1", selectedOption: 1 }] });
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toContain("All questions must be answered");
+      expect(res.status).toBe(200);
+      expect(res.body.review).toHaveLength(2);
+
+      const unanswered = res.body.review.find((r: any) => r.questionId === "q2");
+      expect(unanswered.selectedOption).toBeNull();
+      expect(unanswered.selectedOptionText).toBe("Not answered");
+      expect(unanswered.points).toBe(0);
     });
 
     it("evaluates a completely valid session correctly", async () => {
@@ -196,6 +216,51 @@ describe("MCQ Submission Logic - Unit Tests", () => {
       expect(q2Review.points).toBe(0);
 
       expect(prisma.mCQPracticeSession.update).toHaveBeenCalledOnce();
+    });
+
+    it("applies negative marking when penaltyPerWrong is provided", async () => {
+      (prisma.mCQPracticeSession.findFirst as any).mockResolvedValue({
+        id: "session-1",
+        status: "in_progress",
+        questionIds: ["q1", "q2"],
+      });
+
+      // Expect final stored score to be 8 (10 for correct, -2 for wrong)
+      (prisma.mCQPracticeSession.update as any).mockResolvedValue({
+        id: "session-1",
+        status: "submitted",
+        topics: ["strings"],
+        totalQuestions: 2,
+        correctCount: 1,
+        score: 8,
+        submittedAt: new Date(),
+      });
+
+      (prisma.question.findMany as any).mockResolvedValue([
+        { id: "q1", title: "Q1", options: ["A", "B", "C"], correctAnswer: 1 },
+        { id: "q2", title: "Q2", options: ["X", "Y"], correctAnswer: 0 },
+      ]);
+
+      const res = await request(app)
+        .post("/api/v1/practice/mcq/session")
+        .send({
+          sessionId: "session-1",
+          answers: [
+            { questionId: "q1", selectedOption: 1 }, // Correct
+            { questionId: "q2", selectedOption: 1 }, // Incorrect
+          ],
+          penaltyPerWrong: 2,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.review).toHaveLength(2);
+
+      const q1 = res.body.review.find((r: any) => r.questionId === "q1");
+      const q2 = res.body.review.find((r: any) => r.questionId === "q2");
+
+      expect(q1.points).toBe(10);
+      expect(q2.points).toBe(-2);
+      expect(res.body.session.score).toBe(8);
     });
   });
 });

@@ -12,3 +12,4 @@ tests/
 /docs/session-artifacts
 /docs/nginx
 /docs
+rds-ca-bundle.pem

@@ -86,6 +86,14 @@ describe("Arduino compile/validate endpoints", () => {
       id: VALID_PROBLEM_ID,
     });
 
+    mockPrisma.contestParticipation.findUnique.mockResolvedValue({
+      id: "contest-participation-1",
+      userId: "user-1",
+      contest: {
+        endTime: null,
+      },
+    });
+
     mockSubmitCompileJob.mockResolvedValue(VALID_SUBMISSION_ID);
   });
 
@@ -155,6 +163,75 @@ describe("Arduino compile/validate endpoints", () => {
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe("Arduino problem not found");
     });
+
+    it("returns 403 for invalid contest participation", async () => {
+      mockPrisma.contestParticipation.findUnique.mockResolvedValueOnce({
+        id: "contest-participation-1",
+        userId: "another-user",
+        contest: { endTime: null },
+      });
+
+      const response = await request(app)
+        .post("/api/v1/arduino/compile")
+        .set("Authorization", "Bearer token")
+        .send({
+          problemId: VALID_PROBLEM_ID,
+          code: "void setup(){} void loop(){}",
+          boardType: "uno",
+          contestParticipationId: "contest-participation-1",
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid contest participation");
+      expect(mockSubmitCompileJob).not.toHaveBeenCalled();
+    });
+
+    it("returns 403 when contest has ended", async () => {
+      mockPrisma.contestParticipation.findUnique.mockResolvedValueOnce({
+        id: "contest-participation-1",
+        userId: "user-1",
+        contest: { endTime: new Date("2024-01-01T00:00:00.000Z") },
+      });
+
+      const response = await request(app)
+        .post("/api/v1/arduino/compile")
+        .set("Authorization", "Bearer token")
+        .send({
+          problemId: VALID_PROBLEM_ID,
+          code: "void setup(){} void loop(){}",
+          boardType: "uno",
+          contestParticipationId: "contest-participation-1",
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Contest has ended");
+      expect(mockSubmitCompileJob).not.toHaveBeenCalled();
+    });
+
+    it("queues compile job with contest participation id when contest is active", async () => {
+      const response = await request(app)
+        .post("/api/v1/arduino/compile")
+        .set("Authorization", "Bearer token")
+        .send({
+          problemId: VALID_PROBLEM_ID,
+          code: "void setup(){} void loop(){}",
+          boardType: "uno",
+          contestParticipationId: "contest-participation-1",
+        });
+
+      expect(response.status).toBe(202);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.contestParticipationId).toBe("contest-participation-1");
+      expect(mockSubmitCompileJob).toHaveBeenCalledWith(
+        "user-1",
+        VALID_PROBLEM_ID,
+        "void setup(){} void loop(){}",
+        "uno",
+        "contest-participation-1"
+      );
+    });
   });
 
   describe("POST /api/v1/arduino/validate", () => {
@@ -188,6 +265,156 @@ describe("Arduino compile/validate endpoints", () => {
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe("Can only validate successfully compiled submissions");
+    });
+
+    it("returns 403 when submission belongs to a different user", async () => {
+      mockPrisma.arduinoSubmission.findUnique.mockResolvedValueOnce({
+        id: VALID_SUBMISSION_ID,
+        userId: "another-user",
+        status: "accepted",
+        hexFile: "abc123",
+        sourceCode: "void setup(){} void loop(){}",
+        problem: { testCases: [] },
+      });
+
+      const response = await request(app)
+        .post("/api/v1/arduino/validate")
+        .set("Authorization", "Bearer token")
+        .send({ submissionId: VALID_SUBMISSION_ID });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Not authorized to validate this submission");
+    });
+
+    it("returns 500 when simulation service fails", async () => {
+      mockPrisma.arduinoSubmission.findUnique.mockResolvedValueOnce({
+        id: VALID_SUBMISSION_ID,
+        userId: "user-1",
+        status: "accepted",
+        hexFile: "abc123",
+        sourceCode: "void setup(){} void loop(){}",
+        problem: {
+          testCases: [
+            {
+              id: "tc1",
+              label: "LED toggles",
+              type: "toggle_count",
+              pin: null,
+              expectedState: null,
+              atMs: null,
+              toleranceMs: 100,
+              minToggles: 2,
+              withinMs: 1000,
+              expectedOutput: null,
+              order: 1,
+              isHidden: false,
+            },
+          ],
+        },
+      });
+
+      mockSimulate.mockResolvedValueOnce({
+        success: false,
+        error: "Simulation engine unavailable",
+      });
+
+      const response = await request(app)
+        .post("/api/v1/arduino/validate")
+        .set("Authorization", "Bearer token")
+        .send({ submissionId: VALID_SUBMISSION_ID });
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Failed to run test simulation");
+    });
+
+    it("marks submission as wrong_answer when not all tests pass", async () => {
+      mockPrisma.arduinoSubmission.findUnique.mockResolvedValueOnce({
+        id: VALID_SUBMISSION_ID,
+        userId: "user-1",
+        status: "accepted",
+        hexFile: "abc123",
+        sourceCode: "void setup(){} void loop(){}",
+        problem: {
+          testCases: [
+            {
+              id: "tc1",
+              label: "LED toggles",
+              type: "toggle_count",
+              pin: null,
+              expectedState: null,
+              atMs: null,
+              toleranceMs: 100,
+              minToggles: 2,
+              withinMs: 1000,
+              expectedOutput: null,
+              order: 1,
+              isHidden: false,
+            },
+            {
+              id: "tc2",
+              label: "Serial output",
+              type: "serial_output",
+              pin: null,
+              expectedState: null,
+              atMs: null,
+              toleranceMs: null,
+              minToggles: null,
+              withinMs: null,
+              expectedOutput: "OK",
+              order: 2,
+              isHidden: false,
+            },
+          ],
+        },
+      });
+
+      mockSimulate.mockResolvedValueOnce({
+        success: true,
+        allTestsPassed: false,
+        simulationTimeMs: 140,
+        output: "partial",
+        results: [
+          {
+            testCaseId: "tc1",
+            passed: true,
+            actualValue: 2,
+            expectedValue: 2,
+            error: null,
+          },
+          {
+            testCaseId: "tc2",
+            passed: false,
+            actualValue: "FAIL",
+            expectedValue: "OK",
+            error: "Mismatch",
+          },
+        ],
+      });
+
+      mockPrisma.arduinoSubmission.update.mockResolvedValueOnce({ id: VALID_SUBMISSION_ID });
+
+      const response = await request(app)
+        .post("/api/v1/arduino/validate")
+        .set("Authorization", "Bearer token")
+        .send({ submissionId: VALID_SUBMISSION_ID });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.allTestsPassed).toBe(false);
+      expect(response.body.data.solved).toBe(false);
+
+      expect(mockPrisma.arduinoSubmission.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: VALID_SUBMISSION_ID },
+          data: expect.objectContaining({
+            status: "wrong_answer",
+            testCasesPassed: 1,
+            totalTestCases: 2,
+          }),
+        })
+      );
     });
 
     it("validates accepted submission and returns test summary", async () => {

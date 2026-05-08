@@ -311,14 +311,82 @@ const swaggerOptions: swaggerJsdoc.Options = {
             difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
           },
         },
+        ProblemSummary: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            title: { type: "string" },
+            slug: {
+              type: "string",
+              nullable: true,
+              description: "Problem slug when available.",
+            },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+            tags: { type: "array", items: { type: "string" } },
+          },
+          required: ["id", "title", "difficulty", "tags"],
+        },
+        ProblemDetail: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            type: { type: "string", enum: ["dsa"] },
+            title: { type: "string" },
+            slug: {
+              type: "string",
+              nullable: true,
+              description: "Problem slug when available.",
+            },
+            description: { type: "string" },
+            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+            tags: { type: "array", items: { type: "string" } },
+            company: { type: "string", nullable: true },
+            timeLimit: {
+              type: "integer",
+              nullable: true,
+              description: "Execution time limit (if configured).",
+            },
+            memoryLimit: {
+              type: "integer",
+              nullable: true,
+              description: "Memory limit in KB (if configured).",
+            },
+            sampleTestCases: {
+              type: "array",
+              nullable: true,
+              items: {
+                type: "object",
+                properties: {
+                  input: { type: "string" },
+                  output: { type: "string" },
+                },
+              },
+            },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+          required: ["id", "title", "description", "difficulty", "tags"],
+        },
         RandomPracticeRequest: {
           type: "object",
           properties: {
-            count: { type: "integer", default: 10, maximum: 25 },
+            count: {
+              type: "integer",
+              default: 10,
+              maximum: 100,
+              description:
+                "Number of questions requested. Ignored when chooseAllInTopics=true.",
+            },
             topics: { type: "array", items: { type: "string" } },
             difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
             seed: { type: "string" },
             excludeIds: { type: "array", items: { type: "string" } },
+            chooseAllInTopics: {
+              type: "boolean",
+              default: false,
+              description:
+                "If true, returns all eligible questions from selected topics. If false, endpoint returns a random set with equal-priority balancing across selected topics.",
+            },
           },
           required: ["topics"],
         },
@@ -1322,6 +1390,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   count: 5,
                   topics: ["arrays", "strings"],
                   difficulty: "easy",
+                  chooseAllInTopics: false,
                 },
               },
             },
@@ -1345,7 +1414,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
       "/api/v1/student/practice/mcq/session/submit": {
         post: {
           summary: "Submit full MCQ session (POST only)",
-          description: "Submits all answers for a persisted MCQ session and calculates score on backend.",
+          description:
+            "Submits a persisted MCQ session and calculates score on backend. Partial submissions are allowed; unanswered questions receive zero score. Optionally provide `penaltyPerWrong` to apply negative marking per incorrect answer (positive number).",
           tags: ["Practice"],
           security: [{ cookieAuth: [] }],
           requestBody: {
@@ -1356,8 +1426,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
                   sessionId: "cmmxgd7ql000psb4z4ne8jnt3",
                   answers: [
                     { questionId: "mcq-practice-020", selectedOption: 0 },
-                    { questionId: "mcq-practice-019", selectedOption: 0 },
                   ],
+                  penaltyPerWrong: 2
                 },
                 schema: {
                   type: "object",
@@ -1365,7 +1435,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                     sessionId: { type: "string" },
                     answers: {
                       type: "array",
-                      minItems: 1,
+                      minItems: 0,
                       items: {
                         type: "object",
                         properties: {
@@ -1375,6 +1445,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
                         required: ["questionId", "selectedOption"],
                       },
                     },
+                      penaltyPerWrong: {
+                        type: "integer",
+                        minimum: 0,
+                        maximum: 100,
+                        description: "Optional positive penalty applied to each wrong answer; use 0 for no penalty (default).",
+                      },
                   },
                   required: ["sessionId", "answers"],
                 },
@@ -1396,6 +1472,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
                           status: { type: "string", enum: ["submitted"] },
                           topics: { type: "array", items: { type: "string" } },
                           totalQuestions: { type: "integer" },
+                          answeredCount: { type: "integer" },
+                          unansweredCount: { type: "integer" },
                           correctCount: { type: "integer" },
                           score: { type: "integer" },
                           submittedAt: { type: "string", format: "date-time" },
@@ -1408,7 +1486,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                           properties: {
                             questionId: { type: "string" },
                             title: { type: "string" },
-                            selectedOption: { type: "integer" },
+                            selectedOption: { type: "integer", nullable: true },
                             selectedOptionText: { type: "string" },
                             correctAnswer: { type: "integer" },
                             correctOptionText: { type: "string" },
@@ -2086,8 +2164,8 @@ const swaggerOptions: swaggerJsdoc.Options = {
       // G��G�� Problems G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
       "/api/v1/problems": {
         get: {
-          summary: "List all problems",
-          description: "Returns paginated coding problem summaries (no test cases). Supports difficulty/tag/search filters.",
+          summary: "List DSA problems",
+          description: "Returns paginated DSA problem summaries from the database (test cases are not included). Supports difficulty/tag/search filters.",
           tags: ["Problems"],
           security: [{ cookieAuth: [] }],
           parameters: [
@@ -2149,6 +2227,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "401": { description: "Unauthorized" },
+            "500": { description: "Failed to fetch problems" },
           },
         },
       },
@@ -2156,7 +2235,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       "/api/v1/problems/{slug}": {
         get: {
           summary: "Get problem details",
-          description: "Returns full problem details including description, constraints, and sample test cases. Hidden and public test cases are not exposed.",
+          description: "Returns a single DSA problem by slug from the database. Hidden test cases and answer keys are not exposed.",
           tags: ["Problems"],
           security: [{ cookieAuth: [] }],
           parameters: [
@@ -2184,6 +2263,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
             },
             "401": { description: "Unauthorized" },
             "404": { description: "Problem not found" },
+            "500": { description: "Failed to fetch problem" },
           },
         },
       },

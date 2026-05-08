@@ -76,4 +76,16 @@ describe("POST /api/v1/student/practice/random (endpoint)", () => {
     expect(res.body.questions.length).toBeGreaterThan(0);
     expect(res.body).toHaveProperty("seed");
   });
+
+  it("supports chooseAllInTopics without explicit count", async () => {
+    const res = await request(app)
+      .post("/api/v1/student/practice/random")
+      .set("Cookie", [`access_token=${token}`])
+      .send({ topics: ["arrays", "strings"], chooseAllInTopics: true });
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.questions)).toBe(true);
+    expect(res.body.questions.length).toBeGreaterThan(0);
+    expect(res.body).toHaveProperty("poolSize");
+  });
 });
