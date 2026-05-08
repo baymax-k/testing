@@ -3964,9 +3964,12 @@ router.get(
         filterDepartmentId = currentUser.departmentId;
       }
 
+      const shouldScopeCollege = currentUser.role === "college_admin" || currentUser.role === "principal";
+      const filterCollegeId = shouldScopeCollege ? currentUser.collegeId || undefined : undefined;
+
       const result = await UserService.getAllUsers({
         role: role as Role | undefined,
-        collegeId: currentUser.collegeId || undefined,
+        collegeId: filterCollegeId,
         departmentId: filterDepartmentId,
         search: search as string | undefined,
         page: page ? Number.parseInt(page as string) : undefined,
