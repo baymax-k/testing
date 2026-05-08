@@ -3,6 +3,7 @@ import multer from "multer";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { createId } from "@paralleldrive/cuid2";
 import { requireCollegeAdminAuth, requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { auth, prisma } from "../../config/auth.js";
@@ -117,7 +118,15 @@ async function ensureBetterAuthAccountExpiryColumns(): Promise<void> {
   await betterAuthAccountColumnsEnsurePromise;
 }
 
-async function signUpEmailWithDriftRecovery(body: { email: string; password: string; name: string }): Promise<any> {
+type BetterAuthSignUpBody = {
+  email: string;
+  password: string;
+  name: string;
+  username: string;
+  passwordHash: string;
+} & Record<string, unknown>;
+
+async function signUpEmailWithDriftRecovery(body: BetterAuthSignUpBody): Promise<any> {
   try {
     const response = await auth.api.signUpEmail({ body } as any);
     const responseErrorMessage = getBetterAuthErrorMessage(response);
@@ -136,6 +145,47 @@ async function signUpEmailWithDriftRecovery(body: { email: string; password: str
     await ensureBetterAuthAccountExpiryColumns();
     return await auth.api.signUpEmail({ body } as any);
   }
+}
+
+function sanitizeUsernameBase(input: string): string {
+  const normalized = input
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9_]/g, "_")
+    .replaceAll(/_+/g, "_")
+    .replaceAll(/^_+|_+$/g, "");
+
+  if (normalized.length >= 3) {
+    return normalized.slice(0, 24);
+  }
+
+  return `user_${normalized || "acct"}`.slice(0, 24);
+}
+
+async function generateUniqueUsername(seed: string): Promise<string> {
+  const base = sanitizeUsernameBase(seed);
+  const baseCandidate = base.slice(0, 30);
+
+  const existingBase = await prisma.user.findUnique({ where: { username: baseCandidate } });
+  if (!existingBase) {
+    return baseCandidate;
+  }
+
+  for (let i = 0; i < 20; i++) {
+    const suffix = createId().slice(0, 5);
+    const trimmed = base.slice(0, Math.max(3, 30 - (suffix.length + 1)));
+    const candidate = `${trimmed}_${suffix}`;
+    const existing = await prisma.user.findUnique({ where: { username: candidate } });
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `user_${createId().slice(0, 8)}`;
+}
+
+function getUsernameSeed(email: string, name: string): string {
+  const emailBase = email.split("@")[0];
+  return emailBase || name || "user";
 }
 
 // ─── Validation Schemas ─────────────────────────────────────────────────────────
@@ -552,14 +602,17 @@ async function createSingleStudentAccount(
       };
     }
 
+    const username = await generateUniqueUsername(getUsernameSeed(studentData.email, studentData.name));
+    const passwordHash = await hashPassword(studentData.password);
+
     // Create student using Better Auth
     const signUpResult = await signUpEmailWithDriftRecovery({
-      body: {
-        email: studentData.email,
-        password: studentData.password,
-        name: studentData.name,
-      },
-    } as any);
+      email: studentData.email,
+      password: studentData.password,
+      name: studentData.name,
+      username,
+      passwordHash,
+    });
 
     const signUpError = (signUpResult as any)?.error;
     const createdUserId = (signUpResult as any)?.user?.id as string | undefined;
@@ -579,8 +632,6 @@ async function createSingleStudentAccount(
     if (!targetUserId) {
       return { success: false, error: "Student account was created but could not be finalized" };
     }
-
-    const passwordHash = await hashPassword(studentData.password);
 
     // Determine departmentId
     const departmentId = studentData.departmentId || 
@@ -1547,6 +1598,25 @@ async function enforceCollegeScope(
  *         required: true
  *         schema:
  *           type: string
+ *     responses:
+ *       "200":
+ *         description: Batch deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 detached:
+ *                   type: object
+ *                   properties:
+ *                     students:
+ *                       type: integer
+ *                     tests:
+ *                       type: integer
  *
  * /api/college-admin/students:
  *   post:
@@ -3708,11 +3778,16 @@ router.post(
         }
       }
 
+      const username = await generateUniqueUsername(getUsernameSeed(data.email, data.name));
+      const passwordHash = await hashPassword(data.password);
+
       // Create user via Better Auth
       const newUser = await signUpEmailWithDriftRecovery({
         email: data.email,
         password: data.password,
         name: data.name,
+        username,
+        passwordHash,
       });
 
       // Check if Better Auth returned an error response
@@ -3723,8 +3798,6 @@ router.post(
         res.status(400).json({ error: errorMessage });
         return;
       }
-
-      const passwordHash = await hashPassword(data.password);
 
       // Update user with additional fields
       const updatedUser = await prisma.user.update({
@@ -3784,16 +3857,19 @@ router.post(
 
       for (const userData of users) {
         try {
+          const username = await generateUniqueUsername(getUsernameSeed(userData.email, userData.name));
+          const passwordHash = await hashPassword(userData.password);
+
           // Create user via Better Auth
           const newUser = await signUpEmailWithDriftRecovery({
             email: userData.email,
             password: userData.password,
             name: userData.name,
+            username,
+            passwordHash,
           });
 
           if (newUser?.user && !(newUser as any)?.error) {
-            const passwordHash = await hashPassword(userData.password);
-
             const resolvedCollegeId =
               currentUser.role === "super_admin"
                 ? userData.collegeId || null
@@ -4617,7 +4693,7 @@ router.put(
 
 /**
  * DELETE /api/college-admin/batches/:batchId
- * Delete a batch (only if no students assigned)
+ * Delete a batch (students remain; batch assignment cleared)
  * Access: college_admin, principal, hod (only their department)
  */
 router.delete(
@@ -4647,11 +4723,15 @@ router.delete(
         }
       }
 
-      await BatchService.deleteBatch(batchId);
+      const result = await BatchService.deleteBatch(batchId);
 
       res.json({
         success: true,
-        message: "Batch deleted successfully",
+        message: result.message,
+        detached: {
+          students: result.studentsDetached,
+          tests: result.testsDetached,
+        },
       });
     } catch (error: any) {
       console.error("[college-admin/batches/delete] Error:", error);
@@ -5192,11 +5272,16 @@ router.post(
         return;
       }
 
+      const username = await generateUniqueUsername(getUsernameSeed(email, name));
+      const passwordHash = await hashPassword(password);
+
       // Create student using Better Auth
       const signUpResult = await signUpEmailWithDriftRecovery({
         email,
         password,
         name,
+        username,
+        passwordHash,
       });
 
       const signUpError = (signUpResult as any)?.error;
@@ -5223,8 +5308,6 @@ router.post(
         });
         return;
       }
-
-      const passwordHash = await hashPassword(password);
 
       // Update the user with additional fields
       const student = await prisma.user.update({
