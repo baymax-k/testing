@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>College Admin Questions API Test</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f9;
+      color: #111;
+      margin: 0;
+      padding: 24px;
+    }
+    .container { max-width: 960px; margin: 0 auto; }
+    h1 { margin: 0 0 16px; }
+    h2 { margin: 24px 0 12px; }
+    .panel {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    label { font-size: 12px; color: #444; }
+    input {
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 260px;
+    }
+    button {
+      padding: 8px 12px;
+      border: 1px solid #333;
+      background: #111;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button.secondary {
+      background: #f1f1f1;
+      color: #111;
+      border-color: #777;
+    }
+    .endpoint {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: start;
+    }
+    .endpoint .meta { font-size: 12px; color: #666; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #bbb;
+      margin-right: 6px;
+      background: #e3f5ff;
+    }
+    pre {
+      background: #0f0f12;
+      color: #d7f9ff;
+      padding: 12px;
+      border-radius: 8px;
+      overflow: auto;
+      max-height: 360px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>College Admin Questions API Test</h1>
+
+    <div class="panel">
+      <div class="row">
+        <div>
+          <label for="baseUrl">Base URL</label><br />
+          <input id="baseUrl" value="http://localhost:5000" />
+        </div>
+        <div>
+          <label for="token">Auth Token (Bearer, optional)</label><br />
+          <input id="token" placeholder="eyJhbGciOi..." />
+        </div>
+        <div>
+          <label>&nbsp;</label><br />
+          <button class="secondary" onclick="clearOutput()">Clear Output</button>
+        </div>
+      </div>
+      <div class="meta">Requires College Admin roles. If using cookies on same origin, token can be empty.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Questions Endpoints</h2>
+
+      <div class="endpoint">
+        <div>
+          <div class="pill">GET</div>
+          /api/college-admin/questions/coding
+          <div class="meta">Query params: page, limit</div>
+        </div>
+        <div class="row">
+          <input id="codingPage" placeholder="page" value="1" />
+          <input id="codingLimit" placeholder="limit" value="50" />
+          <button onclick="runPagedRequest('/api/college-admin/questions/coding', 'codingPage', 'codingLimit')">Run</button>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div>
+          <div class="pill">GET</div>
+          /api/college-admin/questions/mcq
+          <div class="meta">Query params: page, limit</div>
+        </div>
+        <div class="row">
+          <input id="mcqPage" placeholder="page" value="1" />
+          <input id="mcqLimit" placeholder="limit" value="50" />
+          <button onclick="runPagedRequest('/api/college-admin/questions/mcq', 'mcqPage', 'mcqLimit')">Run</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Response</h2>
+      <pre id="output">Ready.</pre>
+    </div>
+  </div>
+
+  <script>
+    function getValue(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : "";
+    }
+
+    function getBaseUrl() {
+      const raw = getValue("baseUrl");
+      return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+    }
+
+    function getHeaders() {
+      const token = getValue("token");
+      const headers = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = "Bearer " + token;
+      }
+      return headers;
+    }
+
+    function setOutput(content) {
+      const output = document.getElementById("output");
+      output.textContent = content;
+    }
+
+    function clearOutput() {
+      setOutput("Ready.");
+    }
+
+    function buildPagedPath(path, pageId, limitId) {
+      const page = getValue(pageId) || "1";
+      const limit = getValue(limitId) || "50";
+      return path + "?page=" + encodeURIComponent(page) + "&limit=" + encodeURIComponent(limit);
+    }
+
+    async function runPagedRequest(path, pageId, limitId) {
+      const fullPath = buildPagedPath(path, pageId, limitId);
+      await runRequest("GET", fullPath);
+    }
+
+    async function runRequest(method, path) {
+      const url = getBaseUrl() + path;
+      setOutput(method + " " + url + "\n\nLoading...");
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: getHeaders(),
+          credentials: "include"
+        });
+        const text = await res.text();
+        const pretty = formatResponse(text);
+        setOutput("Status: " + res.status + "\n" + pretty);
+      } catch (err) {
+        setOutput("Error: " + err.message);
+      }
+    }
+
+    function formatResponse(text) {
+      if (!text) return "\n<empty response>";
+      try {
+        const json = JSON.parse(text);
+        return "\n" + JSON.stringify(json, null, 2);
+      } catch (err) {
+        return "\n" + text;
+      }
+    }
+  </script>
+</body>
+</html>
