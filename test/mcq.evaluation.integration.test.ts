@@ -136,6 +136,26 @@ describe("MCQ Evaluation Flow - Integration Tests", () => {
     expect(res.body.review.length).toBe(2);
   });
 
+  it("allows submitting with unanswered questions and assigns zero score to unanswered", async () => {
+    const res = await request(app)
+      .post("/api/v1/student/practice/mcq/session/submit")
+      .set("Cookie", [`access_token=${token}`])
+      .send({
+        sessionId: "session-1",
+        answers: [{ questionId: "q1", selectedOption: 1 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("review");
+    expect(res.body.review.length).toBe(2);
+
+    const unanswered = res.body.review.find((r: any) => r.questionId === "q2");
+    expect(unanswered).toBeDefined();
+    expect(unanswered.selectedOption).toBeNull();
+    expect(unanswered.selectedOptionText).toBe("Not answered");
+    expect(unanswered.points).toBe(0);
+  });
+
   it("evaluates single MCQ submissions", async () => {
     const res = await request(app)
       .post("/api/v1/student/practice/mcq")

@@ -21,11 +21,12 @@ const mcqSessionSchema = z.object({
 });
 
 const randomRequestSchema = z.object({
-  count: z.coerce.number().int().min(1).max(25).optional().default(10),
+  count: z.coerce.number().int().min(1).max(100).optional(),
   topics: z.array(z.string().min(1)).min(1),
   difficulty: z.enum(["easy", "medium", "hard"]).optional(),
   seed: z.string().optional(),
   excludeIds: z.array(z.string()).optional(),
+  chooseAllInTopics: z.coerce.boolean().optional().default(false),
 });
 
 const mcqBatchSubmitSchema = z.object({
@@ -35,7 +36,10 @@ const mcqBatchSubmitSchema = z.object({
       questionId: z.string(),
       selectedOption: z.number().int().min(0),
     })
-  ).min(1),
+  ).default([]),
+  // Optional negative marking: penalty applied for each wrong answer (positive number).
+  // Use 0 for no penalty (default behavior).
+  penaltyPerWrong: z.coerce.number().min(0).max(100).optional().default(0),
 });
 
 const mcqHistoryQuerySchema = z.object({
@@ -181,6 +185,7 @@ export async function createRandomPractice(req: Request, res: Response): Promise
       difficulty: body.difficulty,
       seed: body.seed,
       excludeIds: body.excludeIds,
+      chooseAllInTopics: body.chooseAllInTopics,
     });
 
     res.json({
@@ -338,7 +343,7 @@ export async function submitMcqPractice(req: Request, res: Response): Promise<vo
 export async function submitMcqPracticeSession(req: Request, res: Response): Promise<void> {
   try {
     const userId = (req as AuthRequest).user!.userId;
-    const { sessionId, answers } = mcqBatchSubmitSchema.parse(req.body);
+    const { sessionId, answers, penaltyPerWrong } = mcqBatchSubmitSchema.parse(req.body);
 
     const session = await prisma.mCQPracticeSession.findFirst({
       where: {
@@ -375,13 +380,6 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
       return;
     }
 
-    if (answers.length !== sessionQuestionIds.length) {
-      res.status(400).json({
-        error: `All questions must be answered. Expected ${sessionQuestionIds.length}, received ${answers.length}`,
-      });
-      return;
-    }
-
     const sessionIdSet = new Set(sessionQuestionIds);
     const hasInvalidQuestion = answers.some((answer) => !sessionIdSet.has(answer.questionId));
     if (hasInvalidQuestion) {
@@ -415,7 +413,7 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
     const reviewRows: Array<{
       questionId: string;
       title: string;
-      selectedOption: number;
+      selectedOption: number | null;
       selectedOptionText: string;
       correctAnswer: number;
       correctOptionText: string;
@@ -425,15 +423,10 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
 
     for (const questionId of sessionQuestionIds) {
       const question = questionById.get(questionId)!;
-      const selectedOption = answerMap.get(questionId)!;
+      const selectedOption = answerMap.get(questionId);
       const options = Array.isArray(question.options)
         ? question.options.filter((option): option is string => typeof option === "string")
         : [];
-
-      if (selectedOption < 0 || selectedOption >= options.length) {
-        res.status(400).json({ error: `selectedOption out of range for questionId: ${questionId}` });
-        return;
-      }
 
       const correctAnswer = Number(question.correctAnswer);
       if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
@@ -441,7 +434,28 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
         return;
       }
 
+      // If question is unanswered, apply no-score (0 points) and continue.
+      if (selectedOption === undefined) {
+        reviewRows.push({
+          questionId,
+          title: question.title ?? "Untitled question",
+          selectedOption: null,
+          selectedOptionText: "Not answered",
+          correctAnswer,
+          correctOptionText: options[correctAnswer] ?? `Option ${correctAnswer}`,
+          isCorrect: false,
+          points: 0,
+        });
+        continue;
+      }
+
+      if (selectedOption < 0 || selectedOption >= options.length) {
+        res.status(400).json({ error: `selectedOption out of range for questionId: ${questionId}` });
+        return;
+      }
+
       const isCorrect = selectedOption === correctAnswer;
+      const pointsForRow = isCorrect ? 10 : penaltyPerWrong ? -Math.abs(penaltyPerWrong) : 0;
       reviewRows.push({
         questionId,
         title: question.title ?? "Untitled question",
@@ -450,12 +464,13 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
         correctAnswer,
         correctOptionText: options[correctAnswer] ?? `Option ${correctAnswer}`,
         isCorrect,
-        points: isCorrect ? 10 : 0,
+        points: pointsForRow,
       });
     }
 
     const score = reviewRows.reduce((sum, row) => sum + row.points, 0);
     const correctCount = reviewRows.filter((row) => row.isCorrect).length;
+    const answeredCount = reviewRows.filter((row) => row.selectedOption !== null).length;
 
     const submittedSession = await prisma.mCQPracticeSession.update({
       where: { id: sessionId },
@@ -473,6 +488,8 @@ export async function submitMcqPracticeSession(req: Request, res: Response): Pro
         status: submittedSession.status,
         topics: submittedSession.topics,
         totalQuestions: submittedSession.totalQuestions,
+        answeredCount,
+        unansweredCount: Math.max(0, submittedSession.totalQuestions - answeredCount),
         correctCount: submittedSession.correctCount,
         score: submittedSession.score,
         submittedAt: submittedSession.submittedAt,

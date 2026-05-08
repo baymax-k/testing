@@ -63,4 +63,28 @@ describe("generateRandomMcqSet (mocked prisma)", () => {
     // pool had only q3 (after exclusion), so reset should be true and get filled
     expect(typeof res.reset).toBe("boolean");
   });
+
+  it("balances randomization across selected topics with equal priority", async () => {
+    const res = await generateRandomMcqSet("user1", {
+      count: 2,
+      topics: ["arrays", "strings"],
+      seed: "balanced-seed",
+    });
+
+    expect(res.questions.length).toBe(2);
+    const topics = res.questions.map((q) => q.topic);
+    expect(topics).toContain("arrays");
+    expect(topics).toContain("strings");
+  });
+
+  it("returns all available topic questions when chooseAllInTopics=true", async () => {
+    const res = await generateRandomMcqSet("user1", {
+      topics: ["arrays", "strings"],
+      chooseAllInTopics: true,
+      seed: "all-topic-seed",
+    });
+
+    // q1 is solved by user mock, so all remaining should be q2 + q3
+    expect(res.questions.map((q) => q.id).sort()).toEqual(["q2", "q3"]);
+  });
 });
