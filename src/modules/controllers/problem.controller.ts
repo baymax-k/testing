@@ -43,12 +43,6 @@ export async function listProblems(req: Request, res: Response): Promise<void> {
           },
         },
         {
-          slug: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
-        {
           id: {
             contains: search,
             mode: "insensitive",
@@ -63,7 +57,6 @@ export async function listProblems(req: Request, res: Response): Promise<void> {
         select: {
           id: true,
           title: true,
-          slug: true,
           difficulty: true,
           tags: {
             select: { name: true },
@@ -79,9 +72,9 @@ export async function listProblems(req: Request, res: Response): Promise<void> {
     const formattedProblems = problems.map((p) => ({
       id: p.id,
       title: p.title,
-      slug: p.slug ?? "",
+      slug: p.id,
       difficulty: p.difficulty,
-      tags: p.tags.map((t) => t.name),
+      tags: p.tags.map((t: { name: string }) => t.name),
     }));
 
     res.json({
@@ -109,7 +102,7 @@ export async function getProblem(req: Request, res: Response): Promise<void> {
 
     const problem = await prisma.question.findFirst({
       where: {
-        slug,
+        id: slug,
         type: "dsa",
       },
       include: {
@@ -129,7 +122,8 @@ export async function getProblem(req: Request, res: Response): Promise<void> {
 
     const response = {
       ...publicProblem,
-      tags: problem.tags.map((t) => t.name),
+      tags: problem.tags.map((t: { name: string }) => t.name),
+      slug: problem.id,
     };
 
     res.json({ problem: response });
