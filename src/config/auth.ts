@@ -41,6 +41,15 @@ export const auth = betterAuth({
         defaultValue: "student",
         input: false,
       },
+      username: {
+        type: "string",
+        required: true,
+      },
+      passwordHash: {
+        type: "string",
+        required: true,
+        returned: false,
+      },
     },
   },
   session: {

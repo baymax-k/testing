@@ -356,28 +356,36 @@ export class BatchService {
   static async deleteBatch(batchId: string) {
     const batch = await prisma.batch.findUnique({
       where: { id: batchId },
-      include: {
-        _count: {
-          select: {
-            students: true,
-          },
-        },
-      },
     });
 
     if (!batch) {
       throw new Error("Batch not found");
     }
 
-    if (batch._count.students > 0) {
-      throw new Error(`Cannot delete batch with ${batch._count.students} students assigned. Remove students first.`);
-    }
+    const detachedCounts = await prisma.$transaction(async (tx) => {
+      const studentsUpdate = await tx.user.updateMany({
+        where: { batchId },
+        data: { batchId: null },
+      });
+      const testsUpdate = await tx.test.updateMany({
+        where: { batchId },
+        data: { batchId: null },
+      });
 
-    await prisma.batch.delete({
-      where: { id: batchId },
+      await tx.batch.delete({
+        where: { id: batchId },
+      });
+
+      return {
+        studentsDetached: studentsUpdate.count,
+        testsDetached: testsUpdate.count,
+      };
     });
 
-    return { message: "Batch deleted successfully" };
+    return {
+      message: "Batch deleted successfully",
+      ...detachedCounts,
+    };
   }
 
   /**
