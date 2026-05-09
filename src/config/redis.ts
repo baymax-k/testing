@@ -1,84 +1,68 @@
 // ─── Redis Singleton Configuration ─────────────────────────────────────────
-// Single Redis connection shared across the application for BullMQ and caching
 
-import Redis, { type RedisOptions } from "ioredis";
+import { Redis, type RedisOptions } from "ioredis"; // ← named import, not default
 
 let redisClient: Redis | null = null;
+let sigTermRegistered = false;
 
-/**
- * Get or create Redis client singleton
- */
+const MAX_RETRIES = 3;
+
+function buildRedisOptions(): RedisOptions {
+  const baseConfig: RedisOptions = {
+    maxRetriesPerRequest: null,
+    retryStrategy: (times: number) => {
+      if (times > MAX_RETRIES) return null;
+      return Math.min(times * 50, 2000);
+    },
+    enableReadyCheck: true,
+    lazyConnect: false,
+  };
+
+  const redisUrl = process.env.REDIS_URL;
+
+  if (redisUrl) {
+    return baseConfig;
+  }
+
+  return {
+    ...baseConfig,
+    host: process.env.REDIS_HOST ?? "localhost",
+    port: Number(process.env.REDIS_PORT) || 6379,
+    password: process.env.REDIS_PASSWORD,
+  };
+}
+
 export function getRedisClient(): Redis {
-  if (!redisClient) {
-    const redisUrl = process.env.REDIS_URL;
-    const redisPassword = process.env.REDIS_PASSWORD;
-    const redisHost = process.env.REDIS_HOST || "localhost";
-    const redisPort = Number(process.env.REDIS_PORT) || 6379;
+  if (redisClient) return redisClient;
 
-    const baseConfig = {
-      maxRetriesPerRequest: null, // Required by BullMQ
-      retryStrategy: (times: number) => {
-        // Exponential backoff: 50ms, 100ms, 200ms, etc. (max 3 retries)
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      enableReadyCheck: true,
-      lazyConnect: false,
-    } satisfies RedisOptions;
+  const redisUrl = process.env.REDIS_URL;
+  const options = buildRedisOptions();
 
-    if (redisUrl) {
-      redisClient = new Redis(redisUrl, baseConfig);
-    } else {
-      redisClient = new Redis({
-        host: redisHost,
-        port: redisPort,
-        password: redisPassword,
-        ...baseConfig,
-      });
-    }
+  redisClient = redisUrl
+    ? new Redis(redisUrl, options)
+    : new Redis(options);
 
-    // Event handlers
-    redisClient.on("connect", () => {
-      console.log("✓ Redis connected");
-    });
+  redisClient.on("connect", () => console.log("✓ Redis connected"));
+  redisClient.on("error", (err: Error) => console.error("✗ Redis error:", err.message)); // ← explicit Error type
+  redisClient.on("close", () => console.log("Redis connection closed"));
 
-    redisClient.on("error", (err) => {
-      console.error("✗ Redis connection error:", err.message);
-    });
-
-    redisClient.on("close", () => {
-      console.log("Redis connection closed");
-    });
-
-    // Graceful shutdown
-    process.on("SIGTERM", async () => {
-      if (redisClient) {
-        await redisClient.quit();
-        redisClient = null;
-      }
-    });
+  if (!sigTermRegistered) {
+    sigTermRegistered = true;
+    process.on("SIGTERM", () => void closeRedis());
   }
 
   return redisClient;
 }
 
-/**
- * Check if Redis is healthy and responsive
- */
 export async function isRedisHealthy(): Promise<boolean> {
   try {
-    const client = getRedisClient();
-    const result = await client.ping();
-    return result === "PONG";
-  } catch (error) {
-    console.error("Redis health check failed:", error);
+    return (await getRedisClient().ping()) === "PONG";
+  } catch (err) {
+    console.error("Redis health check failed:", err);
     return false;
   }
 }
 
-/**
- * Close Redis connection (for testing/graceful shutdown)
- */
 export async function closeRedis(): Promise<void> {
   if (redisClient) {
     await redisClient.quit();
