@@ -2,6 +2,7 @@
 
 import type { Response } from "express";
 import { z } from "zod";
+import { createId } from "@paralleldrive/cuid2";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/prisma.js";
 import type { ProductAdminRole } from "../../middleware/rbac.js";
@@ -54,6 +55,12 @@ const PRODUCT_ADMIN_PAGE_LABELS: Record<ProductAdminPageKey, string> = {
 
 const createProductAdminSchema = z.object({
   email: z.email("Invalid email"),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30, "Username too long")
+    .regex(/^[a-z0-9_]+$/, "Username may only contain lowercase letters, numbers, and underscores")
+    .optional(),
   name: z.string().min(1, "Name is required").max(100),
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
   phone: z.string().max(20).optional().nullable(),
@@ -83,6 +90,47 @@ function buildPermissionResponse(enabledPages: ProductAdminPageKey[]) {
     label: PRODUCT_ADMIN_PAGE_LABELS[page],
     canView: enabledSet.has(page),
   }));
+}
+
+function sanitizeUsernameBase(input: string): string {
+  const normalized = input
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (normalized.length >= 3) {
+    return normalized.slice(0, 24);
+  }
+
+  return `user_${normalized || "acct"}`.slice(0, 24);
+}
+
+async function generateUniqueUsername(seed: string): Promise<string> {
+  const base = sanitizeUsernameBase(seed);
+  const baseCandidate = base.slice(0, 30);
+
+  const existingBase = await prisma.user.findUnique({ where: { username: baseCandidate } });
+  if (!existingBase) {
+    return baseCandidate;
+  }
+
+  for (let i = 0; i < 20; i++) {
+    const suffix = createId().slice(0, 5);
+    const trimmed = base.slice(0, Math.max(3, 30 - (suffix.length + 1)));
+    const candidate = `${trimmed}_${suffix}`;
+    const existing = await prisma.user.findUnique({ where: { username: candidate } });
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `user_${createId().slice(0, 8)}`;
+}
+
+function getUsernameSeed(email: string, name: string): string {
+  const emailBase = email.split("@")[0];
+  return emailBase || name || "user";
 }
 
 async function replaceProductAdminPagePermissions(adminUserId: string, enabledPages: ProductAdminPageKey[]): Promise<void> {
@@ -199,7 +247,7 @@ export async function createProductAdmin(req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const { email, name, password, phone, permissions } = validation.data;
+    const { email, username, name, password, phone, permissions } = validation.data;
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -213,10 +261,26 @@ export async function createProductAdmin(req: AuthRequest, res: Response): Promi
 
     const normalizedPermissions = normalizePermissions(permissions);
     const passwordHash = await hashPassword(password);
+    let finalUsername = username;
+
+    if (finalUsername) {
+      const existingUsername = await prisma.user.findUnique({
+        where: { username: finalUsername },
+        select: { id: true },
+      });
+
+      if (existingUsername) {
+        res.status(400).json({ error: "Username already exists" });
+        return;
+      }
+    } else {
+      finalUsername = await generateUniqueUsername(getUsernameSeed(email, name));
+    }
 
     const createdAdmin = await prisma.user.create({
       data: {
         email,
+        username: finalUsername,
         name,
         passwordHash,
         role: "product_admin",
