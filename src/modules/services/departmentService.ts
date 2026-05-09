@@ -314,25 +314,27 @@ export class DepartmentService {
   static async deleteDepartment(deptId: string) {
     const department = await prisma.department.findUnique({
       where: { id: deptId },
-      include: {
-        users: true,
-      },
+      select: { id: true },
     });
 
     if (!department) {
       throw new Error("Department not found");
     }
 
-    // Check if department has users
-    if (department.users.length > 0) {
-      throw new Error(
-        `Cannot delete department with ${department.users.length} assigned users. Please reassign or remove users first.`
-      );
-    }
+    let deletedDepartment: any = null;
 
-    return prisma.department.delete({
-      where: { id: deptId },
+    await prisma.$transaction(async (tx) => {
+      await tx.user.updateMany({
+        where: { departmentId: deptId },
+        data: { departmentId: null, batchId: null },
+      });
+
+      deletedDepartment = await tx.department.delete({
+        where: { id: deptId },
+      });
     });
+
+    return deletedDepartment;
   }
 
   /**

@@ -2,6 +2,7 @@
 
 import type { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
+import { createId } from "@paralleldrive/cuid2";
 import { z } from "zod";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/prisma.js";
@@ -29,6 +30,12 @@ const createCollegeSchema = z.object({
 
 const createCollegeAdminSchema = z.object({
   email: z.string().email("Invalid email"),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30, "Username too long")
+    .regex(/^[a-z0-9_]+$/, "Username may only contain lowercase letters, numbers, and underscores")
+    .optional(),
   name: z.string().min(1, "Name is required").max(100),
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
   phone: z.string().max(20).optional().nullable(),
@@ -88,6 +95,47 @@ function isPrismaAvailabilityError(err: unknown): boolean {
     err instanceof Prisma.PrismaClientInitializationError ||
     err instanceof Prisma.PrismaClientUnknownRequestError
   );
+}
+
+function sanitizeUsernameBase(input: string): string {
+  const normalized = input
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (normalized.length >= 3) {
+    return normalized.slice(0, 24);
+  }
+
+  return `user_${normalized || "acct"}`.slice(0, 24);
+}
+
+async function generateUniqueUsername(seed: string): Promise<string> {
+  const base = sanitizeUsernameBase(seed);
+  const baseCandidate = base.slice(0, 30);
+
+  const existingBase = await prisma.user.findUnique({ where: { username: baseCandidate } });
+  if (!existingBase) {
+    return baseCandidate;
+  }
+
+  for (let i = 0; i < 20; i++) {
+    const suffix = createId().slice(0, 5);
+    const trimmed = base.slice(0, Math.max(3, 30 - (suffix.length + 1)));
+    const candidate = `${trimmed}_${suffix}`;
+    const existing = await prisma.user.findUnique({ where: { username: candidate } });
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `user_${createId().slice(0, 8)}`;
+}
+
+function getUsernameSeed(email: string, name: string): string {
+  const emailBase = email.split("@")[0];
+  return emailBase || name || "user";
 }
 
 // ─── Create College ───────────────────────────────────────────────────────────
@@ -484,9 +532,25 @@ export async function createCollegeAdmin(req: AuthRequest, res: Response): Promi
 
     // Create user directly in Prisma for deterministic seeding/admin creation flow
     const passwordHash = await hashPassword(data.password);
+    let finalUsername = data.username;
+
+    if (finalUsername) {
+      const existingUsername = await prisma.user.findUnique({
+        where: { username: finalUsername },
+        select: { id: true },
+      });
+
+      if (existingUsername) {
+        res.status(400).json({ error: "Username already exists" });
+        return;
+      }
+    } else {
+      finalUsername = await generateUniqueUsername(getUsernameSeed(data.email, data.name));
+    }
     const admin = await prisma.user.create({
       data: {
         email: data.email,
+        username: finalUsername,
         name: data.name,
         passwordHash,
         role: "college_admin",

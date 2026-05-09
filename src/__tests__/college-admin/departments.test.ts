@@ -284,17 +284,15 @@ describe("College Admin - Department Endpoints", () => {
       expect(response.body.success).toBe(true);
     });
 
-    it("should return 400 if department has users", async () => {
-      vi.spyOn(DepartmentService, "deleteDepartment").mockRejectedValue(
-        new Error("Cannot delete department with users assigned")
-      );
+    it("should delete department even if users exist", async () => {
+      vi.spyOn(DepartmentService, "deleteDepartment").mockResolvedValue(mockDepartment as any);
 
       const response = await request(app as Express)
         .delete("/api/college-admin/departments/dept_test_id")
         .set(createAuthHeaders(mockUsers.collegeAdmin));
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain("users assigned");
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
     });
 
     it("should return 404 for non-existent department", async () => {
