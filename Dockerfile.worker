@@ -1,20 +1,29 @@
-# Multi-stage Dockerfile for different workers
-
-# Base Node.js image
+# ─── Stage 1: Base ────────────────────────────────────────────────────────────
 FROM node:20-alpine AS base
 WORKDIR /app
-COPY package*.json pnpm-lock.yaml ./
 RUN npm install -g pnpm
+COPY package*.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-# Build stage
+# ─── Stage 2: Builder ─────────────────────────────────────────────────────────
 FROM base AS builder
+WORKDIR /app
 COPY . .
+RUN pnpm prisma generate
 RUN pnpm build
 
-# Arduino Worker Stage
-FROM base AS arduino-worker
+# ─── Stage 3: Arduino Worker ──────────────────────────────────────────────────
+FROM node:20-alpine AS arduino-worker
+WORKDIR /app
+RUN npm install -g pnpm
+
+# node_modules from builder already contains the generated Prisma client
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+
+# Copy prisma schema
+COPY --from=builder /app/src/modules/prisma/schema.prisma ./src/modules/prisma/schema.prisma
 
 # Install Arduino CLI
 RUN apk add --no-cache curl
@@ -27,5 +36,4 @@ RUN addgroup -g 1001 -S worker && \
     adduser -S worker -u 1001
 USER worker
 
-EXPOSE 3002
 CMD ["node", "dist/src/workers/arduino-worker.js"]
