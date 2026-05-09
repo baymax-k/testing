@@ -20,12 +20,25 @@ import {
 
 // ─── Validators ───────────────────────────────────────────────────────────────
 
+const optionalNullableTrimmedString = (schema: z.ZodString) =>
+  z.preprocess(
+    (value) => {
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        return trimmed.length === 0 ? null : trimmed;
+      }
+
+      return value;
+    },
+    schema.nullable().optional(),
+  );
+
 const createCollegeSchema = z.object({
   name: z.string().min(1, "College name is required").max(200),
   code: z.string().min(1, "College code is required").max(50),
-  description: z.string().max(500).optional().nullable(),
-  website: z.string().url().optional().nullable(),
-  location: z.string().max(200).optional().nullable(),
+  description: optionalNullableTrimmedString(z.string().max(500)),
+  website: optionalNullableTrimmedString(z.string().url()),
+  location: optionalNullableTrimmedString(z.string().max(200)),
 });
 
 const createCollegeAdminSchema = z.object({
@@ -50,9 +63,9 @@ const assignAdminSchema = z.object({
 const updateCollegeSchema = z.object({
   name: z.string().min(1, "College name is required").max(200).optional(),
   code: z.string().min(1, "College code is required").max(50).optional(),
-  description: z.string().max(500).optional().nullable(),
-  website: z.string().url().optional().nullable(),
-  location: z.string().max(200).optional().nullable(),
+  description: optionalNullableTrimmedString(z.string().max(500)),
+  website: optionalNullableTrimmedString(z.string().url()),
+  location: optionalNullableTrimmedString(z.string().max(200)),
   adminId: z.string().optional().nullable(),
 });
 
