@@ -119,7 +119,7 @@ describe("Problem fetch API (DB-backed)", () => {
     const res = await request(app).get("/api/v1/problems/two-sum");
 
     expect(res.status).toBe(200);
-    expect(res.body?.problem?.slug).toBe("two-sum");
+    expect(res.body?.problem?.slug).toBe("dsa-001");
     expect(Array.isArray(res.body?.problem?.sampleTestCases)).toBe(true);
     expect(res.body?.problem?.hiddenTestCases).toBeUndefined();
     expect(res.body?.problem?.correctAnswer).toBeUndefined();

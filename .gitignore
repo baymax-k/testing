@@ -13,3 +13,5 @@ tests/
 /docs/nginx
 /docs
 rds-ca-bundle.pem
+STUDENT_TEST_API.md
+build_output.log

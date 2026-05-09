@@ -89,6 +89,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
         name: "Arduino Admin",
         description: "Administrative endpoints for Arduino platform management.",
       },
+      {
+        name: "Student Tests",
+        description: "Student test assignment, retrieval, and submission endpoints for formal assessments.",
+      },
     ],
 
     // G��G�� Reusable components G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��G��
@@ -2770,6 +2774,340 @@ const swaggerOptions: swaggerJsdoc.Options = {
                 },
               },
             },
+          },
+        },
+      },
+
+      // ── Student Tests ─────────────────────────────────────────────────────────
+      "/api/v1/student/tests": {
+        get: {
+          summary: "List all tests assigned to the student",
+          description:
+            "Retrieve tests assigned to the student's batch or department, or public tests. " +
+            "Supports pagination and filtering by difficulty, tags, and status.",
+          tags: ["Student Tests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "limit",
+              in: "query",
+              description: "Results per page (max 100)",
+              schema: { type: "string", default: "20" },
+            },
+            {
+              name: "offset",
+              in: "query",
+              description: "Pagination offset",
+              schema: { type: "string", default: "0" },
+            },
+            {
+              name: "difficulty",
+              in: "query",
+              description: "Filter by difficulty level",
+              schema: { type: "string", enum: ["easy", "medium", "hard"] },
+            },
+            {
+              name: "tags",
+              in: "query",
+              description: "Comma-separated tags to filter by",
+              schema: { type: "string", example: "DSA,Arrays" },
+            },
+            {
+              name: "status",
+              in: "query",
+              description: "Filter by test status",
+              schema: { type: "string", enum: ["draft", "scheduled", "active", "completed", "archived"] },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "List of assigned tests with pagination",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "object",
+                        properties: {
+                          tests: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                title: { type: "string" },
+                                description: { type: "string", nullable: true },
+                                durationMinutes: { type: "integer" },
+                                status: { type: "string", enum: ["draft", "scheduled", "active", "completed", "archived"] },
+                                scheduledStartTime: { type: "string", format: "date-time", nullable: true },
+                                scheduledEndTime: { type: "string", format: "date-time", nullable: true },
+                                totalMarks: { type: "integer" },
+                                difficulty: { type: "string", nullable: true },
+                                tags: { type: "array", items: { type: "string" } },
+                                isPublic: { type: "boolean" },
+                                createdAt: { type: "string", format: "date-time" },
+                                updatedAt: { type: "string", format: "date-time" },
+                                questionCount: { type: "integer" },
+                              },
+                            },
+                          },
+                          pagination: {
+                            type: "object",
+                            properties: {
+                              limit: { type: "integer" },
+                              offset: { type: "integer" },
+                              total: { type: "integer" },
+                              hasMore: { type: "boolean" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid query parameters" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "User is not a student" },
+          },
+        },
+      },
+
+      "/api/v1/student/tests/{id}": {
+        get: {
+          summary: "Get detailed test information",
+          description:
+            "Retrieve full test details including all questions. " +
+            "Correct answers are NOT exposed to students (server-side scoring only).",
+          tags: ["Student Tests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              description: "Test ID",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Test details with questions",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "object",
+                        properties: {
+                          test: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              title: { type: "string" },
+                              description: { type: "string", nullable: true },
+                              instructions: { type: "string", nullable: true },
+                              durationMinutes: { type: "integer" },
+                              status: { type: "string" },
+                              totalMarks: { type: "integer" },
+                              scheduledStartTime: { type: "string", format: "date-time", nullable: true },
+                              scheduledEndTime: { type: "string", format: "date-time", nullable: true },
+                              questions: {
+                                type: "array",
+                                items: {
+                                  type: "object",
+                                  properties: {
+                                    id: { type: "string" },
+                                    type: { type: "string", enum: ["mcq", "multiple_choice", "short_answer", "long_answer"] },
+                                    title: { type: "string" },
+                                    description: { type: "string" },
+                                    marks: { type: "integer", nullable: true },
+                                    orderIndex: { type: "integer", nullable: true },
+                                    options: { type: "array", items: { type: "string" }, nullable: true },
+                                    explanation: { type: "string", nullable: true },
+                                    difficulty: { type: "string", nullable: true },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid test ID" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "User is not a student" },
+            "404": { description: "Test not found or not accessible" },
+          },
+        },
+      },
+
+      "/api/v1/student/tests/{id}/submit": {
+        post: {
+          summary: "Submit test attempt with answers",
+          description:
+            "Submit answers for a test and receive auto-calculated score. " +
+            "Validates test timing and attempt limits. Score is calculated server-side.",
+          tags: ["Student Tests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              description: "Test ID",
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["answers"],
+                  properties: {
+                    answers: {
+                      type: "array",
+                      minItems: 1,
+                      description: "Array of student answers",
+                      items: {
+                        type: "object",
+                        required: ["questionId"],
+                        properties: {
+                          questionId: { type: "string", description: "ID of the question" },
+                          selectedAnswer: {
+                            oneOf: [
+                              { type: "integer", minimum: 0, maximum: 3, description: "MCQ option index (0-3)" },
+                              { type: "string", description: "Text answer for short/long answer questions" },
+                            ],
+                            nullable: true,
+                            description: "Answer value (optional if student skipped)",
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Test submission result with auto-calculated score",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "object",
+                        properties: {
+                          submission: {
+                            type: "object",
+                            properties: {
+                              score: { type: "number", description: "Score obtained" },
+                              maxScore: { type: "number", description: "Total marks for the test" },
+                              correctCount: { type: "integer", description: "Number of correct answers" },
+                              totalQuestions: { type: "integer", description: "Total questions answered" },
+                              percentage: { type: "number", description: "Score percentage" },
+                              status: { type: "string", enum: ["submitted"], description: "Submission status" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid submission data" },
+            "401": { description: "Not authenticated" },
+            "403": { description: "User is not a student OR maximum attempts exceeded" },
+            "404": { description: "Test not found or student not found" },
+            "409": { description: "Test not started yet OR submission period ended" },
+          },
+        },
+      },
+
+      "/api/v1/student/tests/{id}/attempts/{attemptNumber}": {
+        get: {
+          summary: "Get previous test attempt details",
+          description: "Retrieve details of a previous test attempt including answers and score.",
+          tags: ["Student Tests"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              description: "Test ID",
+              schema: { type: "string" },
+            },
+            {
+              name: "attemptNumber",
+              in: "path",
+              required: true,
+              description: "Attempt number (1, 2, etc.)",
+              schema: { type: "integer", minimum: 1 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Previous attempt details",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "object",
+                        properties: {
+                          attempt: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              testId: { type: "string" },
+                              studentId: { type: "string" },
+                              attemptNumber: { type: "integer" },
+                              status: { type: "string", enum: ["in_progress", "submitted"] },
+                              score: { type: "number", nullable: true },
+                              maxScore: { type: "number" },
+                              startedAt: { type: "string", format: "date-time" },
+                              submittedAt: { type: "string", format: "date-time", nullable: true },
+                              evaluatedAt: { type: "string", format: "date-time", nullable: true },
+                              answers: {
+                                type: "object",
+                                description: "Student answers with evaluation",
+                                additionalProperties: {
+                                  type: "object",
+                                  properties: {
+                                    selectedAnswer: { oneOf: [{ type: "integer" }, { type: "string" }], nullable: true },
+                                    isCorrect: { type: "boolean" },
+                                    marks: { type: "number" },
+                                  },
+                                },
+                                nullable: true,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Not authenticated" },
+            "403": { description: "User is not a student" },
+            "404": { description: "Test attempt not found" },
           },
         },
       },
