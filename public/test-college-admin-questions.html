@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>College Admin Questions API Test</title>
+  <title>Admin Questions API Test</title>
   <style>
     :root { color-scheme: light; }
     body {
@@ -82,7 +82,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>College Admin Questions API Test</h1>
+    <h1>Admin Questions API Test</h1>
 
     <div class="panel">
       <div class="row">
@@ -91,19 +91,23 @@
           <input id="baseUrl" value="http://localhost:5000" />
         </div>
         <div>
-          <label for="token">Auth Token (Bearer, optional)</label><br />
-          <input id="token" placeholder="eyJhbGciOi..." />
+          <label for="collegeToken">College Admin Token (Bearer, optional)</label><br />
+          <input id="collegeToken" placeholder="eyJhbGciOi..." />
+        </div>
+        <div>
+          <label for="productToken">Product Admin Token (Bearer, optional)</label><br />
+          <input id="productToken" placeholder="eyJhbGciOi..." />
         </div>
         <div>
           <label>&nbsp;</label><br />
           <button class="secondary" onclick="clearOutput()">Clear Output</button>
         </div>
       </div>
-      <div class="meta">Requires College Admin roles. If using cookies on same origin, token can be empty.</div>
+      <div class="meta">If using cookies on same origin, tokens can be empty. Otherwise set the relevant token field.</div>
     </div>
 
     <div class="panel">
-      <h2>Questions Endpoints</h2>
+      <h2>College Admin Questions</h2>
 
       <div class="endpoint">
         <div>
@@ -114,7 +118,7 @@
         <div class="row">
           <input id="codingPage" placeholder="page" value="1" />
           <input id="codingLimit" placeholder="limit" value="50" />
-          <button onclick="runPagedRequest('/api/college-admin/questions/coding', 'codingPage', 'codingLimit')">Run</button>
+          <button onclick="runPagedRequest('/api/college-admin/questions/coding', 'codingPage', 'codingLimit', 'college')">Run</button>
         </div>
       </div>
 
@@ -127,7 +131,37 @@
         <div class="row">
           <input id="mcqPage" placeholder="page" value="1" />
           <input id="mcqLimit" placeholder="limit" value="50" />
-          <button onclick="runPagedRequest('/api/college-admin/questions/mcq', 'mcqPage', 'mcqLimit')">Run</button>
+          <button onclick="runPagedRequest('/api/college-admin/questions/mcq', 'mcqPage', 'mcqLimit', 'college')">Run</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Product Admin Questions</h2>
+
+      <div class="endpoint">
+        <div>
+          <div class="pill">GET</div>
+          /api/product-admin/questions/coding
+          <div class="meta">Query params: page, limit</div>
+        </div>
+        <div class="row">
+          <input id="productCodingPage" placeholder="page" value="1" />
+          <input id="productCodingLimit" placeholder="limit" value="50" />
+          <button onclick="runPagedRequest('/api/product-admin/questions/coding', 'productCodingPage', 'productCodingLimit', 'product')">Run</button>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div>
+          <div class="pill">GET</div>
+          /api/product-admin/questions/mcq
+          <div class="meta">Query params: page, limit</div>
+        </div>
+        <div class="row">
+          <input id="productMcqPage" placeholder="page" value="1" />
+          <input id="productMcqLimit" placeholder="limit" value="50" />
+          <button onclick="runPagedRequest('/api/product-admin/questions/mcq', 'productMcqPage', 'productMcqLimit', 'product')">Run</button>
         </div>
       </div>
     </div>
@@ -149,8 +183,9 @@
       return raw.endsWith("/") ? raw.slice(0, -1) : raw;
     }
 
-    function getHeaders() {
-      const token = getValue("token");
+    function getHeaders(tokenType) {
+      const tokenId = tokenType === "product" ? "productToken" : "collegeToken";
+      const token = getValue(tokenId);
       const headers = { "Content-Type": "application/json" };
       if (token) {
         headers.Authorization = "Bearer " + token;
@@ -173,19 +208,19 @@
       return path + "?page=" + encodeURIComponent(page) + "&limit=" + encodeURIComponent(limit);
     }
 
-    async function runPagedRequest(path, pageId, limitId) {
+    async function runPagedRequest(path, pageId, limitId, tokenType) {
       const fullPath = buildPagedPath(path, pageId, limitId);
-      await runRequest("GET", fullPath);
+      await runRequest("GET", fullPath, tokenType);
     }
 
-    async function runRequest(method, path) {
+    async function runRequest(method, path, tokenType) {
       const url = getBaseUrl() + path;
       setOutput(method + " " + url + "\n\nLoading...");
 
       try {
         const res = await fetch(url, {
           method,
-          headers: getHeaders(),
+          headers: getHeaders(tokenType),
           credentials: "include"
         });
         const text = await res.text();
