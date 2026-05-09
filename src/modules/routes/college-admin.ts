@@ -4008,9 +4008,17 @@ router.get(
         };
       }
 
+      const usersWithSignedImages = await Promise.all(
+        result.users.map(async (user) => ({
+          ...user,
+          image: user.image ? await generateAvatarReadUrl(user.image) : user.image,
+        }))
+      );
+
       res.json({
         success: true,
         ...result,
+        users: usersWithSignedImages,
         ...(departmentStats ? { departmentStats } : {}),
         ...(mentorStats ? { mentorStats } : {}),
       });
@@ -5472,9 +5480,16 @@ router.get(
         };
       }
 
+      const studentsWithSignedImages = await Promise.all(
+        result.users.map(async (user) => ({
+          ...user,
+          image: user.image ? await generateAvatarReadUrl(user.image) : user.image,
+        }))
+      );
+
       res.json({
         success: true,
-        students: result.users,
+        students: studentsWithSignedImages,
         pagination: result.pagination,
         ...(departmentStats ? { departmentStats } : {}),
       });
