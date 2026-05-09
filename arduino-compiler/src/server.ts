@@ -41,7 +41,8 @@ interface ArduinoTestCase {
   label: string;
   type: 'pin_state' | 'serial_output' | 'toggle_count' | 'timing';
   pin?: number;
-  expectedState?: 'HIGH' | 'LOW';
+  // ✅ Added TOGGLE and PWM to the type
+  expectedState?: 'HIGH' | 'LOW' | 'TOGGLE' | 'PWM';
   atMs?: number;
   toleranceMs?: number;
   minToggles?: number;
@@ -179,7 +180,7 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
       await fs.writeFile(sketchFile, code);
       
       // Use absolute path to arduino-cli
-      const arduinoCliPath = '/home/baymax/Documents/Dynx/CodeEthnics-Backend/bin/arduino-cli';
+      const arduinoCliPath = process.env.ARDUINO_CLI_PATH || 'arduino-cli';
       
       // Install required libraries if any
       if (libraries && libraries.length > 0) {
@@ -188,11 +189,10 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
           try {
             const libInstallCmd = `${arduinoCliPath} lib install "${library}"`;
             console.log(`📦 Installing: ${library}`);
-            await execAsync(libInstallCmd, { timeout: 60000 }); // 1 minute timeout per library
+            await execAsync(libInstallCmd, { timeout: 60000 });
             console.log(`✅ Installed: ${library}`);
           } catch (libError) {
             console.warn(`⚠️ Failed to install library ${library}:`, libError);
-            // Continue compilation - some libraries might already be installed
           }
         }
       }
@@ -202,12 +202,9 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
       
       const { stdout, stderr } = await execAsync(compileCmd, { 
         cwd: tempDir,
-        timeout: 30000 // 30 second timeout
+        timeout: 30000
       });
       
-      // Check if hex file was generated.
-      // Arduino CLI output path can vary between versions/platforms,
-      // so try canonical path first, then recursive fallback search.
       const expectedHexFile = path.join(sketchDir, 'build', fqbn.replace(/:/g, '.'), sketchName + '.ino.hex');
       let hexContent = '';
       let hexSize = 0;
@@ -235,33 +232,27 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
       
       const compileTime = Date.now() - startTime;
       
-      // Extract memory usage from compilation output
       let programBytes = 0;
       let dataBytes = 0;
       let warnings: string[] = [];
       
-      // Parse Arduino CLI output for memory usage
       const outputLines = (stdout + stderr).split('\n');
       for (const line of outputLines) {
-        // Match memory usage: "Sketch uses 924 bytes (2%) of program storage space"
         const programMatch = line.match(/sketch uses (\d+) bytes.*program storage/i);
         if (programMatch) {
           programBytes = parseInt(programMatch[1]);
         }
         
-        // Match data usage: "Global variables use 9 bytes (0%) of dynamic memory"
         const dataMatch = line.match(/global variables use (\d+) bytes.*dynamic memory/i);
         if (dataMatch) {
           dataBytes = parseInt(dataMatch[1]);
         }
         
-        // Collect warnings
         if (line.toLowerCase().includes('warning:')) {
           warnings.push(line.trim());
         }
       }
       
-      // Calculate code quality metrics
       const codeQuality = {
         programSize: programBytes,
         dataUsage: dataBytes,
@@ -272,7 +263,7 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
           programUtilization: board.id === 'uno' ? (programBytes / 32768 * 100).toFixed(1) : (programBytes / 262144 * 100).toFixed(1),
           memoryUtilization: board.id === 'uno' ? (dataBytes / 2048 * 100).toFixed(1) : (dataBytes / 8192 * 100).toFixed(1)
         },
-        score: Math.max(0, 100 - warnings.length * 5 - (programBytes > 16384 ? 10 : 0)) // Simple quality score
+        score: Math.max(0, 100 - warnings.length * 5 - (programBytes > 16384 ? 10 : 0))
       };
       
       res.json({
@@ -294,7 +285,6 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
         codeQuality
       });
 
-      
     } catch (compileError: any) {
       const compileTime = Date.now() - startTime;
       console.error('❌ Arduino compilation failed:', compileError);
@@ -309,7 +299,6 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
         compileTimeMs: compileTime
       });
     } finally {
-      // Clean up temporary files
       try {
         await fs.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
@@ -327,7 +316,21 @@ app.post('/compile/json', async (req: JsonCompileRequest, res: Response): Promis
   }
 });
 
-// Arduino simulation endpoint for test case validation
+// ─── Simulation endpoint ──────────────────────────────────────────────────────
+//
+// HOW VALIDATION WORKS:
+// This is purely static code analysis — no AVR emulator, no real hardware.
+// It reads the student's source code as text and uses regex to check:
+//
+//   pin_state / HIGH|LOW  → finds all digitalWrite(pin, HIGH|LOW) calls,
+//                           checks the last written state matches expected
+//   pin_state / TOGGLE    → checks that BOTH HIGH and LOW are written to the pin
+//                           (meaning the code alternates the pin = blink pattern)
+//   pin_state / PWM       → checks that analogWrite(pin, ...) is called
+//   serial_output         → checks Serial.print/println output matches expected text
+//   toggle_count          → counts total digitalWrite calls on a pin, checks >= minToggles
+//   timing                → finds delay() values and checks they match expected timing
+//
 app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void> => {
   const startTime = Date.now();
   
@@ -342,55 +345,78 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
       return;
     }
 
-    // For now, implement smart pattern matching simulation
-    // This analyzes code patterns to provide consistent, educational feedback
-    
-    // Normalize code for pattern matching - define once, use everywhere
     const codeNormalized = (code || '').toLowerCase().replace(/\s+/g, ' ').trim();
     
     const results: TestResult[] = testCases.map((testCase: ArduinoTestCase) => {
-      // Smart pattern matching based on actual code content
       let passed = false;
       let actualValue: string | number = '';
       let expectedValue: string | number = '';
       let error: string | undefined;
 
       switch (testCase.type) {
-        case 'pin_state':
-          // Check if code actually sets the pin to expected state
+
+        // ── pin_state ──────────────────────────────────────────────────────────
+        // Handles: HIGH, LOW, TOGGLE, PWM
+        case 'pin_state': {
           const pin = testCase.pin;
           const expectedState = testCase.expectedState || 'HIGH';
           expectedValue = expectedState;
-          
-          // Look for digitalWrite patterns
-          const pinWritePattern = new RegExp(`digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*(high|low)\\s*\\)`, 'i');
-          const pinWriteMatch = codeNormalized.match(pinWritePattern);
-          
-          if (pinWriteMatch) {
-            const writtenState = pinWriteMatch[1].toUpperCase();
-            actualValue = writtenState;
-            passed = writtenState === expectedState;
+
+          if (expectedState === 'PWM') {
+            // PWM: student must call analogWrite(pin, value)
+            const pwmPattern = new RegExp(`analogwrite\\s*\\(\\s*${pin}\\s*,`, 'i');
+            passed = pwmPattern.test(codeNormalized);
+            actualValue = passed ? 'PWM' : 'NONE';
+            if (!passed) {
+              error = `Pin ${pin} does not use analogWrite() for PWM`;
+            }
+
+          } else if (expectedState === 'TOGGLE') {
+            // TOGGLE: student must call digitalWrite(pin, HIGH) AND digitalWrite(pin, LOW)
+            // This covers blink patterns — both states must appear in the code
+            const highPattern = new RegExp(`digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*high\\s*\\)`, 'i');
+            const lowPattern  = new RegExp(`digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*low\\s*\\)`, 'i');
+            const hasHigh = highPattern.test(codeNormalized);
+            const hasLow  = lowPattern.test(codeNormalized);
+            passed = hasHigh && hasLow;
+            actualValue = passed ? 'TOGGLE' : hasHigh ? 'HIGH only' : hasLow ? 'LOW only' : 'NONE';
+            if (!passed) {
+              error = `Pin ${pin} does not toggle — missing: ${!hasHigh ? 'HIGH' : ''}${!hasHigh && !hasLow ? ' and ' : ''}${!hasLow ? 'LOW' : ''}`;
+            }
+
           } else {
-            // Check if pin is set as output
-            const pinModePattern = new RegExp(`pinmode\\s*\\(\\s*${pin}\\s*,\\s*output\\s*\\)`, 'i');
-            if (pinModePattern.test(codeNormalized)) {
-              actualValue = 'LOW'; // Default state for output pins
-              passed = expectedState === 'LOW';
-              error = `Pin ${pin} set as OUTPUT but no digitalWrite found`;
+            // HIGH or LOW: find all digitalWrite calls, use the last one as the final state
+            const allWritesPattern = new RegExp(`digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*(high|low)\\s*\\)`, 'gi');
+            const allMatches = [...codeNormalized.matchAll(allWritesPattern)];
+            const states = allMatches.map(m => m[1].toUpperCase());
+
+            if (states.length > 0) {
+              // Use last written state — reflects what the pin ends up as
+              const lastState = states[states.length - 1];
+              actualValue = lastState;
+              passed = lastState === expectedState;
             } else {
-              actualValue = 'UNDEFINED';
-              passed = false;
-              error = `Pin ${pin} not configured or used in code`;
+              // No digitalWrite found — check if pin is configured as output at all
+              const pinModePattern = new RegExp(`pinmode\\s*\\(\\s*${pin}\\s*,\\s*output\\s*\\)`, 'i');
+              if (pinModePattern.test(codeNormalized)) {
+                actualValue = 'LOW'; // Output pins default to LOW
+                passed = expectedState === 'LOW';
+                error = `Pin ${pin} set as OUTPUT but no digitalWrite() found`;
+              } else {
+                actualValue = 'UNDEFINED';
+                passed = false;
+                error = `Pin ${pin} not configured or used in code`;
+              }
             }
           }
           break;
-          
-        case 'serial_output':
-          // Check if code has Serial.print with expected text
+        }
+
+        // ── serial_output ──────────────────────────────────────────────────────
+        case 'serial_output': {
           const expectedOutput = testCase.expectedOutput || '';
           expectedValue = expectedOutput;
           
-          // Look for Serial.print patterns
           const serialPattern = /serial\.(print|println)\s*\(\s*["']([^"']+)["']\s*\)/gi;
           const serialMatches = [...codeNormalized.matchAll(serialPattern)];
           
@@ -399,26 +425,26 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
             const combinedOutput = printedTexts.join(' ');
             actualValue = combinedOutput;
             
-            // Check if expected output is found
             if (expectedOutput) {
               passed = combinedOutput.toLowerCase().includes(expectedOutput.toLowerCase());
             } else {
-              passed = printedTexts.length > 0; // Any output counts as success
+              passed = printedTexts.length > 0;
             }
           } else {
             actualValue = '';
             passed = expectedOutput === '';
             if (expectedOutput) {
-              error = `Expected "${expectedOutput}" but no Serial.print found in code`;
+              error = `Expected "${expectedOutput}" but no Serial.print() found in code`;
             }
           }
           break;
-          
-        case 'toggle_count':
-          // Count digitalWrite calls for the specific pin
+        }
+
+        // ── toggle_count ───────────────────────────────────────────────────────
+        case 'toggle_count': {
           const togglePin = testCase.pin;
           const minToggles = testCase.minToggles || 1;
-          expectedValue = `≥${minToggles}`;
+          expectedValue = `>=${minToggles}`;
           
           const togglePattern = new RegExp(`digitalwrite\\s*\\(\\s*${togglePin}\\s*,`, 'gi');
           const toggleMatches = codeNormalized.match(togglePattern) || [];
@@ -426,46 +452,34 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
           passed = toggleMatches.length >= minToggles;
           
           if (toggleMatches.length === 0) {
-            error = `No digitalWrite calls found for pin ${togglePin}`;
+            error = `No digitalWrite() calls found for pin ${togglePin}`;
+          } else if (!passed) {
+            error = `Found ${toggleMatches.length} toggle(s), expected at least ${minToggles}`;
           }
           break;
-          
-        case 'timing':
-          // Check if delay() is used appropriately - run multiple times for consistency
+        }
+
+        // ── timing ─────────────────────────────────────────────────────────────
+        case 'timing': {
           const expectedTiming = testCase.atMs || 1000;
           const tolerance = testCase.toleranceMs || 100;
           expectedValue = `${expectedTiming}ms ±${tolerance}ms`;
           
-          // Look for delay patterns
           const delayPattern = /delay\s*\(\s*(\d+)\s*\)/gi;
           const delayMatches = [...codeNormalized.matchAll(delayPattern)];
           
           if (delayMatches.length > 0) {
             const delays = delayMatches.map(match => parseInt(match[1]));
             
-            // Run timing analysis multiple times for consistency
-            const timingRuns = 3;
-            const timingResults: number[] = [];
-            
-            for (let run = 0; run < timingRuns; run++) {
-              // For each run, check if delays meet expected timing
-              const closestDelay = delays.reduce((closest, current) => 
-                Math.abs(current - expectedTiming) < Math.abs(closest - expectedTiming) ? current : closest
-              );
-              timingResults.push(closestDelay);
-            }
-            
-            // Calculate average and consistency
-            const averageDelay = timingResults.reduce((a, b) => a + b) / timingResults.length;
-            const consistencyCheck = timingResults.every(delay => 
-              Math.abs(delay - averageDelay) <= 50 // 50ms consistency tolerance
+            const closestDelay = delays.reduce((closest, current) => 
+              Math.abs(current - expectedTiming) < Math.abs(closest - expectedTiming) ? current : closest
             );
             
-            actualValue = `${Math.round(averageDelay)}ms (${timingRuns} runs${consistencyCheck ? ', consistent' : ', inconsistent'})`;
-            passed = Math.abs(averageDelay - expectedTiming) <= tolerance && consistencyCheck;
+            actualValue = `${closestDelay}ms`;
+            passed = Math.abs(closestDelay - expectedTiming) <= tolerance;
             
-            if (!consistencyCheck) {
-              error = `Timing inconsistent across ${timingRuns} simulation runs`;
+            if (!passed) {
+              error = `Closest delay() is ${closestDelay}ms, expected ${expectedTiming}ms ±${tolerance}ms`;
             }
           } else {
             actualValue = 'No delay found';
@@ -473,10 +487,11 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
             error = 'No delay() function calls found in code';
           }
           break;
-          
+        }
+
         default:
           passed = false;
-          error = `Unsupported test case type: ${testCase.type}`;
+          error = `Unsupported test case type: ${(testCase as any).type}`;
       }
 
       return {
@@ -488,28 +503,29 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
       };
     });
 
-    // Extract all Serial output from code for serial monitor
+    // Extract all Serial output from code for serial monitor display
     const allSerialPattern = /serial\.(print|println)\s*\(\s*["']([^"']+)["']\s*\)/gi;
     const allSerialMatches = [...codeNormalized.matchAll(allSerialPattern)];
     const serialOutput = allSerialMatches.map(match => match[2]).join('\n');
 
-    const success = results.every(r => r.passed);
+    const allTestsPassed = results.every(r => r.passed);
 
     res.json({
       success: true,
       results,
-      allTestsPassed: success,
+      allTestsPassed,
       simulationTimeMs: Date.now() - startTime,
       serialMonitor: {
         output: serialOutput,
         lines: allSerialMatches.length,
         capturedAt: new Date().toISOString()
       },
-      output: results.map(r => 
-        r.passed 
-          ? `✓ ${testCases.find(tc => tc.id === r.testCaseId)?.label}`
-          : `✗ ${testCases.find(tc => tc.id === r.testCaseId)?.label}: Expected ${r.expectedValue}, got ${r.actualValue}`
-      ).join('\n')
+      output: results.map(r => {
+        const label = testCases.find(tc => tc.id === r.testCaseId)?.label ?? r.testCaseId;
+        return r.passed
+          ? `✓ ${label}`
+          : `✗ ${label}: Expected ${r.expectedValue}, got ${r.actualValue}`;
+      }).join('\n')
     });
 
   } catch (error: any) {
@@ -522,7 +538,7 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
   }
 });
 
-// Compilation endpoint
+// File upload compilation endpoint
 app.post('/compile', upload.single('sketch'), async (req: CompileRequest, res: Response): Promise<void> => {
   const startTime = Date.now();
   
@@ -537,7 +553,6 @@ app.post('/compile', upload.single('sketch'), async (req: CompileRequest, res: R
 
     const { fqbn = 'arduino:avr:uno' } = req.body;
     
-    // Validate FQBN
     const validFQBNs = ['arduino:avr:uno', 'arduino:avr:mega'];
     if (!validFQBNs.includes(fqbn)) {
       res.status(400).json({
@@ -547,26 +562,22 @@ app.post('/compile', upload.single('sketch'), async (req: CompileRequest, res: R
       return;
     }
 
-    // Generate unique compilation directory
     const compileId = crypto.randomBytes(16).toString('hex');
     const compileDir = path.join('/tmp', compileId);
     fsSync.mkdirSync(compileDir, { recursive: true });
 
-    // Copy uploaded file to sketch directory with .ino extension
     const sketchName = `sketch_${compileId}`;
     const sketchDir = path.join(compileDir, sketchName);
     fsSync.mkdirSync(sketchDir, { recursive: true });
     
-    // Arduino CLI requires the .ino file to have the same name as the folder
     const sketchFile = path.join(sketchDir, `${sketchName}.ino`);
     fsSync.copyFileSync(req.file.path, sketchFile);
 
-    // Compile with arduino-cli
     const outputDir = path.join(compileDir, 'build');
     const compileCmd = `arduino-cli compile --fqbn ${fqbn} "${sketchDir}" --output-dir "${outputDir}" --format json`;
 
     const { stdout, stderr } = await execPromise(compileCmd, {
-      timeout: 30000 // 30 second timeout
+      timeout: 30000
     });
 
     let compileResult: CompileResult;
@@ -589,7 +600,6 @@ app.post('/compile', upload.single('sketch'), async (req: CompileRequest, res: R
       return;
     }
 
-    // Find the .hex file
     const hexFiles = fsSync.readdirSync(outputDir).filter((f: string) => f.endsWith('.hex'));
     if (hexFiles.length === 0) {
       res.status(500).json({
@@ -618,7 +628,6 @@ app.post('/compile', upload.single('sketch'), async (req: CompileRequest, res: R
       compileTimeMs: Date.now() - startTime
     });
   } finally {
-    // Cleanup: remove uploaded file and compilation directory
     try {
       if (req.file && fsSync.existsSync(req.file.path)) {
         fsSync.unlinkSync(req.file.path);
@@ -629,7 +638,6 @@ app.post('/compile', upload.single('sketch'), async (req: CompileRequest, res: R
   }
 });
 
-// Utility function to promisify exec
 function execPromise(command: string, options: any = {}): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     exec(command, options, (error, stdout, stderr) => {
@@ -642,7 +650,6 @@ function execPromise(command: string, options: any = {}): Promise<{ stdout: stri
   });
 }
 
-// Error handling middleware
 app.use((error: any, req: Request, res: Response, next: NextFunction): void => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
@@ -665,7 +672,6 @@ app.listen(port, () => {
   console.log(`Arduino compiler service listening on port ${port}`);
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('Received SIGTERM, shutting down gracefully');
   process.exit(0);

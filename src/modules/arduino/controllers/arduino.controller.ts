@@ -110,7 +110,7 @@ export class ArduinoController {
         label: tc.label,
         type: tc.type as 'pin_state' | 'serial_output' | 'toggle_count' | 'timing',
         pin: tc.pin || undefined,
-        expectedState: tc.expectedState as 'HIGH' | 'LOW' | undefined,
+        expectedState: tc.expectedState as 'HIGH' | 'LOW' | 'TOGGLE' | 'PWM' | undefined,
         atMs: tc.atMs || undefined,
         toleranceMs: tc.toleranceMs || undefined,
         minToggles: tc.minToggles || undefined,
