@@ -133,6 +133,43 @@ export class UserService {
         assignedBatchIds: batchIdsByMentorId[user.id] || [],
         assignedStudentsCount: studentsCountByMentorId[user.id] || 0,
       }));
+    } else if (role === "hod" && usersWithMentorName.length > 0) {
+      const departmentIds = Array.from(
+        new Set(usersWithMentorName.map((user) => user.departmentId).filter(Boolean))
+      ) as string[];
+
+      let departmentStatsById: Record<string, { totalStudents: number; totalMentors: number }> = {};
+
+      if (departmentIds.length > 0) {
+        const departmentRoleCounts = await prisma.user.groupBy({
+          by: ["departmentId", "role"],
+          where: {
+            departmentId: { in: departmentIds },
+            role: { in: ["student", "mentor"] },
+          },
+          _count: { _all: true },
+        });
+
+        departmentStatsById = departmentRoleCounts.reduce(
+          (acc, row) => {
+            if (!row.departmentId) return acc;
+            if (!acc[row.departmentId]) {
+              acc[row.departmentId] = { totalStudents: 0, totalMentors: 0 };
+            }
+            if (row.role === "student") acc[row.departmentId].totalStudents = row._count._all;
+            if (row.role === "mentor") acc[row.departmentId].totalMentors = row._count._all;
+            return acc;
+          },
+          {} as Record<string, { totalStudents: number; totalMentors: number }>
+        );
+      }
+
+      usersWithExtras = usersWithMentorName.map((user) => ({
+        ...user,
+        departmentStats: user.departmentId
+          ? departmentStatsById[user.departmentId] || { totalStudents: 0, totalMentors: 0 }
+          : null,
+      }));
     }
 
     return {
