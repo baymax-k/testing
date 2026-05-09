@@ -9,6 +9,7 @@ import productAdminRbacRoutes from "../product-admin/rbac.routes.js";
 import productAdminHackathonRoutes from "../product-admin/hackathon.routes.js";
 import productAdminDashboardRoutes from "../product-admin/dashboard.routes.js";
 import productAdminUsersRoutes from "../product-admin/users.routes.js";
+import productAdminQuestionsRoutes from "../product-admin/questions.routes.js";
 import { confirmAvatarUpload, presignAvatar, uploadAvatar } from "../product-admin/auth.controller.js";
 
 const router: Router = Router();
@@ -34,6 +35,9 @@ router.use("/dashboard", productAdminDashboardRoutes);
 
 // ─── Mount Users Routes ───────────────────────────────────────────────────────
 router.use("/users", productAdminUsersRoutes);
+
+// ─── Mount Questions Routes ───────────────────────────────────────────────────
+router.use("/questions", productAdminQuestionsRoutes);
 
 // Additional product admin routes can be added here
 // router.use("/dashboard", productAdminDashboardRoutes);

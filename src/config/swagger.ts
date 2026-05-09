@@ -66,6 +66,14 @@ const swaggerOptions: swaggerJsdoc.Options = {
         description: "Performance analytics, status, leaderboards, and skill insights.",
       },
       {
+        name: "Product Admin - Auth",
+        description: "Authentication and session endpoints for product-admin portal access.",
+      },
+      {
+        name: "Product Admin - Questions",
+        description: "Question listing and management endpoints for product-admin workflows.",
+      },
+      {
         name: "Arduino Platform",
         description: "Arduino code compilation, job management, and hardware problem solving.",
       },
@@ -590,6 +598,189 @@ const swaggerOptions: swaggerJsdoc.Options = {
               },
             },
             "429": { description: "Rate limited (15 req/min)" },
+          },
+        },
+      },
+
+      "/api/product-admin/auth/sign-in": {
+        post: {
+          summary: "Sign in as product admin",
+          description:
+            "Verifies credentials and sets `access_token` and `refresh_token` httpOnly cookies scoped to product-admin auth. " +
+            "The `identifier` field accepts either an email address or a username. Rate limited to 15 req/min per IP.",
+          tags: ["Product Admin - Auth"],
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    identifier: { type: "string", description: "Email address or username" },
+                    password: { type: "string" },
+                  },
+                  required: ["identifier", "password"],
+                },
+                example: {
+                  identifier: "productadmin@company.com",
+                  password: "Admin@1234",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Signed in - cookies set",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      user: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string" },
+                          username: { type: "string" },
+                          name: { type: "string" },
+                          role: { type: "string" },
+                          emailVerified: { type: "boolean" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "Invalid credentials",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "403": {
+              description: "Email not verified",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "429": { description: "Rate limited (15 req/min)" },
+          },
+        },
+      },
+
+      "/api/product-admin/questions/coding": {
+        get: {
+          summary: "Retrieve all coding questions",
+          description: "Returns coding/DSA questions for product admin workflows.",
+          tags: ["Product Admin - Questions"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              in: "query",
+              name: "page",
+              schema: { type: "integer", example: 1 },
+            },
+            {
+              in: "query",
+              name: "limit",
+              schema: { type: "integer", example: 50 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "List of coding questions",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            type: { type: "string" },
+                            title: { type: "string" },
+                            difficulty: { type: "string" },
+                            tags: { type: "array", items: { type: "object" } },
+                          },
+                        },
+                      },
+                      meta: {
+                        type: "object",
+                        properties: {
+                          total: { type: "integer" },
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Unauthorized" },
+            "403": { description: "Forbidden" },
+          },
+        },
+      },
+
+      "/api/product-admin/questions/mcq": {
+        get: {
+          summary: "Retrieve all MCQ questions",
+          description: "Returns MCQ questions for product admin workflows.",
+          tags: ["Product Admin - Questions"],
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              in: "query",
+              name: "page",
+              schema: { type: "integer", example: 1 },
+            },
+            {
+              in: "query",
+              name: "limit",
+              schema: { type: "integer", example: 50 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "List of MCQ questions",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            type: { type: "string" },
+                            title: { type: "string" },
+                            difficulty: { type: "string" },
+                            tags: { type: "array", items: { type: "object" } },
+                          },
+                        },
+                      },
+                      meta: {
+                        type: "object",
+                        properties: {
+                          total: { type: "integer" },
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Unauthorized" },
+            "403": { description: "Forbidden" },
           },
         },
       },
