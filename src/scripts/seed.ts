@@ -671,7 +671,7 @@ async function seed() {
         difficulty: question.difficulty,
         createdBy: adminUserId,
         options: question.options,
-        correctAnswer: String(question.correctAnswer),
+        correctAnswer: question.correctAnswer,
         explanation: question.explanation,
         tags: {
           set: [],
@@ -686,7 +686,7 @@ async function seed() {
         difficulty: question.difficulty,
         createdBy: adminUserId,
         options: question.options,
-        correctAnswer: String(question.correctAnswer),
+        correctAnswer: question.correctAnswer,
         explanation: question.explanation,
         tags: {
           connect: tagConnections,
