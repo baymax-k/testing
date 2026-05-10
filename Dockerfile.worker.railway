@@ -39,9 +39,10 @@ RUN npm install -g pnpm@10.30.1
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
-# Generate Prisma client in runtime stage
+# Copy Prisma generated client from builder (avoids needing prisma devDep in runtime)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /app/src/modules/prisma ./src/modules/prisma
-RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
 
 # Copy built output
 COPY --from=builder /app/dist ./dist
