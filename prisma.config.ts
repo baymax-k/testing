@@ -1,12 +1,15 @@
-// Prisma configuration for local development CLI usage only.
-// DATABASE_URL is intentionally not read here — Prisma CLI picks it up
-// from the environment directly. This avoids build-time failures when
-// DATABASE_URL is not available (e.g. Docker build stage on Railway).
+// Prisma configuration.
+// DATABASE_URL is read directly from process.env — dotenv/config loads it
+// before this file is evaluated at runtime.
+import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
   schema: "src/modules/prisma/schema.prisma",
   migrations: {
     path: "src/modules/prisma/migrations",
+  },
+  datasource: {
+    url: process.env.DATABASE_URL ?? "",
   },
 });

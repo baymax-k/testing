@@ -1,10 +1,8 @@
 #!/bin/sh
 # ─── Production Startup Script ────────────────────────────────────────────────
 # Runs database migrations then starts the server.
-# Used by Dockerfile.railway — runs on every deploy.
-# prisma migrate deploy is idempotent: skips already-applied migrations.
-# Schema path passed directly to avoid prisma.config.ts reading DATABASE_URL
-# before the process environment is fully initialised.
+# DATABASE_URL is passed explicitly via --url to avoid prisma.config.ts
+# needing to resolve it at config-load time.
 
 set -e
 
