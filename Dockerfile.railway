@@ -20,9 +20,8 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY src ./src
 COPY tsconfig.json ./
-COPY prisma.config.ts ./
 
-# Generate Prisma client (schema lives at src/modules/prisma/schema.prisma)
+# Generate Prisma client (schema path passed directly — no prisma.config.ts needed at build time)
 RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
 
 # Build TypeScript
