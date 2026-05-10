@@ -1,27 +1,17 @@
 # ─── Arduino Compiler Service — Railway Deployment ────────────────────────────
 # Standalone microservice that wraps Arduino CLI for code compilation.
-# Exposes HTTP endpoints: POST /compile/json, POST /simulate, GET /boards, GET /health
+# Uses node:20-bullseye (Debian) as base — Node.js pre-installed, stable on Railway.
 
-FROM ubuntu:22.04
+FROM node:20-bullseye
 
-# Avoid interactive prompts during apt installs
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install system dependencies
+# Install system dependencies + Arduino CLI
 RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Arduino CLI
-RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh && \
-    mv bin/arduino-cli /usr/local/bin/ && \
-    rm -rf bin
-
-# Install Node.js 20
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/local/bin sh
 
 # Install pnpm
 RUN npm install -g pnpm@10.30.1
@@ -40,11 +30,11 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 RUN pnpm run build
 
-# Install Arduino board cores as root before switching user
+# Install Arduino board cores
 RUN arduino-cli core update-index && \
     arduino-cli core install arduino:avr
 
-# Warm up the compiler cache (pre-compiles a dummy sketch to avoid cold-start delays)
+# Warm up compiler cache — pre-compiles dummy sketches to avoid cold-start delays
 RUN mkdir -p /tmp/warmup/warmup && \
     echo 'void setup() { Serial.begin(9600); } void loop() { delay(1000); }' \
       > /tmp/warmup/warmup/warmup.ino && \
@@ -58,14 +48,13 @@ RUN mkdir -p /app/uploads && \
 
 USER arduino
 
-# Railway injects PORT automatically; default to 8080
 ENV PORT=8080
 ENV NODE_ENV=production
 ENV ARDUINO_CLI_PATH=/usr/local/bin/arduino-cli
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
 CMD ["node", "dist/server.js"]

@@ -1,7 +1,7 @@
-// Prisma configuration for local development CLI usage.
-// This file is NOT used during Docker builds — schema path is passed
-// directly via --schema flag to avoid requiring DATABASE_URL at build time.
-import "dotenv/config";
+// Prisma configuration for local development CLI usage only.
+// DATABASE_URL is intentionally not read here — Prisma CLI picks it up
+// from the environment directly. This avoids build-time failures when
+// DATABASE_URL is not available (e.g. Docker build stage on Railway).
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
