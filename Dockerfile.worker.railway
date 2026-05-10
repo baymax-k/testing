@@ -20,8 +20,8 @@ COPY tsconfig.json ./
 # Generate Prisma client with explicit schema path (no prisma.config.ts needed at build time)
 RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
 
-# Build TypeScript
-RUN pnpm run build
+# Build TypeScript only (prisma generate already done above)
+RUN pnpm run build:docker
 
 # Stage 2: Runtime
 FROM node:20-alpine

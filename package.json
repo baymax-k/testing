@@ -11,6 +11,7 @@
     "predev": "pnpm run db:patch:test-public-columns && pnpm run db:patch:better-auth-account-columns && pnpm run db:patch:question-columns && prisma generate",
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
+    "build:docker": "tsc",
     "start": "node dist/src/server.js",
     "migrate:deploy": "prisma migrate deploy --schema src/modules/prisma/schema.prisma",
     "migrate:status": "prisma migrate status --schema src/modules/prisma/schema.prisma",
