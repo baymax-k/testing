@@ -43,6 +43,10 @@ RUN mkdir -p /app/uploads && \
 
 EXPOSE 8080
 
+ENV PORT=8080
+ENV NODE_ENV=production
+ENV ARDUINO_CLI_PATH=/usr/local/bin/arduino-cli
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 

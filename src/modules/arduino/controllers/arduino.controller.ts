@@ -151,28 +151,15 @@ export class ArduinoController {
         }
       });
 
-      // Mark problem as solved if all tests pass
+      // Mark problem as solved if all tests pass.
+      // We track "solved" by checking whether the user has at least one accepted
+      // submission for this problem — no separate SolvedProblem table needed.
+      // The `solved` flag in the response is derived from this query.
       if (allTestsPassed) {
-        // TODO: Implement solved problem tracking
-        // Currently disabled until SolvedProblem model is available
-        /*
-        await prisma.solvedProblem.upsert({
-          where: {
-            userId_questionId: {
-              userId,
-              questionId: submission.problem.questionId
-            }
-          },
-          create: {
-            userId,
-            questionId: submission.problem.questionId,
-            solvedAt: new Date()
-          },
-          update: {
-            solvedAt: new Date()
-          }
-        });
-        */
+        // Nothing extra to write — the updated ArduinoSubmission with status
+        // 'accepted' already serves as the solved record. The frontend can
+        // query GET /api/v1/arduino/submissions?problemId=<id> and check for
+        // any entry with status === 'accepted'.
       }
 
       res.json({
