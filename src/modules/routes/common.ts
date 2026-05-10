@@ -20,6 +20,15 @@ router.get("/", (_req: Request, res: Response) => {
   });
 });
 
+// Explicit /health endpoint for Railway/Docker healthchecks
+router.get("/health", (_req: Request, res: Response) => {
+  res.json({
+    status: "ok",
+    service: "codeethnics-backend",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // ─── Who am I? (frontend calls this after login to know where to redirect) ─────
 router.get("/me", requireAuth, (req: Request, res: Response) => {
   const user = (req as AuthRequest).user!;

@@ -69,10 +69,25 @@ function validateEnv(): EnvConfig {
     .map((o) => o.trim())
     .filter((o) => o.length > 0);
 
-  // In production, require CORS origins
+  // In production, CORS_ORIGINS must be set.
+  // Fallback to APP_URL if provided so a misconfigured deploy doesn't
+  // silently block all cross-origin requests — but still warn loudly.
   if (nodeEnv === "production" && corsOrigins.length === 0) {
-    console.error("❌ FATAL: CORS_ORIGINS must be set in production");
-    process.exit(1);
+    const appUrl = process.env.APP_URL;
+    if (appUrl) {
+      console.warn(
+        `⚠️  WARNING: CORS_ORIGINS is not set. Falling back to APP_URL="${appUrl}".` +
+        `\n   Set CORS_ORIGINS=https://your-frontend.com in Railway env vars to fix this.`
+      );
+      corsOrigins.push(appUrl);
+    } else {
+      console.error(
+        "❌ FATAL: CORS_ORIGINS must be set in production.\n" +
+        "   Example: CORS_ORIGINS=https://your-frontend.com\n" +
+        "   Set this in your Railway service environment variables."
+      );
+      process.exit(1);
+    }
   }
 
   // Validate JWT secret length
