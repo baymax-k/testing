@@ -1,29 +1,7 @@
-# ─── Arduino Worker — Railway Deployment ──────────────────────────────────────
-# BullMQ worker that picks up Arduino compile jobs from Redis queue,
-# calls the arduino-compiler service, and writes results back to the DB.
-# NOTE: This worker does NOT need Arduino CLI — compilation is delegated
-# to the arduino-compiler service. It only needs Node + Prisma.
+# ─── Arduino Worker — Railway Single Stage Build ──────────────────────────────
+# Single stage avoids cross-stage COPY issues with Prisma generated files.
+# Worker does NOT need Arduino CLI — compilation is delegated to arduino-compiler.
 
-# Stage 1: Builder
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-RUN npm install -g pnpm@10.30.1
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
-
-COPY src ./src
-COPY tsconfig.json ./
-
-# Generate Prisma client with explicit schema path (no prisma.config.ts needed at build time)
-RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
-
-# Build TypeScript only (prisma generate already done above)
-RUN pnpm run build:docker
-
-# Stage 2: Runtime
 FROM node:20-alpine
 
 WORKDIR /app
@@ -36,16 +14,21 @@ RUN addgroup -g 1001 -S worker && \
 
 RUN npm install -g pnpm@10.30.1
 
+# Install ALL dependencies (dev + prod needed for build)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile
 
-# Copy Prisma generated client from builder (avoids needing prisma devDep in runtime)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /app/src/modules/prisma ./src/modules/prisma
+COPY src ./src
+COPY tsconfig.json ./
 
-# Copy built output
-COPY --from=builder /app/dist ./dist
+# Generate Prisma client
+RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
+
+# Build TypeScript
+RUN pnpm run build:docker
+
+# Remove dev dependencies after build
+RUN pnpm prune --prod
 
 RUN chown -R worker:worker /app
 

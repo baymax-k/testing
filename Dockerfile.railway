@@ -1,82 +1,50 @@
-# ─── Railway Optimized Docker Build ───────────────────────────────────────────
-# This Dockerfile is optimized for Railway deployment
-# Build: pnpm run build
-# Start: node dist/src/server.js
+# ─── Railway Backend — Single Stage Build ─────────────────────────────────────
+# Single stage avoids cross-stage COPY issues with Prisma generated files.
 
-# Stage 1: Builder
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Install pnpm
-RUN npm install -g pnpm@10.30.1
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy source code
-COPY src ./src
-COPY tsconfig.json ./
-
-# Generate Prisma client (schema path passed directly — no prisma.config.ts needed at build time)
-RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
-
-# Build TypeScript only (prisma generate already done above)
-RUN pnpm run build:docker
-
-# ─── Runtime Stage ────────────────────────────────────────────────────────────
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Install curl for health checks and dumb-init for signal handling
+# Install system deps
 RUN apk add --no-cache curl dumb-init
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
 # Install pnpm
 RUN npm install -g pnpm@10.30.1
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Copy package files and install ALL dependencies (dev + prod needed for build)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Copy Prisma generated client from builder (avoids needing prisma devDep in runtime)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/src/modules/prisma ./src/modules/prisma
-
-# Copy built application from builder
-COPY --from=builder /app/dist ./dist
-
-# Copy startup script
+# Copy source
+COPY src ./src
+COPY tsconfig.json ./
+COPY public ./public
 COPY start.sh ./start.sh
 RUN chmod +x start.sh
 
-# Copy public assets
-COPY public ./public
+# Generate Prisma client
+RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
 
-# Change ownership to non-root user
+# Build TypeScript
+RUN pnpm run build:docker
+
+# Remove dev dependencies after build
+RUN pnpm prune --prod
+
+# Fix ownership
 RUN chown -R nodejs:nodejs /app
 
 USER nodejs
 
-# ─── Environment & Port ────────────────────────────────────────────────────
 ENV NODE_ENV=production
 EXPOSE 5000
 
-# ─── Health Check ──────────────────────────────────────────────────────────
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:${PORT:-5000}/api/v1/health || exit 1
 
-# ─── Start Server ──────────────────────────────────────────────────────────
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["sh", "start.sh"]
