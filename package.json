@@ -12,6 +12,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/src/server.js",
+    "migrate:deploy": "prisma migrate deploy --schema src/modules/prisma/schema.prisma",
+    "migrate:status": "prisma migrate status --schema src/modules/prisma/schema.prisma",
     "worker:dev": "tsx watch src/workers/arduino-worker.ts",
     "worker:build": "tsc && node dist/src/workers/arduino-worker.js",
     "worker:start": "node dist/src/workers/arduino-worker.js",
