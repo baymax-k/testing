@@ -8,7 +8,7 @@
     "db:patch:better-auth-account-columns": "prisma db execute --file src/modules/prisma/migrations/20260425143000_add_missing_account_expiry_columns/migration.sql",
     "db:patch:question-columns": "prisma db execute --file src/modules/prisma/migrations/20260425184500_add_missing_question_columns/migration.sql",
     "db:patch:test-public-columns": "prisma db execute --file src/modules/prisma/migrations/20260414123000_add_missing_test_public_columns/migration.sql",
-    "predev": "pnpm run db:patch:test-public-columns && pnpm run db:patch:better-auth-account-columns && pnpm run db:patch:question-columns && prisma generate",
+    "predev": "pnpm run db:patch:test-public-columns && pnpm run db:patch:better-auth-account-columns && pnpm run db:patch:question-columns && prisma generate --schema src/modules/prisma/schema.prisma",
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
     "build:docker": "tsc",

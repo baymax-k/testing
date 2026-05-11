@@ -8,7 +8,6 @@ WORKDIR /app
 # Install system deps
 RUN apk add --no-cache curl dumb-init
 
-# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
@@ -47,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:${PORT:-5000}/api/v1/health || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "start.sh"]
+CMD ["node", "dist/src/server.js"]
