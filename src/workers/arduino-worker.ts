@@ -3,6 +3,14 @@ import { getRedisClient } from '../config/redis.js';
 import { prisma } from '../config/prisma.js';
 import { cdnService } from '../services/cdn.service.js';
 
+// ─── Startup diagnostics ───────────────────────────────────────────────────────
+console.log('🚀 Arduino worker process starting...');
+console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`   REDIS_URL set: ${!!process.env.REDIS_URL}`);
+console.log(`   DATABASE_URL set: ${!!process.env.DATABASE_URL}`);
+console.log(`   ARDUINO_SERVICE_URL: ${process.env.ARDUINO_SERVICE_URL || '(not set, using default)'}`);
+
+
 const redisClient = getRedisClient();
 
 interface ArduinoCompileJob {

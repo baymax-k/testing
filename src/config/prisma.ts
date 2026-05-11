@@ -22,10 +22,22 @@ function getSSLConfig():
   | { rejectUnauthorized: true; ca?: string[] }
   | { rejectUnauthorized: false }
   | undefined {
-  if (process.env.NODE_ENV === "production") {
-    return { rejectUnauthorized: true };
+  // Explicit opt-out (local dev or self-hosted without SSL)
+  if (process.env.DB_SSL === "false" || process.env.RDS_SSL_INSECURE === "true") {
+    console.warn("[prisma] SSL disabled via env flag.");
+    return { rejectUnauthorized: false };
   }
 
+  // Railway / Supabase / Neon — SSL required but no custom CA needed
+  // Set DB_SSL=true to enable SSL with system CA verification
+  if (process.env.NODE_ENV === "production" || process.env.DB_SSL === "true") {
+    // rejectUnauthorized: false allows Railway's self-signed certs
+    // Set DB_SSL_REJECT_UNAUTHORIZED=true to enforce strict CA verification
+    const strict = process.env.DB_SSL_REJECT_UNAUTHORIZED === "true";
+    return { rejectUnauthorized: strict };
+  }
+
+  // Custom RDS cert path (AWS RDS with custom CA)
   const rawPath = process.env.RDS_SSL_CERT;
   if (!rawPath) return undefined;
 
@@ -36,11 +48,6 @@ function getSSLConfig():
   if (!fs.existsSync(certPath)) return undefined;
 
   console.log("[prisma] Using RDS SSL cert:", certPath);
-
-  if (process.env.RDS_SSL_INSECURE === "true") {
-    console.warn("[prisma] RDS SSL insecure mode enabled (local dev only).");
-    return { rejectUnauthorized: false };
-  }
 
   return {
     rejectUnauthorized: true,
