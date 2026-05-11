@@ -1,7 +1,10 @@
 // ─── Student Test Service ────────────────────────────────────────────────────────
 
 import { prisma } from "../../config/prisma.js";
-import type { Test, Question, TestAttempt } from "@prisma/client";
+import type { Test, Question, TestAttempt, QuestionType } from "@prisma/client";
+
+// Valid question types for formal tests (MCQ and DSA only)
+const VALID_TEST_QUESTION_TYPES: QuestionType[] = ["mcq", "dsa", "multiple_choice", "true_false"];
 
 interface AssignedTest {
   id: string;
@@ -114,6 +117,9 @@ export async function listAssignedTests(
       createdAt: true,
       updatedAt: true,
       questions: {
+        where: {
+          type: { in: VALID_TEST_QUESTION_TYPES },
+        },
         select: {
           id: true,
           title: true,
@@ -174,6 +180,9 @@ export async function getTestDetail(
     },
     include: {
       questions: {
+        where: {
+          type: { in: VALID_TEST_QUESTION_TYPES },
+        },
         select: {
           id: true,
           type: true,

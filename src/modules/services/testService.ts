@@ -1,6 +1,9 @@
 import { prisma } from "../../config/auth.js";
 import { TestStatus, QuestionType } from "@prisma/client";
 
+// Valid question types for formal tests (MCQ and DSA only)
+const VALID_TEST_QUESTION_TYPES: QuestionType[] = ["mcq", "dsa", "multiple_choice", "true_false"];
+
 export interface CreateTestInput {
   title: string;
   description?: string;
@@ -14,6 +17,7 @@ export interface CreateTestInput {
   departmentId?: string;
   batchId?: string;
   createdById: string;
+  requireProctoring?: boolean;
 }
 
 export interface UpdateTestInput {
@@ -29,6 +33,7 @@ export interface UpdateTestInput {
   scheduledEndTime?: Date;
   departmentId?: string;
   batchId?: string;
+  requireProctoring?: boolean;
 }
 
 export interface CreateQuestionInput {
@@ -246,6 +251,7 @@ export class TestService {
         departmentId: data.departmentId,
         batchId: data.batchId,
         createdById: data.createdById,
+        requireProctoring: data.requireProctoring ?? false,
       },
       include: {
         createdBy: {
@@ -646,6 +652,13 @@ export class TestService {
     // Don't allow adding questions to active or completed tests
     if (test.status === "active" || test.status === "completed") {
       throw new Error(`Cannot add questions to ${test.status} test`);
+    }
+
+    // Validate question type - only allow MCQ and DSA questions for tests
+    if (!VALID_TEST_QUESTION_TYPES.includes(data.type)) {
+      throw new Error(
+        `Invalid question type for test. Only allowed types are: ${VALID_TEST_QUESTION_TYPES.join(", ")}`
+      );
     }
 
     // Get current question count for order index

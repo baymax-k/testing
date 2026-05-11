@@ -501,6 +501,9 @@ model Test {
   difficulty          String?      @default("medium") // easy, medium, hard
   tags                String[]     @default([])        // ["DSA", "DP", "Arrays"] etc
   
+  // Proctoring configuration
+  requireProctoring   Boolean      @default(false)     // Whether proctoring video is required for this test
+  
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   questions           Question[]

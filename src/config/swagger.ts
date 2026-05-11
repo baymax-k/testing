@@ -2784,6 +2784,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
           summary: "List all tests assigned to the student",
           description:
             "Retrieve tests assigned to the student's batch or department, or public tests. " +
+            "Returns only MCQ and DSA questions (no Arduino, short answer, or long answer questions). " +
             "Supports pagination and filtering by difficulty, tags, and status.",
           tags: ["Student Tests"],
           security: [{ cookieAuth: [] }],
@@ -2879,7 +2880,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         get: {
           summary: "Get detailed test information",
           description:
-            "Retrieve full test details including all questions. " +
+            "Retrieve full test details including all questions (MCQ and DSA only - no Arduino, short answer, or long answer questions). " +
             "Correct answers are NOT exposed to students (server-side scoring only).",
           tags: ["Student Tests"],
           security: [{ cookieAuth: [] }],
@@ -2917,11 +2918,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
                               scheduledEndTime: { type: "string", format: "date-time", nullable: true },
                               questions: {
                                 type: "array",
+                                description: "Test questions (MCQ and DSA only - no Arduino, short answer, or long answer questions)",
                                 items: {
                                   type: "object",
                                   properties: {
                                     id: { type: "string" },
-                                    type: { type: "string", enum: ["mcq", "multiple_choice", "short_answer", "long_answer"] },
+                                    type: { type: "string", enum: ["mcq", "dsa", "multiple_choice", "true_false"] },
                                     title: { type: "string" },
                                     description: { type: "string" },
                                     marks: { type: "integer", nullable: true },
@@ -3481,7 +3483,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         post: {
           summary: "Create a test (college admin portal)",
           description:
-            "Creates a test with scheduling, attempt limits, and optional maximum marks. Role restrictions mirror the portal (super_admin, college_admin, principal, hod, dept_admin, mentor).",
+            "Creates a test with scheduling, attempt limits, optional maximum marks, and proctoring configuration. Role restrictions mirror the portal (super_admin, college_admin, principal, hod, dept_admin, mentor).",
           tags: ["College Admin - Tests"],
           security: [{ cookieAuth: [] }],
           requestBody: {
@@ -3502,6 +3504,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
                     scheduledEndTime: { type: "string", format: "date-time" },
                     departmentId: { type: "string" },
                     batchId: { type: "string" },
+                    requireProctoring: { type: "boolean", default: false, description: "Whether proctoring video recording is required for this test" },
                   },
                   required: ["title"],
                 },
