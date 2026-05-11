@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Arduino CLI
+# Install Arduino CLI globally
 RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/local/bin sh
 
 # Install pnpm
@@ -21,16 +21,30 @@ RUN useradd -m -s /bin/bash -u 1001 arduino
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files and install dependencies (as root)
 COPY package.json ./
 RUN pnpm install --no-frozen-lockfile
 
-# Copy source and build
+# Copy source and build (as root)
 COPY tsconfig.json ./
 COPY src/ ./src/
 RUN pnpm run build
 
-# Install Arduino board cores
+# Set up uploads directory and fix ownership BEFORE switching user
+RUN mkdir -p /app/uploads && \
+    chown -R arduino:arduino /app
+
+# Switch to non-root user for Arduino core installation
+# This ensures cores are installed in /home/arduino/.arduino15
+# which is accessible at runtime under the same user
+USER arduino
+
+ENV ARDUINO_CLI_PATH=/usr/local/bin/arduino-cli
+ENV ARDUINO_DATA_DIR=/home/arduino/.arduino15
+ENV ARDUINO_DOWNLOADS_DIR=/home/arduino/.arduino15/staging
+ENV ARDUINO_USER_DIR=/home/arduino/Arduino
+
+# Install Arduino board cores as the arduino user
 RUN arduino-cli core update-index && \
     arduino-cli core install arduino:avr
 
@@ -42,15 +56,8 @@ RUN mkdir -p /tmp/warmup/warmup && \
     arduino-cli compile --fqbn arduino:avr:mega /tmp/warmup/warmup --output-dir /tmp/warmup/mega && \
     rm -rf /tmp/warmup
 
-# Set up uploads directory and fix ownership
-RUN mkdir -p /app/uploads && \
-    chown -R arduino:arduino /app
-
-USER arduino
-
 ENV PORT=8080
 ENV NODE_ENV=production
-ENV ARDUINO_CLI_PATH=/usr/local/bin/arduino-cli
 
 EXPOSE 8080
 
