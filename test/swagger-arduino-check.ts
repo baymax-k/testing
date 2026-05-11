@@ -24,7 +24,7 @@ try {
   console.log(`\n🧩 Arduino Schemas Found: ${arduinoSchemas.length}`);
   arduinoSchemas.forEach(schema => {
     console.log(`   ✅ ${schema}`);
-  });
+  })
 
   // Check if Arduino paths are present
   const paths = swaggerSpec.paths || {};

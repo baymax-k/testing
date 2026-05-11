@@ -2,8 +2,8 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     "target": "es2022",
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "rootDir": "./",
     "outDir": "./dist",
     "strict": true,
@@ -17,5 +17,5 @@
     "allowSyntheticDefaultImports": true
   },
   "include": ["src/**/*", "api/**/*"],
-  "exclude": ["node_modules", "dist", "src/generated", "src/workers/arduino-worker.ts", "src/services/arduino-job.service.ts", "src/scripts/seed.ts", "src/scripts/show-tables.ts"]
+  "exclude": ["node_modules", "dist", "src/generated","src/scripts/seed.ts", "src/scripts/show-tables.ts"]
 }

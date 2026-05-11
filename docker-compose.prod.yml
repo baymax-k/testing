@@ -1,0 +1,100 @@
+# ─── Production Docker Compose ────────────────────────────────────────────────
+# Use this for self-hosted / VPS deployments only.
+# For Railway deployment, use the individual Dockerfiles + railway.json configs.
+#
+# External services (not in this compose):
+#   - PostgreSQL  → AWS RDS
+#   - Redis       → Upstash
+#   - Judge0      → RapidAPI (https://rapidapi.com/judge0-official/api/judge0-ce)
+#
+# Services in this compose:
+#   - backend         (main API)
+#   - arduino-compiler (compilation microservice)
+#   - arduino-worker  (BullMQ job processor)
+
+version: '3.9'
+
+services:
+  # ─── Main Backend API ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codeethnics-backend
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "5000:5000"
+    networks:
+      - codeethnics-network
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: "3"
+
+  # ─── Arduino Compiler Microservice ─────────────────────────────────────────
+  arduino-compiler:
+    build:
+      context: ./arduino-compiler
+      dockerfile: Dockerfile
+    container_name: codeethnics-arduino-compiler
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - ARDUINO_CLI_PATH=/usr/local/bin/arduino-cli
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    ports:
+      - "8080:8080"
+    networks:
+      - codeethnics-network
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: "3"
+
+  # ─── Arduino BullMQ Worker ──────────────────────────────────────────────────
+  arduino-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      target: arduino-worker
+    container_name: codeethnics-arduino-worker
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - ARDUINO_SERVICE_URL=http://arduino-compiler:8080
+      - ARDUINO_COMPILER_URL=http://arduino-compiler:8080
+    depends_on:
+      arduino-compiler:
+        condition: service_healthy
+    networks:
+      - codeethnics-network
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: "3"
+
+networks:
+  codeethnics-network:
+    driver: bridge

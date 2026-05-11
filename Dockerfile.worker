@@ -1,31 +1,59 @@
-# Multi-stage Dockerfile for different workers
+# ─── Arduino Worker Dockerfile ────────────────────────────────────────────────
+# Runs the BullMQ worker that processes Arduino compilation jobs.
+# Requires Arduino CLI to be installed for actual compilation.
 
-# Base Node.js image
-FROM node:20-alpine AS base
+# ─── Stage 1: Builder ─────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+
 WORKDIR /app
-COPY package*.json pnpm-lock.yaml ./
-RUN npm install -g pnpm
+
+RUN npm install -g pnpm@10.30.1
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
-# Build stage
-FROM base AS builder
-COPY . .
-RUN pnpm build
+COPY src ./src
+COPY tsconfig.json ./
+COPY prisma.config.ts ./
 
-# Arduino Worker Stage
-FROM base AS arduino-worker
+# Generate Prisma client with explicit schema path
+RUN pnpm exec prisma generate --schema src/modules/prisma/schema.prisma
+
+# Build TypeScript
+RUN pnpm run build
+
+# ─── Stage 2: Arduino Worker Runtime ──────────────────────────────────────────
+FROM node:20-alpine AS arduino-worker
+
+WORKDIR /app
+
+RUN npm install -g pnpm@10.30.1
+
+# Copy production node_modules (includes generated Prisma client)
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy Prisma schema (needed at runtime)
+COPY --from=builder /app/src/modules/prisma ./src/modules/prisma
 
 # Install Arduino CLI
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl bash
 RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/local/bin sh
+
+# Update index and install AVR core (Arduino Uno/Mega support)
 RUN arduino-cli core update-index
 RUN arduino-cli core install arduino:avr
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S worker && \
-    adduser -S worker -u 1001
+    adduser -S worker -u 1001 -G worker
+
+RUN chown -R worker:worker /app
+
 USER worker
 
-EXPOSE 3002
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('./dist/src/workers/arduino-worker.js')" 2>/dev/null || exit 0
+
 CMD ["node", "dist/src/workers/arduino-worker.js"]

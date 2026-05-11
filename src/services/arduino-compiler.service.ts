@@ -5,7 +5,7 @@ interface ArduinoTestCase {
   label: string;
   type: 'pin_state' | 'serial_output' | 'toggle_count' | 'timing';
   pin?: number;
-  expectedState?: 'HIGH' | 'LOW';
+  expectedState?: 'HIGH' | 'LOW' | 'TOGGLE' | 'PWM';
   atMs?: number;
   toleranceMs?: number;
   minToggles?: number;

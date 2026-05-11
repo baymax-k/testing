@@ -1,111 +1,76 @@
 // ─── Prisma Singleton ────────────────────────────────────────────────────────
-// Serverless-safe singleton: reuses the same PrismaClient instance across
-// hot-reloads in development and across invocations in serverless (Vercel).
-
-import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+import { createRequire } from "module";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// ─── ESM-safe import for CJS @prisma/client ──────────────────────────────────
+// @prisma/client is a CJS module; named ESM imports fail at runtime under
+// NodeNext even though tsc accepts them. createRequire is the correct fix.
+const require = createRequire(import.meta.url);
+const { PrismaClient } = require("@prisma/client") as typeof import("@prisma/client");
+
+type PrismaClient = InstanceType<typeof PrismaClient>;
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ─── SSL config for AWS RDS ──────────────────────────────────────────────────
-// Secure SSL configuration:
-// - Production: Uses system root CA, rejects unauthorized connections
-// - Development: Optional SSL with custom cert if PROVIDED via RDS_SSL_CERT env var
+// ─── SSL config ───────────────────────────────────────────────────────────────
 function getSSLConfig():
   | { rejectUnauthorized: true; ca?: string[] }
   | { rejectUnauthorized: false }
   | undefined {
-  const nodeEnv = process.env.NODE_ENV || "development";
-
-  // Production: Enforce strict SSL verification
-  if (nodeEnv === "production") {
-    return { rejectUnauthorized: true };
+  // Explicit opt-out (local dev or self-hosted without SSL)
+  if (process.env.DB_SSL === "false" || process.env.RDS_SSL_INSECURE === "true") {
+    console.warn("[prisma] SSL disabled via env flag.");
+    return { rejectUnauthorized: false };
   }
 
-  // Development: Optional SSL with custom cert
-  const certPath = process.env.RDS_SSL_CERT
-    ? path.resolve(__dirname, "../../..", process.env.RDS_SSL_CERT)
-    : null;
-  if (certPath && fs.existsSync(certPath)) {
-    const caContent = fs.readFileSync(certPath, "utf8");
-    console.log("[prisma] Using RDS SSL with custom cert:", certPath);
-    return { rejectUnauthorized: true, ca: [caContent] };
+  // Railway / Supabase / Neon — SSL required but no custom CA needed
+  // Set DB_SSL=true to enable SSL with system CA verification
+  if (process.env.NODE_ENV === "production" || process.env.DB_SSL === "true") {
+    // rejectUnauthorized: false allows Railway's self-signed certs
+    // Set DB_SSL_REJECT_UNAUTHORIZED=true to enforce strict CA verification
+    const strict = process.env.DB_SSL_REJECT_UNAUTHORIZED === "true";
+    return { rejectUnauthorized: strict };
   }
 
-  // No SSL if cert not provided in development
-  return undefined;
-}
-// On Vercel (production), system certs handle SSL — no extra config needed.
-// Locally, use the downloaded RDS cert bundle if available.
-function resolveRdsCertPath(): string | null {
-  if (process.env.NODE_ENV === "production") return null;
-  if (!process.env.RDS_SSL_CERT) return null;
-
+  // Custom RDS cert path (AWS RDS with custom CA)
   const rawPath = process.env.RDS_SSL_CERT;
+  if (!rawPath) return undefined;
+
   const certPath = path.isAbsolute(rawPath)
     ? rawPath
     : path.resolve(process.cwd(), rawPath);
-  return fs.existsSync(certPath) ? certPath : null;
+
+  if (!fs.existsSync(certPath)) return undefined;
+
+  console.log("[prisma] Using RDS SSL cert:", certPath);
+
+  return {
+    rejectUnauthorized: true,
+    ca: [fs.readFileSync(certPath, "utf8")],
+  };
 }
 
-function buildDatasourceUrl(): string | undefined {
-  const base = process.env.DATABASE_URL;
-  if (!base) return undefined;
-  if (process.env.NODE_ENV === "production") return base;
-  return base;
-}
-
-// Create PostgreSQL pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: getSSLConfig(),
-});
-
-// Create Prisma adapter
-const adapter = new PrismaPg(pool);
-
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
+// ─── Adapter factory ──────────────────────────────────────────────────────────
 function createAdapter(): PrismaPg {
-  const datasourceUrl = buildDatasourceUrl();
-  if (!datasourceUrl) {
-    throw new Error("DATABASE_URL is not set");
-  }
+  const datasourceUrl = process.env.DATABASE_URL;
+  if (!datasourceUrl) throw new Error("DATABASE_URL is not set");
 
-  const certPath = resolveRdsCertPath();
-  const allowInsecure = process.env.RDS_SSL_INSECURE === "true";
-  if (certPath) {
-    process.env.NODE_EXTRA_CA_CERTS = certPath;
-    console.log("[prisma] Using RDS SSL cert:", certPath);
-  }
-  if (allowInsecure) {
-    console.warn("[prisma] RDS SSL insecure mode enabled (local dev only).");
-  }
-
-  const sslConfig = allowInsecure
-    ? { rejectUnauthorized: false }
-    : certPath
-      ? {
-          ca: fs.readFileSync(certPath, "utf8"),
-          rejectUnauthorized: true,
-        }
-      : undefined;
-
-  const pool = new Pool({
-    connectionString: datasourceUrl,
-    ssl: sslConfig,
-  });
+  const ssl = getSSLConfig();
+  const pool = new Pool({ connectionString: datasourceUrl, ssl });
   return new PrismaPg(pool);
 }
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter: createAdapter(),
-  });
+// ─── Singleton ────────────────────────────────────────────────────────────────
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export const prisma: PrismaClient =
+  globalForPrisma.prisma ?? new PrismaClient({ adapter: createAdapter() });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
