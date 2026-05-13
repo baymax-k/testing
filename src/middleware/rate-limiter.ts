@@ -91,14 +91,14 @@ class RateLimiter {
 // Pre-configured rate limiters for Arduino operations
 export const arduinoCompileRateLimit = new RateLimiter({
   windowMs: 60 * 1000,  // 1 minute window
-  maxRequests: 5,       // 5 compilations per minute per user
+  maxRequests: 10,      // 10 compilations per minute per user
   keyGenerator: (req) => `compile:user:${(req as any).user?.id || req.ip}`,
   onLimitReached: (req, res) => {
     res.status(429).json({
       success: false,
       error: 'Arduino compilation rate limit exceeded',
-      message: 'You can only compile 5 Arduino sketches per minute. Please wait before trying again.',
-      limit: 5,
+      message: 'You can only compile 10 Arduino sketches per minute. Please wait before trying again.',
+      limit: 10,
       windowMs: 60000
     });
   }
@@ -109,6 +109,12 @@ export const arduinoSubmitRateLimit = new RateLimiter({
   maxRequests: 10,      // 10 submissions per 30 seconds per user
   keyGenerator: (req) => `submit:user:${(req as any).user?.id || req.ip}`,
 }, 'arduino_submit');
+
+export const arduinoStatusRateLimit = new RateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 120,
+  keyGenerator: (req) => `status:user:${(req as any).user?.id || req.ip}`,
+}, 'arduino_status');
 
 export const generalArduinoRateLimit = new RateLimiter({
   windowMs: 60 * 1000,  // 1 minute window

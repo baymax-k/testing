@@ -205,9 +205,14 @@ export class ArduinoController {
         return;
       }
 
-      // Validate problem exists
-      const problem = await prisma.arduinoProblem.findUnique({
-        where: { id: problemId }
+      // Validate problem exists (support both ID and questionId slug)
+      const problem = await prisma.arduinoProblem.findFirst({
+        where: {
+          OR: [
+            { id: problemId },
+            { questionId: problemId }
+          ]
+        }
       });
 
       if (!problem) {
@@ -217,6 +222,8 @@ export class ArduinoController {
         });
         return;
       }
+
+      const internalProblemId = problem.id;
 
       // If this is a contest submission, validate contest participation
       if (contestParticipationId) {
@@ -247,7 +254,7 @@ export class ArduinoController {
       // Submit job to queue for asynchronous processing
       const submissionId = await arduinoJobService.submitCompileJob(
         userId,
-        problemId,
+        internalProblemId,
         code,
         boardType,
         contestParticipationId

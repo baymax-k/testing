@@ -241,7 +241,7 @@ const dsaQuestions = [
 
 const arduinoQuestions = [
   {
-    id: "arduino-practice-001",
+    id: "arduino-blink",
     title: "Blink LED",
     description: `# LED Blink Pattern
 

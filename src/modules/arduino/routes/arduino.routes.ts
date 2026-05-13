@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ArduinoController } from '../controllers/arduino.controller.js';
 import { ArduinoHardwareController } from '../controllers/arduino-hardware.controller.js';
 import { ArduinoValidators } from '../validators/arduino.validators.js';
-import { arduinoCompileRateLimit, generalArduinoRateLimit } from '../../../middleware/rate-limiter.js';
+import { arduinoCompileRateLimit, arduinoStatusRateLimit, generalArduinoRateLimit } from '../../../middleware/rate-limiter.js';
 import { validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 import { requireAuth } from '../../../middleware/auth.js';
@@ -75,6 +75,7 @@ router.post(
 // Job management
 router.get(
   '/jobs/:submissionId',
+  arduinoStatusRateLimit.middleware(),
   ArduinoValidators.getJobStatus(),
   handleValidationErrors,
   (req: Request, res: Response) => arduinoController.getJobStatus(req, res)

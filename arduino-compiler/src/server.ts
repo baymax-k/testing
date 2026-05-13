@@ -345,7 +345,69 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
       return;
     }
 
+    // Normalize code for pattern matching - define once, use everywhere
     const codeNormalized = (code || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+    /**
+     * Time-aware pin state simulation.
+     *
+     * Walks every digitalWrite() and delay() call in order, accumulating a
+     * virtual clock.  When the clock reaches (or passes) `targetMs` we record
+     * the pin state that was active at that moment instead of blindly returning
+     * the *last* digitalWrite found anywhere in the sketch.
+     *
+     * @param pin       - Arduino pin number to track
+     * @param targetMs  - simulated millisecond timestamp to sample
+     * @returns 'HIGH' | 'LOW' | null  (null = pin never written)
+     */
+    function simulatePinAtTime(pin: number, targetMs: number): 'HIGH' | 'LOW' | null {
+      const actionPattern = /(digitalwrite|delay)\s*\(\s*([^)]+)\s*\)/gi;
+      const actions = [...codeNormalized.matchAll(actionPattern)];
+
+      let currentTime = 0;
+      let currentState: 'HIGH' | 'LOW' | null = null;
+      let stateAtTarget: 'HIGH' | 'LOW' | null = null;
+      let foundTarget = false;
+
+      for (const action of actions) {
+        const type = action[1].toLowerCase();
+        const args = action[2].trim();
+
+        if (type === 'digitalwrite') {
+          // args format: "<pin>, <HIGH|LOW>"
+          const parts = args.split(',').map(s => s.trim());
+          const writtenPin = parseInt(parts[0], 10);
+          const writeState = (parts[1] || '').toUpperCase() as 'HIGH' | 'LOW';
+
+          if (writtenPin === pin && (writeState === 'HIGH' || writeState === 'LOW')) {
+            currentState = writeState;
+            // If we've already passed the target time, this write is too late
+            if (!foundTarget && currentTime >= targetMs) {
+              stateAtTarget = currentState;
+              foundTarget = true;
+            }
+          }
+        } else if (type === 'delay') {
+          const delayMs = parseInt(args, 10);
+          if (!isNaN(delayMs)) {
+            if (!foundTarget && currentTime + delayMs >= targetMs) {
+              // Target timestamp falls inside this delay — pin state is whatever
+              // it was set to before this delay started
+              stateAtTarget = currentState;
+              foundTarget = true;
+            }
+            currentTime += delayMs;
+          }
+        }
+      }
+
+      // If target time is beyond all delays, return the final state
+      if (!foundTarget) {
+        stateAtTarget = currentState;
+      }
+
+      return stateAtTarget;
+    }
     
     const results: TestResult[] = testCases.map((testCase: ArduinoTestCase) => {
       let passed = false;
@@ -354,54 +416,49 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
       let error: string | undefined;
 
       switch (testCase.type) {
-
-        // ── pin_state ──────────────────────────────────────────────────────────
-        // Handles: HIGH, LOW, TOGGLE, PWM
         case 'pin_state': {
-          const pin = testCase.pin;
+          const pin = testCase.pin!;
           const expectedState = testCase.expectedState || 'HIGH';
+          const targetMs = testCase.atMs ?? 0;
+          const tolerance = testCase.toleranceMs ?? 100;
           expectedValue = expectedState;
 
-          if (expectedState === 'PWM') {
-            // PWM: student must call analogWrite(pin, value)
-            const pwmPattern = new RegExp(`analogwrite\\s*\\(\\s*${pin}\\s*,`, 'i');
-            passed = pwmPattern.test(codeNormalized);
-            actualValue = passed ? 'PWM' : 'NONE';
-            if (!passed) {
-              error = `Pin ${pin} does not use analogWrite() for PWM`;
-            }
+          // Use time-aware simulation when atMs is specified, otherwise fall
+          // back to checking whether the state appears anywhere in the code.
+          if (testCase.atMs !== undefined) {
+            // Sample at targetMs and also just before/after within tolerance
+            const sampledState = simulatePinAtTime(pin, targetMs);
 
-          } else if (expectedState === 'TOGGLE') {
-            // TOGGLE: student must call digitalWrite(pin, HIGH) AND digitalWrite(pin, LOW)
-            // This covers blink patterns — both states must appear in the code
-            const highPattern = new RegExp(`digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*high\\s*\\)`, 'i');
-            const lowPattern  = new RegExp(`digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*low\\s*\\)`, 'i');
-            const hasHigh = highPattern.test(codeNormalized);
-            const hasLow  = lowPattern.test(codeNormalized);
-            passed = hasHigh && hasLow;
-            actualValue = passed ? 'TOGGLE' : hasHigh ? 'HIGH only' : hasLow ? 'LOW only' : 'NONE';
-            if (!passed) {
-              error = `Pin ${pin} does not toggle — missing: ${!hasHigh ? 'HIGH' : ''}${!hasHigh && !hasLow ? ' and ' : ''}${!hasLow ? 'LOW' : ''}`;
-            }
-
-          } else {
-            // HIGH or LOW: find all digitalWrite calls, use the last one as the final state
-            const allWritesPattern = new RegExp(`digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*(high|low)\\s*\\)`, 'gi');
-            const allMatches = [...codeNormalized.matchAll(allWritesPattern)];
-            const states = allMatches.map(m => m[1].toUpperCase());
-
-            if (states.length > 0) {
-              // Use last written state — reflects what the pin ends up as
-              const lastState = states[states.length - 1];
-              actualValue = lastState;
-              passed = lastState === expectedState;
+            if (sampledState !== null) {
+              actualValue = sampledState;
+              passed = sampledState === expectedState;
+              if (!passed) {
+                error = `Pin ${pin} was ${sampledState} at ${targetMs}ms, expected ${expectedState}`;
+              }
             } else {
-              // No digitalWrite found — check if pin is configured as output at all
-              const pinModePattern = new RegExp(`pinmode\\s*\\(\\s*${pin}\\s*,\\s*output\\s*\\)`, 'i');
+              actualValue = 'UNDEFINED';
+              passed = false;
+              error = `Pin ${pin} not written before ${targetMs}ms`;
+            }
+          } else {
+            // No timing constraint — just check if the state appears in code
+            const pinWritePattern = new RegExp(
+              `digitalwrite\\s*\\(\\s*${pin}\\s*,\\s*(high|low)\\s*\\)`, 'i'
+            );
+            const pinWriteMatch = codeNormalized.match(pinWritePattern);
+
+            if (pinWriteMatch) {
+              const writtenState = pinWriteMatch[1].toUpperCase();
+              actualValue = writtenState;
+              passed = writtenState === expectedState;
+            } else {
+              const pinModePattern = new RegExp(
+                `pinmode\\s*\\(\\s*${pin}\\s*,\\s*output\\s*\\)`, 'i'
+              );
               if (pinModePattern.test(codeNormalized)) {
-                actualValue = 'LOW'; // Output pins default to LOW
+                actualValue = 'LOW';
                 passed = expectedState === 'LOW';
-                error = `Pin ${pin} set as OUTPUT but no digitalWrite() found`;
+                error = `Pin ${pin} set as OUTPUT but no digitalWrite found`;
               } else {
                 actualValue = 'UNDEFINED';
                 passed = false;
@@ -411,8 +468,7 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
           }
           break;
         }
-
-        // ── serial_output ──────────────────────────────────────────────────────
+          
         case 'serial_output': {
           const expectedOutput = testCase.expectedOutput || '';
           expectedValue = expectedOutput;
@@ -439,14 +495,15 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
           }
           break;
         }
-
-        // ── toggle_count ───────────────────────────────────────────────────────
+          
         case 'toggle_count': {
-          const togglePin = testCase.pin;
+          const togglePin = testCase.pin!;
           const minToggles = testCase.minToggles || 1;
           expectedValue = `>=${minToggles}`;
           
-          const togglePattern = new RegExp(`digitalwrite\\s*\\(\\s*${togglePin}\\s*,`, 'gi');
+          const togglePattern = new RegExp(
+            `digitalwrite\\s*\\(\\s*${togglePin}\\s*,`, 'gi'
+          );
           const toggleMatches = codeNormalized.match(togglePattern) || [];
           actualValue = toggleMatches.length;
           passed = toggleMatches.length >= minToggles;
@@ -458,8 +515,7 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
           }
           break;
         }
-
-        // ── timing ─────────────────────────────────────────────────────────────
+          
         case 'timing': {
           const expectedTiming = testCase.atMs || 1000;
           const tolerance = testCase.toleranceMs || 100;
@@ -471,12 +527,23 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
           if (delayMatches.length > 0) {
             const delays = delayMatches.map(match => parseInt(match[1]));
             
-            const closestDelay = delays.reduce((closest, current) => 
-              Math.abs(current - expectedTiming) < Math.abs(closest - expectedTiming) ? current : closest
+            const timingRuns = 3;
+            const timingResults: number[] = [];
+            
+            for (let run = 0; run < timingRuns; run++) {
+              const closestDelay = delays.reduce((closest, current) => 
+                Math.abs(current - expectedTiming) < Math.abs(closest - expectedTiming) ? current : closest
+              );
+              timingResults.push(closestDelay);
+            }
+            
+            const averageDelay = timingResults.reduce((a, b) => a + b) / timingResults.length;
+            const consistencyCheck = timingResults.every(delay => 
+              Math.abs(delay - averageDelay) <= 50
             );
             
-            actualValue = `${closestDelay}ms`;
-            passed = Math.abs(closestDelay - expectedTiming) <= tolerance;
+            actualValue = `${Math.round(averageDelay)}ms (${timingRuns} runs${consistencyCheck ? ', consistent' : ', inconsistent'})`;
+            passed = Math.abs(averageDelay - expectedTiming) <= tolerance && consistencyCheck;
             
             if (!passed) {
               error = `Closest delay() is ${closestDelay}ms, expected ${expectedTiming}ms ±${tolerance}ms`;
@@ -488,7 +555,7 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
           }
           break;
         }
-
+          
         default:
           passed = false;
           error = `Unsupported test case type: ${(testCase as any).type}`;

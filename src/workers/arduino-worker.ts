@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Worker, Job } from 'bullmq';
 import { getRedisClient } from '../config/redis.js';
 import { prisma } from '../config/prisma.js';

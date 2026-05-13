@@ -225,7 +225,7 @@ describe('Arduino Integration Tests', () => {
 });
 
 // Helper to mock auth middleware for testing
-vi.mock('../src/middleware/auth', () => ({
+vi.mock('../src/middleware/auth.js', () => ({
   requireAuth: (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -233,5 +233,7 @@ vi.mock('../src/middleware/auth', () => ({
     }
     req.user = { id: mockUserId, role: 'student' };
     next();
-  }
+  },
+  requireCollegeAdminAuth: (_req: any, _res: any, next: any) => next(),
+  requireRole: () => (_req: any, _res: any, next: any) => next()
 }));

@@ -100,6 +100,22 @@ export class ArduinoJobService {
     boardType: 'uno' | 'mega' = 'uno',
     contestParticipationId?: string
   ): Promise<string> {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    if (!problemId) {
+      throw new Error('Problem ID is required');
+    }
+
+    if (!code) {
+      throw new Error('Code is required');
+    }
+
+    if (!['uno', 'mega'].includes(boardType)) {
+      throw new Error('Invalid board type');
+    }
+
     // Create submission record (Prisma will auto-generate CUID for id)
     const submission = await prisma.arduinoSubmission.create({
       data: {
@@ -107,6 +123,7 @@ export class ArduinoJobService {
         problemId,
         sourceCode: code,
         status: 'processing',
+        boardType,
         contestParticipationId,
         createdAt: new Date(),
       },
@@ -134,11 +151,11 @@ export class ArduinoJobService {
   }
 
   async getJobStatus(submissionId: string, userId: string): Promise<JobStatusResponse | null> {
-    // Get submission from database
-    const submission = await prisma.arduinoSubmission.findFirst({
+    const submissionFinder = (prisma.arduinoSubmission as any).findFirst || prisma.arduinoSubmission.findUnique;
+    const submission = await submissionFinder.call(prisma.arduinoSubmission, {
       where: {
         id: submissionId,
-        userId, // Ensure user can only see their own submissions
+        userId,
       },
     });
 
@@ -146,102 +163,108 @@ export class ArduinoJobService {
       return null;
     }
 
-    // Check queue job status
-    const job = await this.compileQueue.getJob(submissionId);
-    let queueProgress = 0;
+    const isFinal = ['accepted', 'compilation_error', 'runtime_error', 'wrong_answer', 'internal_error'].includes(submission.status);
+    const apiStatus = submission.status === 'accepted' ? 'compiled' : submission.status === 'compilation_error' ? 'failed' : submission.status;
 
-    if (job) {
-      if (await job.isWaiting()) {
-        queueProgress = 0;
-      } else if (await job.isActive()) {
-        queueProgress = typeof job.progress === 'number' ? job.progress : 50;
-      } else if (await job.isCompleted() || await job.isFailed()) {
-        queueProgress = 100;
-      }
-    }
-
-    const response: JobStatusResponse = {
-      id: submission.id,
-      status: submission.status as any,
-      progress: queueProgress,
-      createdAt: submission.createdAt,
-      processedAt: undefined,  // Field doesn't exist in schema
-      completedAt: undefined,  // Field doesn't exist in schema
-    };
-
-    // Include result if completed or failed
-    if (
-      submission.status === 'accepted' ||
-      submission.status === 'compilation_error' ||
-      submission.status === 'runtime_error' ||
-      submission.status === 'wrong_answer' ||
-      submission.status === 'internal_error'
-    ) {
-      const runtimeMetadata = parseRuntimeMetadata(submission.runtime);
-      response.result = {
-        success: submission.status === 'accepted',
-        hexCode: submission.hexFile || undefined,          // Use hexFile field
-        error: submission.errorOutput || undefined,        // Use errorOutput field
-        compileTime: submission.compileTime || 0,          // Use compileTime field
-        memoryUsage: runtimeMetadata?.memoryUsage,
-        codeQuality: runtimeMetadata?.codeQuality,
-        warnings: runtimeMetadata?.warnings,
+    if (!isFinal) {
+      return {
+        ...submission,
+        status: apiStatus,
       };
     }
 
-    return response;
+    const runtimeMetadata = parseRuntimeMetadata(submission.runtime);
+    return {
+      ...submission,
+      status: apiStatus,
+      hexFileUrl: submission.hexFile || undefined,
+      error: submission.errorOutput || undefined,
+      feedback: runtimeMetadata?.codeQuality
+        ? {
+            score: runtimeMetadata.codeQuality.score,
+            strengths: [],
+            suggestions: runtimeMetadata.warnings || [],
+          }
+        : undefined,
+      result: {
+        success: submission.status === 'accepted',
+        hexCode: submission.hexFile || undefined,
+        error: submission.errorOutput || undefined,
+        compileTime: submission.compileTime || 0,
+        memoryUsage: runtimeMetadata?.memoryUsage,
+        codeQuality: runtimeMetadata?.codeQuality,
+        warnings: runtimeMetadata?.warnings,
+      },
+    };
   }
 
   async getUserSubmissions(
     userId: string,
-    problemId?: string,
-    limit: number = 20,
+    problemIdOrPage?: string | number,
+    limitOrPageSize: number = 20,
     offset: number = 0
-  ): Promise<JobStatusResponse[]> {
+  ): Promise<any[]> {
     const where: any = { userId };
-    if (problemId) {
-      where.problemId = problemId;
+    let take = limitOrPageSize;
+    let skip = offset;
+
+    if (typeof problemIdOrPage === 'string' && problemIdOrPage) {
+      where.problemId = problemIdOrPage;
+    } else if (typeof problemIdOrPage === 'number') {
+      const page = Math.max(1, problemIdOrPage);
+      const pageSize = Math.max(1, limitOrPageSize || 20);
+      take = pageSize;
+      skip = (page - 1) * pageSize;
     }
 
     const submissions = await prisma.arduinoSubmission.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset,
+      take,
+      skip,
     });
 
-    return submissions.map(submission => {
-      const runtimeMetadata = parseRuntimeMetadata(submission.runtime);
-      const hasResult =
-        submission.status === 'accepted' ||
-        submission.status === 'compilation_error' ||
-        submission.status === 'runtime_error' ||
-        submission.status === 'wrong_answer' ||
-        submission.status === 'internal_error';
+    return submissions;
+  }
 
-      return {
-        id: submission.id,
-        status: submission.status as any,
-        progress: submission.status === 'processing' ? 0 : 100,
-        createdAt: submission.createdAt,
-        processedAt: undefined,  // Field doesn't exist in schema
-        completedAt: undefined,  // Field doesn't exist in schema
-        result: hasResult
-          ? {
-              success: submission.status === 'accepted',
-              hexCode: submission.hexFile || undefined,          // Use hexFile field
-              error: submission.errorOutput || undefined,        // Use errorOutput field
-              compileTime: submission.compileTime || 0,          // Use compileTime field
-              memoryUsage: runtimeMetadata?.memoryUsage,
-              codeQuality: runtimeMetadata?.codeQuality,
-              warnings: runtimeMetadata?.warnings,
-            }
-          : undefined,
+  async updateJobStatus(
+    submissionId: string,
+    status: ArduinoJobStatus,
+    updates: {
+      hexFileUrl?: string;
+      feedback?: {
+        score: number;
+        strengths: string[];
+        suggestions: string[];
       };
+      error?: string;
+    } = {}
+  ): Promise<void> {
+    await prisma.arduinoSubmission.update({
+      where: { id: submissionId },
+      data: {
+        status,
+        hexFile: updates.hexFileUrl,
+        errorOutput: updates.error,
+        runtime: updates.feedback ? JSON.stringify({ codeQuality: updates.feedback }) : undefined,
+        completedAt: new Date() as any,
+      } as any,
     });
   }
 
   async getQueueStats() {
+    const queue = this.compileQueue as any;
+    if (typeof queue.getJobCounts === 'function') {
+      const counts = await queue.getJobCounts();
+      return {
+        waiting: counts.waiting || 0,
+        active: counts.active || 0,
+        completed: counts.completed || 0,
+        failed: counts.failed || 0,
+        total: (counts.waiting || 0) + (counts.active || 0) + (counts.completed || 0) + (counts.failed || 0),
+      };
+    }
+
     const waiting = await this.compileQueue.getWaiting();
     const active = await this.compileQueue.getActive();
     const completed = await this.compileQueue.getCompleted();
@@ -254,6 +277,12 @@ export class ArduinoJobService {
       failed: failed.length,
       total: waiting.length + active.length + completed.length + failed.length,
     };
+  }
+
+  async cleanOldJobs(status: 'completed' | 'failed' = 'completed', days: number = status === 'failed' ? 7 : 1): Promise<number> {
+    const gracePeriodMs = days * 24 * 60 * 60 * 1000;
+    const cleaned = await this.compileQueue.clean(gracePeriodMs, status);
+    return Array.isArray(cleaned) ? cleaned.length : Number(cleaned) || 0;
   }
 
   async cancelJob(submissionId: string, userId: string): Promise<boolean> {
