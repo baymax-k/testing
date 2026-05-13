@@ -529,9 +529,10 @@ app.post('/simulate', async (req: SimulateRequest, res: Response): Promise<void>
             
             const timingRuns = 3;
             const timingResults: number[] = [];
+            let closestDelay = delays[0];
             
             for (let run = 0; run < timingRuns; run++) {
-              const closestDelay = delays.reduce((closest, current) => 
+              closestDelay = delays.reduce((closest, current) => 
                 Math.abs(current - expectedTiming) < Math.abs(closest - expectedTiming) ? current : closest
               );
               timingResults.push(closestDelay);

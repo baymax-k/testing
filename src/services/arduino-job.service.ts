@@ -123,7 +123,6 @@ export class ArduinoJobService {
         problemId,
         sourceCode: code,
         status: 'processing',
-        boardType,
         contestParticipationId,
         createdAt: new Date(),
       },
@@ -281,8 +280,8 @@ export class ArduinoJobService {
 
   async cleanOldJobs(status: 'completed' | 'failed' = 'completed', days: number = status === 'failed' ? 7 : 1): Promise<number> {
     const gracePeriodMs = days * 24 * 60 * 60 * 1000;
-    const cleaned = await this.compileQueue.clean(gracePeriodMs, status);
-    return Array.isArray(cleaned) ? cleaned.length : Number(cleaned) || 0;
+    const cleaned = await this.compileQueue.clean(gracePeriodMs, status as any);
+    return Array.isArray(cleaned) ? cleaned.length : (typeof cleaned === 'number' ? cleaned : 0);
   }
 
   async cancelJob(submissionId: string, userId: string): Promise<boolean> {

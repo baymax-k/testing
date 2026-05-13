@@ -5769,9 +5769,7 @@ const updateTestSchema = z.object({
 
 const createQuestionSchema = z.object({
   type: z.enum(["mcq", "dsa", "multiple_choice", "true_false"], {
-    errorMap: (issue, ctx) => ({
-      message: "Question type must be one of: mcq, dsa, multiple_choice, true_false (no Arduino, short_answer, long_answer, or coding questions allowed in tests)",
-    }),
+    message: "Question type must be one of: mcq, dsa, multiple_choice, true_false (no Arduino, short_answer, long_answer, or coding questions allowed in tests)",
   }),
   content: z.string().min(1, "Question content is required"),
   marks: z.number().int().min(1).max(100),
